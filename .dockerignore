@@ -1,0 +1,58 @@
+# Git
+.git/
+.github/
+.gitignore
+
+# IDE / Editor
+.idea/
+.vscode/
+*.sublime-*
+*.code-workspace
+
+# Documentation
+docs/
+*.md
+!README.md
+LICENSE
+CONTRIBUTING.md
+
+# Kubernetes manifests (not needed in container)
+k8s/
+
+# Testing
+test/
+coverage/
+.phpunit.*
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.bak
+
+# Environment files (injected at runtime)
+.env
+.env.*
+
+# Composer cache
+vendor/
+composer.lock
+
+# Runtime artifacts
+runtime/
+*.log
+*.pid
+
+# Docker-in-docker
+docker-compose.yml
+podman-compose.yml
+Dockerfile
+
+# Frontend templates (used by gateway, not other services)
+frontend/templates/
+
+# Contracts / DB schemas (build-time reference only)
+contracts/
+db/
