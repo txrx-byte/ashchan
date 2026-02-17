@@ -5,86 +5,81 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ashchan</title>
   <link rel="stylesheet" href="/static/css/common.css">
-  <link rel="stylesheet" id="themeStylesheet" href="/static/css/yotsuba-b.css">
-  <script src="/static/js/core.js" defer></script>
   <style>
-    .home-banner { text-align: center; margin: 30px 0 20px; }
-    .home-banner h1 { font-size: 28pt; margin: 0; }
-    .home-banner p { font-size: 10pt; color: #666; }
-    .board-list-container { max-width: 700px; margin: 0 auto; padding: 0 15px; }
-    .board-category { margin-bottom: 20px; }
-    .board-category h2 { font-size: 13pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 8px; }
-    .board-category ul { list-style: none; padding: 0; margin: 0; }
-    .board-category li { padding: 2px 0; font-size: 10pt; }
-    .board-category li a { text-decoration: none; font-weight: bold; }
-    .board-category li .board-desc { color: #666; margin-left: 5px; }
-    .home-footer { text-align: center; margin: 40px 0 20px; font-size: 9pt; color: #888; }
-    .home-stats { text-align: center; margin: 20px 0; font-size: 9pt; background: #eee; padding: 8px; border-radius: 3px; }
+    body { background: #FFFFEE; font-family: arial, helvetica, sans-serif; font-size: 10pt; margin: 0; padding: 0; }
+    a { color: #00E; text-decoration: none; }
+    a:hover { color: #DD0000; }
+
+    .top-nav { background: #FEDCBA; padding: 3px 5px; font-size: 9pt; border-bottom: 1px solid #D9BFB7; text-align: center; }
+    .top-nav a { margin: 0 2px; }
+
+    .home-logo { text-align: center; margin: 20px 0 5px; }
+    .home-logo img, .home-logo h1 { margin: 0; }
+    .home-logo h1 { font-size: 36px; color: #800000; font-family: 'Tahoma', sans-serif; letter-spacing: -1px; margin: 10px 0 0; }
+    .home-tagline { text-align: center; font-size: 12px; color: #800000; margin: 2px 0 15px; font-style: italic; }
+
+    .home-content { max-width: 820px; margin: 0 auto; padding: 0 20px; }
+
+    .boards-box { border: 1px solid #B7C5D9; margin-bottom: 12px; }
+    .boards-box .box-title { background: #98E; padding: 4px 8px; color: #FFF; font-weight: bold; font-size: 11pt; }
+    .boards-box .box-content { background: #D6DAF0; padding: 8px 12px; }
+
+    .board-row { margin: 2px 0; font-size: 10pt; }
+    .board-row a { font-weight: bold; color: #34345C; }
+    .board-row a:hover { color: #DD0000; }
+    .board-row .board-title { color: #000; margin-left: 3px; }
+
+    .home-info { text-align: center; margin: 20px 0; font-size: 9pt; color: #89A; }
+
+    .home-footer { background: #FEDCBA; padding: 6px 5px; font-size: 9pt; text-align: center; border-top: 1px solid #D9BFB7; margin-top: 30px; }
+    .home-footer a { color: #800000; }
   </style>
+  <script src="/static/js/core.js" defer></script>
 </head>
 <body>
 
-  <div id="boardNavDesktop" class="boardBanner">
-    <span class="boardList">
-      [
-      <?php foreach ($boards as $i => $b): ?>
-        <a href="/<?= htmlspecialchars($b['slug']) ?>/"><?= htmlspecialchars($b['slug']) ?></a><?php if ($i < count($boards) - 1): ?> / <?php endif; ?>
+<!-- Top board nav -->
+<div class="top-nav">
+  [<?php foreach (($boards ?? []) as $i => $b): ?><a href="/<?= htmlspecialchars($b['slug']) ?>/" title="<?= htmlspecialchars($b['title']) ?>"><?= htmlspecialchars($b['slug']) ?></a><?php if ($i < count($boards ?? []) - 1): ?> / <?php endif; ?><?php endforeach; ?>]
+</div>
+
+<!-- Logo -->
+<div class="home-logo">
+  <h1>ashchan</h1>
+</div>
+<div class="home-tagline">a simple imageboard</div>
+
+<!-- Board listing -->
+<div class="home-content">
+  <?php foreach (($categories ?? []) as $category): ?>
+  <div class="boards-box">
+    <div class="box-title"><?= htmlspecialchars($category['name']) ?></div>
+    <div class="box-content">
+      <?php foreach ($category['boards'] as $b): ?>
+      <div class="board-row">
+        <a href="/<?= htmlspecialchars($b['slug']) ?>/">/<?= htmlspecialchars($b['slug']) ?>/</a>
+        <span class="board-title">- <?= htmlspecialchars($b['title']) ?></span>
+      </div>
       <?php endforeach; ?>
-      ]
-    </span>
-    <span class="pageJump">
-      [<a href="#" id="settingsBtn">Settings</a>]
-      [<a href="/search/">Search</a>]
-    </span>
-  </div>
-
-  <div class="home-banner">
-    <h1>ashchan</h1>
-    <p>A simple imageboard</p>
-  </div>
-
-  <div class="board-list-container">
-    <?php foreach ($categories as $category): ?>
-    <div class="board-category">
-      <h2><?= htmlspecialchars($category['name']) ?></h2>
-      <ul>
-        <?php foreach ($category['boards'] as $b): ?>
-        <li>
-          <a href="/<?= htmlspecialchars($b['slug']) ?>/">/<?= htmlspecialchars($b['slug']) ?>/</a>
-          <span class="board-desc">- <?= htmlspecialchars($b['title']) ?></span>
-        </li>
-        <?php endforeach; ?>
-      </ul>
     </div>
-    <?php endforeach; ?>
   </div>
+  <?php endforeach; ?>
 
-  <div class="home-stats">
-    <strong>Total posts:</strong> <?= (int)($total_posts ?? 0) ?> |
-    <strong>Active threads:</strong> <?= (int)($active_threads ?? 0) ?> |
-    <strong>Active users:</strong> <?= (int)($active_users ?? 0) ?>
+  <div class="home-info">
+    Total posts: <?= number_format((int)($total_posts ?? 0)) ?> &bull;
+    Active content: <?= (int)($active_threads ?? 0) ?> thread<?= ($active_threads ?? 0) != 1 ? 's' : '' ?>
   </div>
+</div>
 
-  <div class="home-footer">
-    <a href="/legal/terms">Terms</a> |
-    <a href="/legal/privacy">Privacy</a> |
-    <a href="/legal/cookies">Cookies</a> |
-    <a href="/legal/contact">Contact</a>
-    <br>
-    ashchan &copy; <?= date('Y') ?>
-  </div>
-
-  <div id="styleChanger">
-    Style:
-    <select id="styleSelector">
-      <option value="yotsuba">Yotsuba</option>
-      <option value="yotsuba-b" selected>Yotsuba B</option>
-      <option value="futaba">Futaba</option>
-      <option value="burichan">Burichan</option>
-      <option value="photon">Photon</option>
-      <option value="tomorrow">Tomorrow</option>
-    </select>
-  </div>
+<!-- Footer -->
+<div class="home-footer">
+  <a href="/about">About</a> &bull;
+  <a href="/feedback">Feedback</a> &bull;
+  <a href="/legal">Legal</a> &bull;
+  <a href="/contact">Contact</a>
+  <br>
+  <small>All trademarks and copyrights on this page are owned by their respective parties.</small>
+</div>
 
 </body>
 </html>

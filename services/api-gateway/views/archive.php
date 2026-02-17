@@ -1,70 +1,90 @@
 <?php ob_start(); ?>
 
-<div class="board-controls">
-  <span id="ctrl-top">
-    [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
-    [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
-    [<a href="#bottom">Bottom</a>]
-  </span>
+<hr class="abovePostForm">
+
+<!-- Mobile nav links -->
+<div class="navLinks mobile">
+  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="#bottom">Bottom</a></span>
+</div>
+
+<!-- Desktop nav links -->
+<div class="navLinks desktop">
+  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+  [<a href="#bottom">Bottom</a>]
 </div>
 
 <hr>
 
 <!-- Archive Controls -->
-<div id="archive-controls" style="text-align:center;margin:10px 0;">
-  <input type="text" id="archive-search-input" placeholder="Search archived threads..." autocomplete="off" style="width:300px;padding:4px;">
+<div id="arc-ctrl" class="center">
+  Search: <input type="text" id="arc-search" placeholder="" autocomplete="off" size="30">
 </div>
 
 <hr>
 
 <!-- Archive List -->
-<table class="archive-list" id="arc-list" style="margin:0 auto;border-collapse:collapse;">
-  <thead>
-    <tr>
-      <th style="padding:3px 10px;">No.</th>
-      <th style="padding:3px 10px;">Excerpt</th>
-    </tr>
-  </thead>
-  <tbody>
-    <?php foreach (($archived_threads ?? []) as $thread): ?>
-    <tr class="archive-row" data-text="<?= htmlspecialchars(strtolower($thread['excerpt'] ?? '')) ?>">
-      <td style="padding:3px 10px;"><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>"><?= (int)$thread['id'] ?></a></td>
-      <td style="padding:3px 10px;"><?= htmlspecialchars($thread['excerpt'] ?? '') ?></td>
-    </tr>
-    <?php endforeach; ?>
-  </tbody>
-</table>
-
-<?php if (empty($archived_threads)): ?>
-<div style="text-align:center;padding:30px;color:#666;">No archived threads.</div>
-<?php endif; ?>
+<div id="arc-list">
+  <table id="arc-list-table">
+    <colgroup>
+      <col style="width:80px">
+      <col>
+    </colgroup>
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Excerpt</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if (!empty($archived_threads)): ?>
+      <?php foreach ($archived_threads as $thread): ?>
+      <tr>
+        <td><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>"><?= (int)$thread['id'] ?></a></td>
+        <td><?= htmlspecialchars($thread['excerpt'] ?? 'No excerpt') ?></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php else: ?>
+      <tr><td colspan="2" style="text-align:center;padding:20px;">No archived threads.</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+</div>
 
 <hr>
 
-<div class="board-controls">
-  <span>
-    [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
-    [<a href="#top">Top</a>]
-  </span>
+<!-- Bottom nav links -->
+<div class="navLinks navLinksBot desktop">
+  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+  [<a href="#top">Top</a>]
 </div>
 
-<a id="bottom"></a>
+<div class="navLinks navLinksBot mobile">
+  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="#top">Top</a></span>
+</div>
 
 <script>
 (function() {
-  var search = document.getElementById('archive-search-input');
+  var search = document.getElementById('arc-search');
   if (!search) return;
   search.addEventListener('input', function() {
     var q = search.value.toLowerCase();
-    var rows = document.querySelectorAll('.archive-row');
-    for (var i = 0; i < rows.length; i++) {
-      rows[i].style.display = rows[i].dataset.text.indexOf(q) !== -1 ? '' : 'none';
-    }
+    var rows = document.querySelectorAll('#arc-list-table tbody tr');
+    rows.forEach(function(r) {
+      var text = r.textContent.toLowerCase();
+      r.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
+    });
   });
 })();
 </script>
 
 <?php
+$is_index = true;
 $__content = ob_get_clean();
 include __DIR__ . '/layout.php';
 ?>

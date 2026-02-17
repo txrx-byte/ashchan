@@ -1,228 +1,244 @@
 <?php ob_start(); ?>
 
-<!-- Post Form (Thread Reply) -->
-<div id="postForm">
-  <form id="mpostform" name="post" action="/api/v1/boards/<?= htmlspecialchars($board_slug) ?>/threads/<?= (int)$thread_id ?>/posts" method="post" enctype="multipart/form-data">
-    <table class="postForm replyMode">
-      <tbody>
-        <tr data-type="Name">
-          <td class="label">Name</td>
-          <td><input name="name" type="text" placeholder="Anonymous" autocomplete="off" maxlength="75"></td>
-        </tr>
-        <tr data-type="Options">
-          <td class="label">Options</td>
-          <td><input name="email" type="text" placeholder="sage" autocomplete="off" maxlength="75"></td>
-        </tr>
-        <tr data-type="Comment">
-          <td class="label">Comment</td>
-          <td><textarea name="com" cols="48" rows="4" maxlength="2000" wrap="soft"></textarea></td>
-        </tr>
-        <tr data-type="File">
-          <td class="label">File</td>
-          <td>
-            <input name="upfile" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
-            <label><input type="checkbox" name="spoiler"> Spoiler?</label>
-          </td>
-        </tr>
-        <tr id="captchaRow" data-type="Captcha">
-          <td class="label">Captcha</td>
-          <td>
-            <div id="t-root">
-              <img id="captchaImg" src="/api/v1/captcha" alt="captcha" style="cursor:pointer" title="Click to refresh">
-              <input name="captcha_response" type="text" placeholder="Type the text above" maxlength="8" autocomplete="off">
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td></td>
-          <td><input type="submit" value="Post"></td>
-        </tr>
-      </tbody>
-    </table>
-  </form>
-</div>
-<div id="postFormError"></div>
+<hr class="abovePostForm">
 
-<hr>
-
-<!-- Thread Controls -->
-<div class="thread-controls">
-  <span id="ctrl-top">
-    [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
-    [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
-    [<a href="#bottom">Bottom</a>]
-    [<a href="#" class="watchThread">Watch Thread</a>]
-  </span>
+<!-- Mobile nav links -->
+<div class="navLinks mobile">
+  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="#bottom">Bottom</a></span>
 </div>
+
+<!-- Reply Mode Banner -->
+<div class="navLinks desktop">
+  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+  [<a href="#bottom">Bottom</a>]
+</div>
+
+<div id="mpostform">
+  <a href="#" class="mobilePostFormToggle mobile hidden button">Post a Reply</a>
+</div>
+
+<!-- Post Form -->
+<form name="post" action="/api/v1/boards/<?= htmlspecialchars($board_slug) ?>/threads/<?= (int)$thread_id ?>/posts" method="post" enctype="multipart/form-data">
+  <input type="hidden" name="MAX_FILE_SIZE" value="4194304">
+  <input type="hidden" name="mode" value="regist">
+  <input type="hidden" name="resto" value="<?= (int)$thread_id ?>">
+  <table class="postForm" id="postForm">
+    <tbody>
+      <tr data-type="Name">
+        <td>Name</td>
+        <td><input name="name" type="text" tabindex="1" placeholder="Anonymous"></td>
+      </tr>
+      <tr data-type="Options">
+        <td>Options</td>
+        <td><input name="email" type="text" tabindex="2"></td>
+      </tr>
+      <tr data-type="Comment">
+        <td>Comment</td>
+        <td><textarea name="com" cols="48" rows="4" wrap="soft" tabindex="4"></textarea></td>
+      </tr>
+      <tr data-type="File">
+        <td>File</td>
+        <td><input id="postFile" name="upfile" type="file" tabindex="8"></td>
+      </tr>
+      <tr class="rules">
+        <td colspan="2">
+          <ul class="rules">
+            <li>Read the <a href="/rules">Rules</a> before posting.</li>
+            <li>Supported: JPEG, PNG, GIF, WebP. Max file size: 4 MB.</li>
+          </ul>
+        </td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr><td colspan="2">
+        <input type="submit" value="Post" tabindex="6">
+        <div id="postFormError"></div>
+      </td></tr>
+    </tfoot>
+  </table>
+</form>
 
 <hr>
 
 <!-- Thread Container -->
-<form id="delform" name="delform" class="deleteform">
-  <div class="thread" id="t<?= (int)$thread_id ?>">
+<form name="delform" id="delform" action="/api/v1/delete" method="post">
+  <div class="board">
+    <div class="thread" id="t<?= (int)$thread_id ?>">
 
-    <!-- OP Post -->
-    <?php if (!empty($op)): ?>
-    <div class="postContainer opContainer" id="pc<?= (int)$op['id'] ?>">
-      <div id="p<?= (int)$op['id'] ?>" class="post op">
-        <div class="postInfoM mobile" id="pim<?= (int)$op['id'] ?>">
-          <span class="nameBlock">
-            <span class="name"><?= htmlspecialchars($op['author_name'] ?? 'Anonymous') ?></span>
-            <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($op['tripcode']) ?></span><?php endif; ?>
-          </span><br>
-          <span class="dateTime" data-utc="<?= htmlspecialchars($op['created_at'] ?? '') ?>"><?= htmlspecialchars($op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
-          <span class="postNum mobile">
-            <a href="#p<?= (int)$op['id'] ?>">No.</a>
-            <a href="#q<?= (int)$op['id'] ?>"><?= (int)$op['id'] ?></a>
-          </span>
-        </div>
-        <div class="postInfo desktop" id="pi<?= (int)$op['id'] ?>">
-          <input type="checkbox" name="<?= (int)$op['id'] ?>" value="delete">
-          <?php if (!empty($op['subject'])): ?><span class="subject"><?= htmlspecialchars($op['subject']) ?></span><?php endif; ?>
-          <span class="nameBlock">
-            <span class="name"><?= htmlspecialchars($op['author_name'] ?? 'Anonymous') ?></span>
-            <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($op['tripcode']) ?></span><?php endif; ?>
-            <?php if (!empty($op['capcode'])): ?><span class="capcode">## <?= htmlspecialchars($op['capcode']) ?></span><?php endif; ?>
-          </span>
-          <span class="dateTime" data-utc="<?= htmlspecialchars($op['created_at'] ?? '') ?>"><?= htmlspecialchars($op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
-          <span class="postNum desktop">
-            <a href="#p<?= (int)$op['id'] ?>" title="Link to this post">No.</a>
-            <a href="#q<?= (int)$op['id'] ?>" title="Reply to this post"><?= (int)$op['id'] ?></a>
-          </span>
-          <span class="postMenuBtn" title="Post menu">▶</span>
-          <?php if (!empty($op['backlinks'])): ?>
-          <span class="backlink">
-            <?php foreach ($op['backlinks'] as $bl): ?>
-              <a href="#p<?= (int)$bl ?>" class="quotelink">&gt;&gt;<?= (int)$bl ?></a>
-            <?php endforeach; ?>
-          </span>
-          <?php endif; ?>
-        </div>
+      <!-- OP Post -->
+      <?php if (!empty($op)): ?>
+      <div class="postContainer opContainer" id="pc<?= (int)$op['id'] ?>">
+        <div id="p<?= (int)$op['id'] ?>" class="post op">
 
-        <?php if (!empty($op['media_url'])): ?>
-        <div class="file" id="f<?= (int)$op['id'] ?>">
-          <div class="fileText" id="fT<?= (int)$op['id'] ?>">
-            File: <a href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank"><?= htmlspecialchars($op['media_filename'] ?? 'image') ?></a>
-            (<?= htmlspecialchars($op['media_size_human'] ?? '') ?>, <?= htmlspecialchars($op['media_dimensions'] ?? '') ?>)
+          <!-- Mobile Post Info -->
+          <div class="postInfoM mobile" id="pim<?= (int)$op['id'] ?>">
+            <span class="nameBlock">
+              <span class="name"><?= htmlspecialchars($op['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($op['tripcode']) ?></span><?php endif; ?>
+              <?php if (!empty($op['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars($op['capcode']) ?></strong><?php endif; ?>
+              <?php if (!empty($thread_sticky)): ?><img src="/static/img/sticky.gif" alt="Sticky" title="Sticky" class="stickyIcon"><?php endif; ?>
+              <?php if (!empty($thread_locked)): ?><img src="/static/img/closed.gif" alt="Closed" title="Closed" class="closedIcon"><?php endif; ?>
+              <br>
+              <?php if (!empty($op['subject'])): ?><span class="subject"><?= htmlspecialchars($op['subject']) ?></span><?php endif; ?>
+            </span>
+            <span class="dateTime postNum" data-utc="<?= htmlspecialchars($op['created_at'] ?? '') ?>">
+              <?= htmlspecialchars($op['formatted_time'] ?? $op['created_at'] ?? '') ?>
+              <a href="#p<?= (int)$op['id'] ?>" title="Link to this post">No.</a><a href="#q<?= (int)$op['id'] ?>" title="Reply to this post"><?= (int)$op['id'] ?></a>
+            </span>
           </div>
-          <a class="fileThumb" href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank">
-            <img src="<?= htmlspecialchars($op['thumb_url'] ?? $op['media_url']) ?>" alt="<?= htmlspecialchars($op['media_size_human'] ?? '') ?>" loading="lazy"
-                 style="max-width:250px;max-height:250px;">
-          </a>
-        </div>
-        <?php endif; ?>
 
-        <blockquote class="postMessage" id="m<?= (int)$op['id'] ?>">
-          <?= $op['content_html'] ?? htmlspecialchars($op['content'] ?? '') ?>
-        </blockquote>
-      </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- Replies -->
-    <?php foreach (($replies ?? []) as $reply): ?>
-    <div class="postContainer replyContainer" id="pc<?= (int)$reply['id'] ?>">
-      <div class="sideArrows" id="sa<?= (int)$reply['id'] ?>">&gt;&gt;</div>
-      <div id="p<?= (int)$reply['id'] ?>" class="post reply">
-        <div class="postInfoM mobile" id="pim<?= (int)$reply['id'] ?>">
-          <span class="nameBlock">
-            <span class="name"><?= htmlspecialchars($reply['author_name'] ?? 'Anonymous') ?></span>
-            <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($reply['tripcode']) ?></span><?php endif; ?>
-          </span><br>
-          <span class="dateTime" data-utc="<?= htmlspecialchars($reply['created_at'] ?? '') ?>"><?= htmlspecialchars($reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
-          <span class="postNum mobile">
-            <a href="#p<?= (int)$reply['id'] ?>">No.</a>
-            <a href="#q<?= (int)$reply['id'] ?>"><?= (int)$reply['id'] ?></a>
-          </span>
-        </div>
-        <div class="postInfo desktop" id="pi<?= (int)$reply['id'] ?>">
-          <input type="checkbox" name="<?= (int)$reply['id'] ?>" value="delete">
-          <span class="nameBlock">
-            <span class="name"><?= htmlspecialchars($reply['author_name'] ?? 'Anonymous') ?></span>
-            <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($reply['tripcode']) ?></span><?php endif; ?>
-            <?php if (!empty($reply['capcode'])): ?><span class="capcode">## <?= htmlspecialchars($reply['capcode']) ?></span><?php endif; ?>
-          </span>
-          <span class="dateTime" data-utc="<?= htmlspecialchars($reply['created_at'] ?? '') ?>"><?= htmlspecialchars($reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
-          <span class="postNum desktop">
-            <a href="#p<?= (int)$reply['id'] ?>" title="Link to this post">No.</a>
-            <a href="#q<?= (int)$reply['id'] ?>" title="Reply to this post"><?= (int)$reply['id'] ?></a>
-          </span>
-          <span class="postMenuBtn" title="Post menu">▶</span>
-          <?php if (!empty($reply['backlinks'])): ?>
-          <span class="backlink">
-            <?php foreach ($reply['backlinks'] as $bl): ?>
-              <a href="#p<?= (int)$bl ?>" class="quotelink">&gt;&gt;<?= (int)$bl ?></a>
-            <?php endforeach; ?>
-          </span>
-          <?php endif; ?>
-        </div>
-
-        <?php if (!empty($reply['media_url'])): ?>
-        <div class="file" id="f<?= (int)$reply['id'] ?>">
-          <div class="fileText" id="fT<?= (int)$reply['id'] ?>">
-            File: <a href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank"><?= htmlspecialchars($reply['media_filename'] ?? 'image') ?></a>
-            (<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>)
+          <?php if (!empty($op['media_url'])): ?>
+          <div class="file" id="f<?= (int)$op['id'] ?>">
+            <div class="fileText" id="fT<?= (int)$op['id'] ?>">
+              File: <a href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank"><?= htmlspecialchars($op['media_filename'] ?? 'image') ?></a>
+              (<?= htmlspecialchars($op['media_size_human'] ?? '') ?><?php if (!empty($op['media_dimensions'])): ?>, <?= htmlspecialchars($op['media_dimensions']) ?><?php endif; ?>)
+            </div>
+            <a class="fileThumb" href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank">
+              <img src="<?= htmlspecialchars($op['thumb_url'] ?? $op['media_url']) ?>" alt="<?= htmlspecialchars($op['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:250px;max-height:250px;">
+              <div data-tip data-tip-cb="mShowFull" class="mFileInfo mobile"><?= htmlspecialchars($op['media_size_human'] ?? '') ?></div>
+            </a>
           </div>
-          <a class="fileThumb" href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank">
-            <img src="<?= htmlspecialchars($reply['thumb_url'] ?? $reply['media_url']) ?>" alt="<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>" loading="lazy"
-                 style="max-width:125px;max-height:125px;">
-          </a>
+          <?php endif; ?>
+
+          <!-- Desktop Post Info -->
+          <div class="postInfo desktop" id="pi<?= (int)$op['id'] ?>">
+            <input type="checkbox" name="<?= (int)$op['id'] ?>" value="delete">
+            <?php if (!empty($op['subject'])): ?><span class="subject"><?= htmlspecialchars($op['subject']) ?></span><?php endif; ?>
+            <span class="nameBlock">
+              <span class="name"><?= htmlspecialchars($op['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($op['tripcode']) ?></span><?php endif; ?>
+              <?php if (!empty($op['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars($op['capcode']) ?></strong><?php endif; ?>
+            </span>
+            <span class="dateTime" data-utc="<?= htmlspecialchars($op['created_at'] ?? '') ?>"><?= htmlspecialchars($op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
+            <span class="postNum desktop">
+              <a href="#p<?= (int)$op['id'] ?>" title="Link to this post">No.</a><a href="#q<?= (int)$op['id'] ?>" title="Reply to this post"><?= (int)$op['id'] ?></a>
+              <?php if (!empty($thread_sticky)): ?><img src="/static/img/sticky.gif" alt="Sticky" title="Sticky" class="stickyIcon"><?php endif; ?>
+              <?php if (!empty($thread_locked)): ?><img src="/static/img/closed.gif" alt="Closed" title="Closed" class="closedIcon"><?php endif; ?>
+            </span>
+          </div>
+
+          <blockquote class="postMessage" id="m<?= (int)$op['id'] ?>">
+            <?= $op['content_html'] ?? htmlspecialchars($op['content'] ?? '') ?>
+          </blockquote>
         </div>
-        <?php endif; ?>
-
-        <blockquote class="postMessage" id="m<?= (int)$reply['id'] ?>">
-          <?= $reply['content_html'] ?? htmlspecialchars($reply['content'] ?? '') ?>
-        </blockquote>
       </div>
-    </div>
-    <?php endforeach; ?>
+      <?php endif; ?>
 
+      <!-- Replies -->
+      <?php foreach (($replies ?? []) as $reply): ?>
+      <div class="postContainer replyContainer" id="pc<?= (int)$reply['id'] ?>">
+        <div class="sideArrows" id="sa<?= (int)$reply['id'] ?>">&gt;&gt;</div>
+        <div id="p<?= (int)$reply['id'] ?>" class="post reply">
+
+          <!-- Mobile Post Info -->
+          <div class="postInfoM mobile" id="pim<?= (int)$reply['id'] ?>">
+            <span class="nameBlock">
+              <span class="name"><?= htmlspecialchars($reply['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($reply['tripcode']) ?></span><?php endif; ?>
+              <?php if (!empty($reply['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars($reply['capcode']) ?></strong><?php endif; ?>
+              <br>
+            </span>
+            <span class="dateTime postNum" data-utc="<?= htmlspecialchars($reply['created_at'] ?? '') ?>">
+              <?= htmlspecialchars($reply['formatted_time'] ?? $reply['created_at'] ?? '') ?>
+              <a href="#p<?= (int)$reply['id'] ?>" title="Link to this post">No.</a><a href="#q<?= (int)$reply['id'] ?>" title="Reply to this post"><?= (int)$reply['id'] ?></a>
+            </span>
+          </div>
+
+          <!-- Desktop Post Info -->
+          <div class="postInfo desktop" id="pi<?= (int)$reply['id'] ?>">
+            <input type="checkbox" name="<?= (int)$reply['id'] ?>" value="delete">
+            <span class="nameBlock">
+              <span class="name"><?= htmlspecialchars($reply['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($reply['tripcode']) ?></span><?php endif; ?>
+              <?php if (!empty($reply['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars($reply['capcode']) ?></strong><?php endif; ?>
+            </span>
+            <span class="dateTime" data-utc="<?= htmlspecialchars($reply['created_at'] ?? '') ?>"><?= htmlspecialchars($reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
+            <span class="postNum desktop">
+              <a href="#p<?= (int)$reply['id'] ?>" title="Link to this post">No.</a><a href="#q<?= (int)$reply['id'] ?>" title="Reply to this post"><?= (int)$reply['id'] ?></a>
+            </span>
+          </div>
+
+          <?php if (!empty($reply['media_url'])): ?>
+          <div class="file" id="f<?= (int)$reply['id'] ?>">
+            <div class="fileText" id="fT<?= (int)$reply['id'] ?>">
+              File: <a href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank"><?= htmlspecialchars($reply['media_filename'] ?? 'image') ?></a>
+              (<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>)
+            </div>
+            <a class="fileThumb" href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank">
+              <img src="<?= htmlspecialchars($reply['thumb_url'] ?? $reply['media_url']) ?>" alt="<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:125px;max-height:125px;">
+              <div data-tip data-tip-cb="mShowFull" class="mFileInfo mobile"><?= htmlspecialchars($reply['media_size_human'] ?? '') ?></div>
+            </a>
+          </div>
+          <?php endif; ?>
+
+          <blockquote class="postMessage" id="m<?= (int)$reply['id'] ?>">
+            <?= $reply['content_html'] ?? htmlspecialchars($reply['content'] ?? '') ?>
+          </blockquote>
+        </div>
+      </div>
+      <?php endforeach; ?>
+
+    </div>
   </div>
 
-  <!-- Delete / Report Controls -->
-  <div class="deleteform-controls" id="ctrl-bottom">
-    <span class="deleteBtn">
-      Delete Post
-      [<label><input type="checkbox" name="onlyimgdel"> File Only</label>]
-      Password <input type="password" name="pwd" id="delPassword" maxlength="8" size="8">
+  <!-- Bottom controls -->
+  <div class="bottomCtrl desktop">
+    <span class="deleteform">
+      <input type="hidden" name="mode" value="usrdel">
+      Delete Post: [<input type="checkbox" name="onlyimgdel" value="on">File Only]
+      <input type="hidden" id="delPassword" name="pwd">
       <input type="submit" value="Delete">
+      <input id="bottomReportBtn" type="button" value="Report">
     </span>
-    [<input type="button" value="Report" onclick="alert('Select a post first')">]
+    <span class="stylechanger">
+      Style: <select id="styleSelector">
+        <option value="yotsuba">Yotsuba</option>
+        <option value="yotsuba-b" selected>Yotsuba B</option>
+        <option value="futaba">Futaba</option>
+        <option value="burichan">Burichan</option>
+        <option value="photon">Photon</option>
+        <option value="tomorrow">Tomorrow</option>
+      </select>
+    </span>
   </div>
 </form>
 
 <hr>
 
-<!-- Thread Stats + Auto-Update -->
-<div class="thread-stats">
-  <span class="ts-replies"><?= count($replies ?? []) ?> replies</span>
-  <span class="ts-images"><?= (int)($image_count ?? 0) ?> images</span>
-  <?php if (!empty($thread_locked)): ?><span class="ts-locked">[Locked]</span><?php endif; ?>
-  <?php if (!empty($thread_sticky)): ?><span class="ts-sticky">[Sticky]</span><?php endif; ?>
+<!-- Thread Stats -->
+<div id="thread-stats" class="ts-8">
+  <span class="ts-replies"><?= count($replies ?? []) ?> / <?= (int)($image_count ?? 0) ?></span>
+  <?php if (!empty($thread_locked)): ?> / <span class="ts-locked">[Locked]</span><?php endif; ?>
+  <?php if (!empty($thread_sticky)): ?> / <span class="ts-sticky">[Sticky]</span><?php endif; ?>
 </div>
 
-<div id="autoUpdateCtrl" class="auto-update-ctrl">
-  <label>
-    <input type="checkbox" checked> Auto
-  </label>
+<!-- Auto-Update -->
+<div id="autoUpdateCtrl">
+  <label><input type="checkbox" id="autoUpdateCheck" checked> Auto</label>
   <span id="autoUpdateStatus"></span>
-  [<a href="#" id="updateNow">Update</a>]
+  [<a href="javascript:void(0);" id="updateNow">Update</a>]
 </div>
 
 <hr>
 
-<!-- Bottom Controls -->
-<div class="thread-controls">
-  <span>
-    [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
-    [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
-    [<a href="#top">Top</a>]
-  </span>
+<!-- Bottom nav links -->
+<div class="navLinks navLinksBot desktop">
+  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+  [<a href="#top">Top</a>]
 </div>
 
-<a id="bottom"></a>
+<div class="navLinks navLinksBot mobile">
+  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="#top">Top</a></span>
+</div>
 
 <?php
+$is_index = false;
 $__content = ob_get_clean();
 include __DIR__ . '/layout.php';
 ?>
