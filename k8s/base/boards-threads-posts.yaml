@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: boards-threads-posts
+  namespace: ashchan
+spec:
+  ports:
+  - port: 9503
+    targetPort: 9503
+  selector:
+    app: boards-threads-posts
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: boards-threads-posts
+  namespace: ashchan
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: boards-threads-posts
+  template:
+    metadata:
+      labels:
+        app: boards-threads-posts
+    spec:
+      containers:
+      - name: boards-threads-posts
+        image: ashchan/boards-threads-posts:latest
+        ports:
+        - containerPort: 9503
+        env:
+        - name: APP_ENV
+          value: production
+        - name: SERVICE_NAME
+          value: boards-threads-posts
+        - name: PORT
+          value: "9503"
+        - name: DB_DSN
+          value: pgsql:host=postgres;port=5432;dbname=ashchan
+        - name: DB_USER
+          value: ashchan
+        - name: DB_PASSWORD
+          value: ashchan
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"

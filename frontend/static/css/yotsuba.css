@@ -1,0 +1,450 @@
+/* ============================================================
+   ashchan - Yotsuba Theme (Classic)
+   Warm pinkish-red tones, the original 4chan look.
+   ============================================================ */
+
+/* === Body === */
+body {
+    background-color: #FFFFEE;
+    color: #800000;
+}
+
+/* === Links === */
+a:link {
+    color: #0000EE;
+}
+
+a:visited {
+    color: #551A8B;
+}
+
+a:link,
+a:visited {
+    color: inherit;
+}
+
+/* OP & top-level links use maroon */
+.post.op a:link,
+.replylink a:link,
+.navLinks a:link,
+.summary a:link {
+    color: #0000EE;
+}
+
+.post.op a:visited,
+.replylink a:visited {
+    color: #551A8B;
+}
+
+/* === Board Navigation === */
+#boardNavDesktop {
+    background-color: #F0E0D6;
+    color: #800000;
+    border-bottom-color: #D9BFB7;
+}
+
+#boardNavDesktop a:link,
+#boardNavDesktop a:visited {
+    color: #800000;
+}
+
+#boardNavDesktopFoot {
+    background-color: #F0E0D6;
+    color: #800000;
+    border-top: 1px solid #D9BFB7;
+    padding: 3px 0;
+}
+
+#boardNavDesktopFoot a:link,
+#boardNavDesktopFoot a:visited {
+    color: #800000;
+}
+
+/* === Board Banner === */
+.boardTitle {
+    color: #800000;
+}
+
+.boardSubtitle {
+    color: #800000;
+}
+
+/* === HR Separators === */
+hr {
+    border-top-color: #D9BFB7;
+}
+
+/* === Post Form === */
+.postForm td:first-child {
+    background-color: #EA8;
+    color: #800000;
+    border: 1px solid #800000;
+    padding: 0 5px;
+}
+
+.postForm input[type="text"],
+.postForm input[type="password"],
+.postForm textarea {
+    background-color: #FFFFFF;
+    color: #800000;
+    border: 1px solid #AAA;
+}
+
+.postForm input[type="submit"] {
+    background-color: #F0E0D6;
+    color: #800000;
+    border: 1px solid #AAA;
+}
+
+#togglePostFormLink a {
+    color: #800000;
+}
+
+/* === Reply Posts === */
+.post.reply {
+    background-color: #F0E0D6;
+    border-color: #D9BFB7;
+}
+
+.post.reply:target {
+    background-color: #D6BAD0 !important;
+}
+
+.post.reply.highlight {
+    background-color: #D9BFB7 !important;
+}
+
+/* === Post Info === */
+.postInfo {
+    color: #000;
+}
+
+.name {
+    color: #117743;
+}
+
+.subject {
+    color: #CC1105;
+}
+
+.dateTime {
+    color: #000;
+}
+
+.postertrip {
+    color: #117743;
+}
+
+.postNum a:link,
+.postNum a:visited {
+    color: #800000;
+}
+
+/* === Backlinks === */
+.backlink a:link,
+.backlink a:visited {
+    color: #800000;
+}
+
+/* === Quotelinks === */
+.quotelink:link,
+.quotelink:visited {
+    color: #800000;
+}
+
+/* === Post Message === */
+.postMessage {
+    color: #800000;
+}
+
+.quote {
+    color: #789922;
+}
+
+/* === Side Arrows === */
+.sideArrows {
+    color: #F0E0D6;
+}
+
+/* === File Text === */
+.fileText {
+    color: #707070;
+}
+
+.fileText a:link,
+.fileText a:visited {
+    color: #800000;
+}
+
+/* === Summary === */
+.summary {
+    color: #707070;
+}
+
+/* === Pagination === */
+.pagelist {
+    background-color: #F0E0D6;
+    border: 1px solid #D9BFB7;
+    border-radius: 3px;
+}
+
+.pagelist .pages a:link,
+.pagelist .pages a:visited {
+    color: #800000;
+    background-color: #FFFFEE;
+    border-color: #D9BFB7;
+}
+
+.pagelist .pages strong {
+    background-color: #800000;
+    color: #FFFFEE;
+    border-color: #800000;
+}
+
+.pagelist .prev:link,
+.pagelist .next:link {
+    color: #800000;
+    border-color: #D9BFB7;
+}
+
+/* === Bottom Controls === */
+.bottomCtrl {
+    color: #800000;
+}
+
+.deleteform input[type="password"] {
+    background-color: #FFFFFF;
+    border: 1px solid #AAA;
+}
+
+.stylechanger select {
+    background-color: #FFFFFF;
+    border: 1px solid #AAA;
+}
+
+/* === Catalog === */
+.catalog-thread {
+    background-color: #F0E0D6;
+    border-color: #D9BFB7;
+}
+
+.catalog-thread:hover {
+    border-color: #800000;
+}
+
+.catalog-thread .meta {
+    color: #707070;
+}
+
+.catalog-thread .teaser {
+    color: #800000;
+}
+
+.catalog-thread .subject {
+    color: #CC1105;
+}
+
+/* === Archive === */
+.archiveList {
+    background-color: #FFFFEE;
+}
+
+.archiveList th {
+    background-color: #F0E0D6;
+    border-color: #D9BFB7;
+    color: #800000;
+}
+
+.archiveList td {
+    border-color: #D9BFB7;
+}
+
+/* === Quick Reply === */
+#quickReply {
+    background-color: #F0E0D6;
+    border-color: #D9BFB7;
+}
+
+#quickReply .move {
+    background-color: #EA8;
+    color: #800000;
+    border-bottom-color: #D9BFB7;
+}
+
+#quickReply textarea,
+#quickReply input[type="text"],
+#quickReply input[type="password"] {
+    background-color: #FFFFFF;
+    color: #800000;
+    border: 1px solid #AAA;
+}
+
+#quickReply input[type="submit"] {
+    background-color: #F0E0D6;
+    color: #800000;
+    border: 1px solid #AAA;
+}
+
+/* === Quote Preview === */
+#quote-preview {
+    background-color: #F0E0D6;
+    border-color: #D9BFB7;
+}
+
+/* === Post Menu === */
+.postMenuList {
+    background-color: #F0E0D6;
+    border-color: #D9BFB7;
+}
+
+.postMenuList li:hover {
+    background-color: #D9BFB7;
+}
+
+/* === Thread Watcher === */
+#threadWatcher {
+    background-color: #F0E0D6;
+    border-color: #D9BFB7;
+}
+
+#threadWatcher .move {
+    background-color: #EA8;
+    color: #800000;
+    border-bottom-color: #D9BFB7;
+}
+
+#threadWatcher li {
+    border-bottom-color: #D9BFB7;
+}
+
+#threadWatcher li a:link,
+#threadWatcher li a:visited {
+    color: #800000;
+}
+
+/* === Settings Menu === */
+#settingsMenu {
+    background-color: #F0E0D6;
+    border-color: #D9BFB7;
+    color: #800000;
+}
+
+#settingsMenu .settings-header {
+    border-bottom-color: #D9BFB7;
+}
+
+/* === Global Message === */
+.globalMessage {
+    background-color: #F0E0D6;
+    color: #800000;
+    border-bottom-color: #D9BFB7;
+}
+
+/* === Code / Pre === */
+.prettyprint {
+    background-color: #FFFFFF;
+    border-color: #D9BFB7;
+    color: #000;
+}
+
+/* === Poster ID === */
+.posteruid .hand {
+    background-color: #F0E0D6;
+    color: #000;
+}
+
+/* === Banned Text === */
+.banMessage {
+    color: red;
+}
+
+/* === Board nav Mobile === */
+#boardNavMobile {
+    background-color: #F0E0D6;
+    color: #800000;
+    border-bottom-color: #D9BFB7;
+}
+
+#boardNavMobile a:link,
+#boardNavMobile a:visited {
+    color: #800000;
+}
+
+/* === Rules === */
+.rules {
+    color: #707070;
+}
+
+/* === Footer === */
+.footer {
+    color: #707070;
+}
+
+.footer a:link,
+.footer a:visited {
+    color: #800000;
+}
+
+/* === Mobile overrides === */
+@media screen and (max-width: 480px) {
+    .post.reply {
+        border-left-color: #D9BFB7;
+    }
+}
+
+/* === Inline Quote === */
+.inlineQuote {
+    border-left-color: #D9BFB7;
+}
+
+/* === Selection === */
+::selection {
+    background: #F0C0B0;
+    color: #800000;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar-track {
+    background: #FFFFEE;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #D9BFB7;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #C4A49C;
+}
+
+/* === CAPTCHA === */
+.captchaContainer input {
+    background-color: #FFFFFF;
+    color: #800000;
+    border: 1px solid #AAA;
+}
+
+/* === NSFW label === */
+body.nws .nsfw-warning {
+    background: #FF0;
+    color: #800000;
+}
+
+/* === Navigation link backgrounds === */
+.navLinks {
+    color: #800000;
+}
+
+.navLinks a:link,
+.navLinks a:visited {
+    color: #800000;
+}
+
+/* === Ads === */
+.adContainer {
+    border: 1px solid #D9BFB7;
+}
+
+/* === Overlay === */
+#overlay {
+    background: rgba(128, 0, 0, 0.2);
+}

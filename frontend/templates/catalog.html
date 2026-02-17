@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="board-controls">
+  <span id="ctrl-top">
+    [<a href="/{{ board_slug }}/">Return</a>]
+    [<a href="#bottom">Bottom</a>]
+  </span>
+</div>
+
+<hr>
+
+<!-- Catalog Controls -->
+<div id="catalog-controls">
+  <div class="catalog-search">
+    <input type="text" id="catalog-search-input" placeholder="Search threads..." autocomplete="off">
+  </div>
+  <div class="catalog-sort">
+    Sort by:
+    <select id="catalog-sort-select">
+      <option value="bump" selected>Bump order</option>
+      <option value="time">Creation date</option>
+      <option value="replies">Reply count</option>
+      <option value="images">Image count</option>
+    </select>
+  </div>
+  <div class="catalog-size">
+    Size:
+    <select id="catalog-size-select">
+      <option value="small">Small</option>
+      <option value="large" selected>Large</option>
+    </select>
+  </div>
+</div>
+
+<hr>
+
+<!-- Catalog Grid -->
+<div id="threads" class="catalog-board">
+  {% for thread in threads %}
+  <div class="catalog-thread" id="thread-{{ thread.id }}"
+       data-replies="{{ thread.reply_count }}"
+       data-images="{{ thread.image_count }}"
+       data-bumped="{{ thread.bumped_at }}"
+       data-created="{{ thread.created_at }}">
+
+    <a href="/{{ board_slug }}/thread/{{ thread.id }}">
+      {% if thread.op.thumb_url %}
+      <img src="{{ thread.op.thumb_url }}" alt="" class="catalog-thumb" loading="lazy">
+      {% else %}
+      <div class="catalog-thumb no-image">No image</div>
+      {% endif %}
+    </a>
+
+    <div class="catalog-stats">
+      <b>R: {{ thread.reply_count }}</b> / <b>I: {{ thread.image_count }}</b>
+      {% if thread.sticky %} / <b title="Sticky">📌</b>{% endif %}
+      {% if thread.locked %} / <b title="Locked">🔒</b>{% endif %}
+    </div>
+
+    <div class="catalog-excerpt">
+      {% if thread.op.subject %}
+        <b>{{ thread.op.subject }}</b>:
+      {% endif %}
+      {{ thread.op.content_preview }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div style="clear:both"></div>
+
+<hr>
+
+<div class="board-controls">
+  <span>
+    [<a href="/{{ board_slug }}/">Return</a>]
+    [<a href="#top">Top</a>]
+  </span>
+</div>
+
+<a id="bottom"></a>
+
+<script>
+(function() {
+  var sortSelect = document.getElementById('catalog-sort-select');
+  if (!sortSelect) return;
+  sortSelect.addEventListener('change', function() {
+    var threads = Array.from(document.querySelectorAll('.catalog-thread'));
+    var container = document.getElementById('threads');
+    var key = sortSelect.value;
+    threads.sort(function(a, b) {
+      if (key === 'replies') return parseInt(b.dataset.replies) - parseInt(a.dataset.replies);
+      if (key === 'images') return parseInt(b.dataset.images) - parseInt(a.dataset.images);
+      if (key === 'time') return parseInt(b.dataset.created) - parseInt(a.dataset.created);
+      return parseInt(b.dataset.bumped) - parseInt(a.dataset.bumped);
+    });
+    threads.forEach(function(t) { container.appendChild(t); });
+  });
+
+  var sizeSelect = document.getElementById('catalog-size-select');
+  if (sizeSelect) {
+    sizeSelect.addEventListener('change', function() {
+      document.getElementById('threads').className = 'catalog-board catalog-' + sizeSelect.value;
+    });
+  }
+})();
+</script>
+
+{% endblock %}

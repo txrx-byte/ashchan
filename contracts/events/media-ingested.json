@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MediaIngested",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string"},
+    "type": {"const": "media.ingested"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {
+      "type": "object",
+      "properties": {
+        "media_id": {"type": "string"},
+        "hash": {"type": "string"},
+        "content_type": {"type": "string"},
+        "size_bytes": {"type": "integer"},
+        "created_at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["media_id", "hash", "content_type", "size_bytes", "created_at"]
+    }
+  },
+  "required": ["id", "type", "occurred_at", "payload"]
+}

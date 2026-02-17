@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ModerationDecision",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string"},
+    "type": {"const": "moderation.decision"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {
+      "type": "object",
+      "properties": {
+        "decision_id": {"type": "string"},
+        "target_type": {"type": "string"},
+        "target_id": {"type": "string"},
+        "action": {"type": "string"},
+        "reason": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["decision_id", "target_type", "target_id", "action", "created_at"]
+    }
+  },
+  "required": ["id", "type", "occurred_at", "payload"]
+}

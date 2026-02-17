@@ -1,0 +1,1298 @@
+/* ============================================================
+   ashchan - Common/Shared Styles
+   Base structural layout for all themes.
+   ============================================================ */
+
+/* === Reset & Base === */
+html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family: arial, helvetica, sans-serif;
+    font-size: 10pt;
+    -webkit-text-size-adjust: 100%;
+}
+
+a {
+    text-decoration: underline;
+}
+
+a:hover {
+    color: red !important;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #b7c5d9;
+    height: 0;
+    clear: both;
+}
+
+img {
+    border: none;
+}
+
+input, textarea, select {
+    font-family: arial, helvetica, sans-serif;
+    font-size: 10pt;
+}
+
+/* === Board Navigation (Top & Bottom) === */
+#boardNavDesktop {
+    font-size: 9pt;
+    text-align: center;
+    padding: 3px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9001;
+    border-bottom: 1px solid;
+    font-weight: normal;
+}
+
+#boardNavDesktop a {
+    text-decoration: none;
+    padding: 1px;
+}
+
+#boardNavDesktopFoot {
+    font-size: 9pt;
+    text-align: center;
+    padding: 3px 0;
+    clear: both;
+}
+
+#boardNavDesktopFoot a {
+    text-decoration: none;
+    padding: 1px;
+}
+
+#boardNavMobile {
+    display: none;
+    font-size: 12px;
+    padding: 2px 4px;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9001;
+    border-bottom: 1px solid;
+}
+
+#boardNavMobile select {
+    font-size: 11px;
+    vertical-align: middle;
+}
+
+#boardNavMobile .boardSelect {
+    float: left;
+}
+
+#boardNavMobile .pageJump {
+    float: right;
+}
+
+/* === Board Banner === */
+.boardBanner {
+    text-align: center;
+    margin-top: 28px;
+    clear: both;
+}
+
+#bannerCnt {
+    display: inline-block;
+    margin: 5px auto 0;
+    max-width: 300px;
+    max-height: 100px;
+    border: 1px solid #000;
+}
+
+.boardTitle {
+    font-family: Tahoma, sans-serif;
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: -2px;
+    margin-top: 0;
+    text-align: center;
+}
+
+.boardSubtitle {
+    font-size: 8pt;
+    text-align: center;
+    margin-top: -8px;
+    margin-bottom: 5px;
+}
+
+/* === Post Form === */
+#togglePostFormLink {
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    margin: 10px auto 5px;
+    display: block;
+    width: fit-content;
+}
+
+#postForm {
+    margin: 0 auto 15px;
+    display: table;
+    border-collapse: collapse;
+}
+
+.postForm {
+    display: table;
+    margin: 0 auto;
+    border-spacing: 1px;
+}
+
+.postForm tr {
+    display: table-row;
+}
+
+.postForm td {
+    display: table-cell;
+    padding: 1px;
+    font-size: 10pt;
+}
+
+.postForm td:first-child {
+    font-weight: bold;
+    text-align: left;
+    padding-right: 5px;
+}
+
+.postForm input[type="text"],
+.postForm input[type="password"],
+.postForm input[type="file"] {
+    width: 260px;
+    box-sizing: border-box;
+}
+
+.postForm textarea {
+    width: 292px;
+    height: 120px;
+    font-family: arial, helvetica, sans-serif;
+    font-size: 10pt;
+    resize: vertical;
+}
+
+.postForm input[type="submit"] {
+    margin-left: 2px;
+}
+
+#mpostform {
+    margin: 0 auto 15px;
+    width: auto;
+}
+
+/* Rules/Info text */
+.rules {
+    margin: 0 auto;
+    text-align: center;
+    font-size: 8pt;
+    max-width: 600px;
+}
+
+.rules li {
+    text-align: left;
+}
+
+/* === Threads Container === */
+.board {
+    margin: 0 auto;
+    max-width: 100%;
+    padding: 5px 20px;
+}
+
+.thread {
+    margin: 0;
+    clear: both;
+    overflow: hidden;
+}
+
+/* === OP (Original Post) Container === */
+.postContainer.opContainer {
+    display: block;
+    overflow: hidden;
+}
+
+.post.op {
+    display: inline;
+    overflow: hidden;
+    margin: 4px 0;
+}
+
+.post.op .postInfo {
+    display: inline;
+}
+
+.post.op .postMessage {
+    display: block;
+    margin: 5px 0 3px;
+}
+
+/* === Reply Container === */
+.postContainer.replyContainer {
+    display: table;
+    margin: 4px 0 4px 20px;
+}
+
+.sideArrows {
+    display: table-cell;
+    vertical-align: top;
+    padding: 4px 5px 0 0;
+    font-size: 13px;
+    color: #b7c5d9;
+    float: left;
+    margin-top: 2px;
+    margin-right: 2px;
+}
+
+.post.reply {
+    display: table;
+    padding: 2px;
+    border: 1px solid;
+    border-radius: 0;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.post.reply .postInfo {
+    display: block;
+    width: 100%;
+    padding: 0 4px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.post.reply .postMessage {
+    display: block;
+    padding: 5px 10px;
+    margin: 4px 0 2px;
+    word-wrap: break-word;
+    max-width: 1200px;
+}
+
+/* === Post Info Bar === */
+.postInfo.desktop {
+    display: inline;
+    padding: 0;
+}
+
+.postInfoM.mobile {
+    display: none;
+}
+
+.postInfo input[type="checkbox"] {
+    vertical-align: middle;
+    margin: 0 3px 0 0;
+}
+
+.nameBlock {
+    display: inline;
+}
+
+.name {
+    font-weight: bold;
+}
+
+.postertrip {
+    font-weight: normal;
+}
+
+.subject {
+    font-weight: bold;
+}
+
+.dateTime {
+    display: inline;
+}
+
+.postNum {
+    display: inline;
+}
+
+.postNum a {
+    text-decoration: none;
+}
+
+.postMenuBtn {
+    display: inline;
+    cursor: pointer;
+    margin-left: 5px;
+    font-size: 10px;
+    opacity: 0.5;
+}
+
+.postMenuBtn:hover {
+    opacity: 1;
+}
+
+/* === File Display === */
+.file {
+    display: block;
+    margin: 4px 0 3px;
+}
+
+.fileText {
+    display: block;
+    max-width: 600px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 9pt;
+    margin-bottom: 2px;
+}
+
+.fileText a {
+    text-decoration: underline;
+}
+
+.fileThumb {
+    display: block;
+    float: left;
+    margin: 3px 20px 5px 20px;
+}
+
+.fileThumb img {
+    max-width: 250px;
+    max-height: 250px;
+    border: 0;
+    image-rendering: auto;
+    object-fit: contain;
+}
+
+/* Expanded images */
+.fileThumb img.expanded-thumb {
+    max-width: none;
+    max-height: none;
+}
+
+.full-image {
+    max-width: calc(100vw - 80px);
+    display: block;
+}
+
+.mFileInfo {
+    display: none;
+    font-size: 10px;
+}
+
+/* Spoiler image */
+.imgspoiler .fileThumb img:not(.expanded-thumb) {
+    width: 100px;
+    height: 100px;
+    filter: none;
+}
+
+.spoilerTextClosed::before {
+    content: "[Spoiler] ";
+}
+
+/* === Post Message / Content === */
+.postMessage {
+    font-size: 13.3333px;
+    line-height: 1.3em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Greentext */
+.quote {
+    color: #789922;
+}
+
+/* Redtext (admin) */
+.redText {
+    color: red;
+    font-weight: bold;
+    font-size: larger;
+}
+
+/* Quotelinks */
+.quotelink {
+    text-decoration: underline;
+}
+
+.deadlink {
+    text-decoration: line-through;
+    color: #789922 !important;
+}
+
+/* Backlinks */
+.backlink {
+    font-size: 9pt;
+    display: inline;
+    padding: 0 5px;
+}
+
+.backlink a {
+    text-decoration: none !important;
+}
+
+.backlinkHr {
+    display: none;
+}
+
+/* Abbreviated text ("Comment too long") */
+.abbr {
+    font-style: italic;
+    font-size: 9pt;
+    margin-top: 2px;
+}
+
+.abbr a {
+    font-style: normal;
+}
+
+/* Summary "X posts and Y images omitted" */
+.summary {
+    color: #707070;
+    margin-top: 10px;
+    display: block;
+    clear: both;
+}
+
+/* Reply link at bottom of OP */
+.replylink {
+    font-size: 9pt;
+    display: block;
+    clear: both;
+    margin-top: 10px;
+}
+
+/* === Capcodes (Admin/Mod/Dev) === */
+.capcodeAdmin .capcodeName,
+.capcodeAdmin .name {
+    color: red !important;
+}
+
+.capcodeMod .capcodeName,
+.capcodeMod .name {
+    color: purple !important;
+}
+
+.capcodeDeveloper .capcodeName,
+.capcodeDeveloper .name {
+    color: green !important;
+}
+
+.capcodeManager .capcodeName,
+.capcodeManager .name {
+    color: darkred !important;
+}
+
+.capcodeFounder .capcodeName,
+.capcodeFounder .name {
+    color: #117743 !important;
+}
+
+.capcodeVerified .capcodeName {
+    color: #007FFF !important;
+}
+
+.capcode {
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+/* === Banned Message === */
+.banMessage {
+    font-weight: bold;
+    color: red;
+    font-size: 10pt;
+    margin: 10px 0 5px;
+    display: block;
+}
+
+.banMessage img {
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+/* === Sticky / Closed / Archived Icons === */
+.stickyIcon,
+.closedIcon,
+.archivedIcon {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    margin-left: 2px;
+    display: inline;
+}
+
+.stickyIcon::after {
+    content: "📌";
+    font-size: 14px;
+}
+
+.closedIcon::after {
+    content: "🔒";
+    font-size: 14px;
+}
+
+.archivedIcon::after {
+    content: "📁";
+    font-size: 14px;
+}
+
+/* === Pagination === */
+.pagelist {
+    text-align: center;
+    padding: 5px 0;
+    margin: 10px 0;
+    clear: both;
+    font-size: 14px;
+    user-select: none;
+}
+
+.pagelist .pages {
+    display: inline-block;
+}
+
+.pagelist .pages a,
+.pagelist .pages strong {
+    display: inline-block;
+    border: 1px solid;
+    padding: 4px 8px;
+    margin: 0 2px;
+    text-decoration: none;
+    border-radius: 3px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.pagelist .pages strong {
+    font-weight: bold;
+}
+
+.pagelist .prev,
+.pagelist .next {
+    padding: 4px 8px;
+    border: 1px solid;
+    border-radius: 3px;
+    text-decoration: none;
+    display: inline-block;
+    margin: 0 5px;
+}
+
+.cataloglink {
+    text-align: center;
+    margin: 5px 0;
+    font-size: 13px;
+}
+
+/* === Navigation Links === */
+.navLinks {
+    text-align: center;
+    font-size: 9pt;
+    margin: 10px 0;
+}
+
+.navLinks a {
+    text-decoration: none;
+}
+
+/* === Bottom Controls === */
+.bottomCtrl {
+    text-align: center;
+    font-size: 10pt;
+    padding: 5px 0;
+    clear: both;
+    margin: 10px 0;
+}
+
+.deleteform {
+    display: inline;
+}
+
+.deleteform input[type="password"] {
+    width: 60px;
+    height: 18px;
+    font-size: 8pt;
+}
+
+.deleteform input[type="submit"] {
+    font-size: 8pt;
+    height: 20px;
+}
+
+.deleteform label {
+    font-size: 8pt;
+    margin-right: 5px;
+}
+
+/* Style Changer */
+.stylechanger {
+    margin-left: 20px;
+    font-size: 8pt;
+}
+
+.stylechanger select {
+    font-size: 8pt;
+}
+
+/* === Inline Quote Preview === */
+.inlineQuote {
+    display: inline-table;
+    margin: 2px 0;
+    border-left: 1px solid;
+}
+
+#quote-preview {
+    position: absolute;
+    z-index: 9002;
+    padding: 3px 6px 6px 3px;
+    border: 1px solid;
+    max-width: 600px;
+    pointer-events: none;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+}
+
+/* === Post Menu Dropdown === */
+.postMenuList {
+    position: absolute;
+    z-index: 9003;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid;
+    min-width: 120px;
+    font-size: 12px;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.25);
+}
+
+.postMenuList li {
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.postMenuList li:hover {
+    background-color: rgba(0,0,0,0.1);
+}
+
+.postMenuList li.separator {
+    border-top: 1px solid;
+    padding: 0;
+    margin: 2px 0;
+    cursor: default;
+}
+
+/* === Floating Reply Form === */
+#quickReply {
+    position: fixed;
+    z-index: 9005;
+    border: 1px solid;
+    padding: 2px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    display: none;
+}
+
+#quickReply .move {
+    cursor: move;
+    padding: 3px 6px;
+    font-weight: bold;
+    font-size: 10pt;
+    border-bottom: 1px solid;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#quickReply .move .close {
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#quickReply textarea {
+    width: 296px;
+    height: 120px;
+    resize: both;
+}
+
+#quickReply input[type="text"],
+#quickReply input[type="password"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#quickReply input[type="submit"] {
+    width: 100%;
+    margin-top: 2px;
+}
+
+#quickReply .captcha {
+    margin: 2px 0;
+}
+
+/* === Catalog View === */
+#catalog-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+    padding: 10px;
+    max-width: 100%;
+}
+
+.catalog-thread {
+    width: 150px;
+    max-height: 320px;
+    overflow: hidden;
+    text-align: center;
+    padding: 3px;
+    margin: 2px;
+    border: 1px solid;
+    position: relative;
+    font-size: 11px;
+    word-wrap: break-word;
+    vertical-align: top;
+    display: inline-block;
+}
+
+.catalog-thread:hover {
+    border-color: #333;
+}
+
+.catalog-thread .thumb {
+    display: block;
+    margin: 0 auto;
+    max-width: 150px;
+    max-height: 150px;
+}
+
+.catalog-thread .meta {
+    color: #707070;
+    font-size: 10px;
+    margin: 2px 0;
+}
+
+.catalog-thread .meta b {
+    font-weight: bold;
+}
+
+.catalog-thread .teaser {
+    display: block;
+    padding: 0 3px;
+    font-size: 11px;
+    line-height: 1.25em;
+    overflow: hidden;
+}
+
+.catalog-thread .subject {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.catalog-controls {
+    text-align: center;
+    padding: 10px;
+    font-size: 12px;
+}
+
+.catalog-controls select,
+.catalog-controls input {
+    margin: 0 5px;
+}
+
+/* === Archive View === */
+.archiveList {
+    width: 90%;
+    max-width: 900px;
+    margin: 10px auto;
+    border-collapse: collapse;
+}
+
+.archiveList th,
+.archiveList td {
+    border: 1px solid;
+    padding: 4px 8px;
+    text-align: left;
+    font-size: 12px;
+}
+
+.archiveList th {
+    font-weight: bold;
+}
+
+.archiveList tr:hover td {
+    background-color: rgba(0,0,0,0.05);
+}
+
+.archiveList .archiveExcerpt {
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* === NSFW / Worksafe Board Distinction === */
+body.ws .nsfw-warning {
+    display: none;
+}
+
+body.nws .nsfw-warning {
+    display: block;
+    background: #ff0;
+    color: #000;
+    text-align: center;
+    padding: 5px;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+body.nws #boardNavDesktop {
+    border-bottom-width: 2px;
+}
+
+/* === ID & Flag=== */
+.posteruid .hand {
+    cursor: pointer;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 9pt;
+}
+
+.flag {
+    width: 16px;
+    height: 11px;
+    vertical-align: middle;
+    margin-left: 5px;
+}
+
+/* === Exif / IPTC info toggle === */
+.exif {
+    display: none;
+    font-size: 10px;
+    max-width: 80vw;
+    overflow-x: auto;
+}
+
+.exif td {
+    padding: 1px 4px;
+    font-family: monospace;
+    font-size: 10px;
+}
+
+/* === Embed / Media === */
+.embedContainer {
+    margin: 5px 0;
+}
+
+.embedContainer iframe {
+    max-width: 100%;
+}
+
+/* === Warning / Boards === */
+.boardWarning {
+    text-align: center;
+    margin: 20px 0;
+    font-size: 14px;
+}
+
+/* === Ad Container === */
+.adContainer {
+    text-align: center;
+    margin: 10px auto;
+    max-width: 728px;
+}
+
+/* === Flash/Webm Player === */
+.expandedWebm {
+    max-width: calc(100vw - 80px);
+    max-height: calc(100vh - 80px);
+}
+
+/* === Footer === */
+.footer {
+    text-align: center;
+    font-size: 8pt;
+    padding: 10px 0 20px;
+    clear: both;
+}
+
+.footer a {
+    text-decoration: none;
+}
+
+/* === Global Message === */
+.globalMessage {
+    text-align: center;
+    padding: 5px;
+    font-size: 12px;
+    border-bottom: 1px solid;
+}
+
+/* === Post Highlighting on Hover === */
+.post.reply:target {
+    background-color: inherit !important;
+}
+
+.highlight {
+    animation: highlight-fade 3s ease-out;
+}
+
+@keyframes highlight-fade {
+    0% { background-color: rgba(255,255,0,0.5); }
+    100% { background-color: transparent; }
+}
+
+/* === Report / Delete === */
+.reportBtn {
+    font-size: 9pt;
+    cursor: pointer;
+}
+
+/* === Scroll to Top / Bottom === */
+#navtopright,
+#navbotright {
+    position: fixed;
+    z-index: 9000;
+    font-size: 16px;
+    padding: 4px;
+}
+
+#navtopright {
+    top: 30px;
+    right: 5px;
+}
+
+#navbotright {
+    bottom: 5px;
+    right: 5px;
+}
+
+/* === Search Box === */
+#search-box {
+    width: 140px;
+    font-size: 10px;
+    padding: 1px 3px;
+    vertical-align: middle;
+}
+
+/* === Watcher === */
+#threadWatcher {
+    position: fixed;
+    top: 27px;
+    right: 0;
+    z-index: 9004;
+    width: 250px;
+    border: 1px solid;
+    font-size: 11px;
+    max-height: 60vh;
+    overflow-y: auto;
+    display: none;
+}
+
+#threadWatcher .move {
+    cursor: move;
+    padding: 3px 6px;
+    font-weight: bold;
+    border-bottom: 1px solid;
+}
+
+#threadWatcher ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#threadWatcher li {
+    padding: 2px 4px;
+    border-bottom: 1px solid;
+    font-size: 11px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#threadWatcher li a {
+    text-decoration: none;
+}
+
+/* === Settings Panel === */
+#settingsMenu {
+    position: fixed;
+    z-index: 9010;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border: 2px solid;
+    padding: 10px;
+    width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 0 15px rgba(0,0,0,0.4);
+}
+
+#settingsMenu .settings-header {
+    font-weight: bold;
+    font-size: 14px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid;
+    margin-bottom: 10px;
+}
+
+#settingsMenu label {
+    display: block;
+    padding: 3px 0;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* === Image Hover === */
+#image-hover {
+    position: fixed;
+    max-width: 100%;
+    max-height: 100%;
+    z-index: 9006;
+    pointer-events: none;
+    right: 0;
+    top: 0;
+}
+
+/* === Overlay / Lightbox === */
+#overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9009;
+    display: none;
+}
+
+/* === CAPTCHA === */
+.captchaContainer {
+    margin: 5px 0;
+    text-align: center;
+}
+
+.captchaContainer img {
+    display: block;
+    margin: 3px auto;
+    cursor: pointer;
+}
+
+.captchaContainer input {
+    width: 260px;
+    margin-top: 2px;
+}
+
+/* ============================================================
+   Mobile Responsive
+   ============================================================ */
+@media screen and (max-width: 480px) {
+    #boardNavDesktop {
+        display: none !important;
+    }
+
+    #boardNavMobile {
+        display: block !important;
+    }
+
+    .postInfoM.mobile {
+        display: block !important;
+    }
+
+    .postInfo.desktop {
+        display: none !important;
+    }
+
+    .mFileInfo {
+        display: inline !important;
+    }
+
+    .postContainer.replyContainer {
+        margin-left: 0 !important;
+    }
+
+    .sideArrows {
+        display: none;
+    }
+
+    .post.reply {
+        border-left: 3px solid;
+        border-radius: 0;
+        margin: 2px 0;
+        display: block;
+        overflow: hidden;
+    }
+
+    .fileThumb {
+        margin: 3px 10px 5px 5px;
+    }
+
+    .fileThumb img {
+        max-width: 125px;
+        max-height: 125px;
+    }
+
+    .postForm input[type="text"],
+    .postForm input[type="password"],
+    .postForm input[type="file"],
+    .postForm textarea,
+    #quickReply textarea {
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    .boardTitle {
+        font-size: 20px;
+    }
+
+    .board {
+        padding: 5px 4px;
+    }
+
+    .pagelist .pages a,
+    .pagelist .pages strong {
+        padding: 6px 10px;
+    }
+
+    .catalog-thread {
+        width: 110px;
+    }
+
+    .catalog-thread .thumb {
+        max-width: 110px;
+        max-height: 110px;
+    }
+
+    #settingsMenu {
+        width: 90vw;
+    }
+
+    #quickReply {
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: auto !important;
+    }
+
+    #quickReply textarea {
+        width: 100% !important;
+    }
+
+    .archiveList {
+        width: 100%;
+        font-size: 10px;
+    }
+
+    #threadWatcher {
+        width: 100%;
+        right: 0;
+    }
+}
+
+@media screen and (max-width: 700px) and (min-width: 481px) {
+    .postContainer.replyContainer {
+        margin-left: 10px;
+    }
+
+    .fileThumb img {
+        max-width: 200px;
+        max-height: 200px;
+    }
+
+    .catalog-thread {
+        width: 130px;
+    }
+}
+
+/* === Utility Classes === */
+.hidden {
+    display: none !important;
+}
+
+.mobile-only {
+    display: none;
+}
+
+.desktop-only {
+    display: inline;
+}
+
+.clear {
+    clear: both;
+}
+
+.center {
+    text-align: center;
+}
+
+/* === Misc === */
+.prettyprint {
+    padding: 10px;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    border: 1px solid;
+    margin: 5px 0;
+}
+
+.sjis {
+    font-family: 'IPAMonaPGothic', 'Mona', 'MS PGothic', monospace;
+    font-size: 12pt;
+    line-height: 1em;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.math {
+    font-family: serif;
+    display: inline;
+}
+
+.fortune {
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+/* Dice roll results */
+.roll b {
+    color: red;
+}
+
+/* Country ball */
+.countryball {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+}
+
+/* Trip secure/insecure */
+.postertrip {
+    color: inherit;
+}
+
+/* Selection */
+::selection {
+    color: #fff;
+    background: #4f7dac;
+}
+
+/* Scrollbar for webkit */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 5px;
+}

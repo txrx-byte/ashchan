@@ -1,0 +1,223 @@
+/* ============================================================
+   ashchan - Photon Theme
+   Light gray modern look with orange accents.
+   ============================================================ */
+
+/* === Body === */
+body { background: #EEE; color: #333; }
+
+/* === Links === */
+a:link { color: #FF6600; }
+a:visited { color: #FF6600; }
+a:hover { color: #FF3300 !important; }
+
+/* === Board Navigation === */
+#boardNavDesktop {
+  background-color: #DDD;
+  border-bottom: 1px solid #CCC;
+  color: #333;
+}
+#boardNavDesktop a:link,
+#boardNavDesktop a:visited { color: #FF6600; }
+#boardNavDesktop a:hover { color: #FF3300 !important; }
+
+#boardNavDesktopFoot {
+  background-color: #DDD;
+  border-top: 1px solid #CCC;
+  color: #333;
+  padding: 3px 0;
+}
+#boardNavDesktopFoot a:link,
+#boardNavDesktopFoot a:visited { color: #FF6600; }
+
+/* === Board Banner === */
+.boardTitle { color: #004A99; }
+.boardSubtitle { color: #333; }
+
+/* === HR === */
+hr { border-top-color: #CCC; }
+
+/* === Post Form === */
+.postForm td:first-child {
+  background: #DDD;
+  color: #333;
+  border: 1px solid #CCC;
+  padding: 0 5px;
+}
+.postForm input[type="text"],
+.postForm input[type="password"],
+.postForm textarea { border: 1px solid #CCC; background: #fff; color: #333; }
+.postForm input[type="submit"] { background: #DDD; border: 1px solid #CCC; color: #333; }
+#togglePostFormLink a { color: #FF6600; }
+
+/* === Reply Posts === */
+.post.reply {
+  background-color: #DDD;
+  border-color: #CCC;
+}
+.post.reply:target { background-color: #E0D0C0 !important; }
+.post.reply.highlight { background-color: #D0D0D0 !important; }
+
+/* === Post Info === */
+.postInfo { color: #333; }
+.name { color: #117743; }
+.subject { color: #111; }
+.dateTime { color: #333; }
+.postertrip { color: #228854; }
+.postNum a:link,
+.postNum a:visited { color: #FF6600; }
+
+/* === Backlinks / Quotelinks === */
+.backlink a:link,
+.backlink a:visited { color: #FF6600; }
+.quotelink:link,
+.quotelink:visited { color: #FF6600; }
+.quotelink:hover { color: #FF3300 !important; }
+
+/* === Post Message === */
+.postMessage { color: #333; }
+.quote { color: #789922; }
+.sideArrows { color: #999; }
+
+/* === File Text === */
+.fileText { color: #707070; }
+.fileText a:link,
+.fileText a:visited { color: #FF6600; }
+
+/* === Summary === */
+.summary { color: #707070; }
+
+/* === Pagination === */
+.pagelist {
+  background-color: #DDD;
+  border: 1px solid #CCC;
+  border-radius: 3px;
+}
+.pagelist .pages a:link,
+.pagelist .pages a:visited {
+  color: #FF6600;
+  background-color: #EEE;
+  border-color: #CCC;
+}
+.pagelist .pages strong {
+  background-color: #FF6600;
+  color: #FFF;
+  border-color: #FF6600;
+}
+.pagelist .prev:link,
+.pagelist .next:link {
+  color: #FF6600;
+  border-color: #CCC;
+}
+
+/* === Bottom Controls === */
+.bottomCtrl { background: transparent; color: #333; }
+.deleteform input[type="password"] { background: #fff; border: 1px solid #CCC; }
+.stylechanger select { background: #fff; border: 1px solid #CCC; }
+
+/* === Catalog === */
+.catalog-thread { background-color: #DDD; border-color: #CCC; }
+.catalog-thread:hover { border-color: #FF6600; }
+.catalog-thread .meta { color: #707070; }
+.catalog-thread .teaser { color: #333; }
+.catalog-thread .subject { color: #111; }
+
+/* === Archive === */
+.archiveList { background-color: #EEE; }
+.archiveList th { background-color: #DDD; border-color: #CCC; color: #333; }
+.archiveList td { border-color: #CCC; }
+#arc-list th { background: #CCC; }
+#arc-list td { border-bottom-color: #CCC; }
+
+/* === Quick Reply === */
+#quickReply { background: #DDD; border-color: #CCC; }
+#quickReply .move,
+.qrHeader { background: #CCC; color: #333; border-bottom-color: #BBB; }
+#quickReply textarea,
+#quickReply input[type="text"],
+#quickReply input[type="password"] { background: #fff; color: #333; border: 1px solid #CCC; }
+#quickReply input[type="submit"] { background: #DDD; color: #333; border: 1px solid #CCC; }
+
+/* === Quote Preview === */
+#quote-preview { background: #DDD; border-color: #CCC; }
+
+/* === Post Menu === */
+.postMenu,
+.postMenuList { background: #DDD; border-color: #CCC; }
+.postMenu li:hover,
+.postMenuList li:hover { background: #CCC; }
+
+/* === Thread Watcher === */
+#threadWatcher { background: #DDD; border-color: #CCC; }
+#threadWatcher .move,
+.twHeader { background: #CCC; color: #333; border-bottom-color: #BBB; }
+#threadWatcher li { border-bottom-color: #CCC; }
+#threadWatcher li a:link,
+#threadWatcher li a:visited { color: #FF6600; }
+
+/* === Settings === */
+#settingsMenu,
+#settingsPanel { background: #DDD; border-color: #CCC; color: #333; }
+#settingsMenu .settings-header { border-bottom-color: #CCC; }
+
+/* === Global Message === */
+.globalMessage { background: #DDD; color: #333; border-bottom-color: #CCC; }
+
+/* === Code === */
+.prettyprint { background: #fff; border-color: #CCC; color: #333; }
+
+/* === Capcode === */
+.capcodeMod .name { color: #800080 !important; }
+.capcodeAdmin .name { color: #FF0000 !important; }
+
+/* === Banned === */
+.banMessage { color: red; }
+
+/* === Board Nav Mobile === */
+#boardNavMobile { background-color: #DDD; color: #333; border-bottom-color: #CCC; }
+#boardNavMobile a:link,
+#boardNavMobile a:visited { color: #FF6600; }
+
+/* === Rules / Footer === */
+.rules { color: #707070; }
+.footer { color: #707070; }
+.footer a:link,
+.footer a:visited { color: #FF6600; }
+#absbot { color: #707070; }
+
+/* === Poster UID === */
+.posteruid { background: #CCC; color: #333; }
+
+/* === Spoiler === */
+.spoiler, s { color: #333; background: #333; }
+.spoiler:hover, s:hover { color: #fff; }
+
+/* === Mobile === */
+@media screen and (max-width: 480px) {
+    .post.reply { border-left-color: #CCC; }
+}
+
+/* === Inline Quote === */
+.inlineQuote { border-left-color: #CCC; }
+
+/* === Selection === */
+::selection { background: #FFD0A0; color: #333; }
+
+/* === Scrollbar === */
+::-webkit-scrollbar-track { background: #EEE; }
+::-webkit-scrollbar-thumb { background: #CCC; }
+::-webkit-scrollbar-thumb:hover { background: #AAA; }
+
+/* === CAPTCHA === */
+.captchaContainer input { background: #fff; color: #333; border: 1px solid #CCC; }
+
+/* === Report Overlay === */
+#reportOverlay { background: rgba(0, 0, 0, 0.5); }
+#reportForm { background: #DDD; border: 1px solid #CCC; color: #333; }
+
+/* === Consent Banner === */
+#consentBanner a { color: #FF6600; }
+
+/* === Ad placeholder === */
+.adl { color: #707070; }
+.adl a { color: #FF6600; }

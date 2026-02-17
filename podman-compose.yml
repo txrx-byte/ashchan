@@ -1,0 +1,145 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ashchan
+      POSTGRES_PASSWORD: ashchan
+      POSTGRES_DB: ashchan
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ashchan"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ashchan
+      MINIO_ROOT_PASSWORD: ashchan
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "9501:9501"
+    env_file:
+      - ./services/api-gateway/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  auth-accounts:
+    build:
+      context: ./services/auth-accounts
+      dockerfile: Dockerfile
+    ports:
+      - "9502:9502"
+    env_file:
+      - ./services/auth-accounts/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  boards-threads-posts:
+    build:
+      context: ./services/boards-threads-posts
+      dockerfile: Dockerfile
+    ports:
+      - "9503:9503"
+    env_file:
+      - ./services/boards-threads-posts/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  media-uploads:
+    build:
+      context: ./services/media-uploads
+      dockerfile: Dockerfile
+    ports:
+      - "9504:9504"
+    env_file:
+      - ./services/media-uploads/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  search-indexing:
+    build:
+      context: ./services/search-indexing
+      dockerfile: Dockerfile
+    ports:
+      - "9505:9505"
+    env_file:
+      - ./services/search-indexing/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  moderation-anti-spam:
+    build:
+      context: ./services/moderation-anti-spam
+      dockerfile: Dockerfile
+    ports:
+      - "9506:9506"
+    env_file:
+      - ./services/moderation-anti-spam/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

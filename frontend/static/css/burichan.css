@@ -1,0 +1,346 @@
+/* ============================================================
+   ashchan - Burichan Theme
+   Blue-tinted classic style, inspired by Futaba Channel (Burichan variant).
+   ============================================================ */
+
+/* === Body === */
+body {
+    background-color: #EEF2FF;
+    color: #000;
+}
+
+/* === Links === */
+a:link { color: #34345C; }
+a:visited { color: #34345C; }
+a:hover { color: #DD0000 !important; }
+
+.post.op a:link,
+.replylink a:link,
+.navLinks a:link,
+.summary a:link {
+    color: #34345C;
+}
+
+/* === Board Navigation === */
+#boardNavDesktop {
+    background-color: #D1D5EE;
+    color: #89A;
+    border-bottom-color: #B7C5D9;
+}
+#boardNavDesktop a:link,
+#boardNavDesktop a:visited { color: #34345C; }
+
+#boardNavDesktopFoot {
+    background-color: #D1D5EE;
+    color: #89A;
+    border-top: 1px solid #B7C5D9;
+    padding: 3px 0;
+}
+#boardNavDesktopFoot a:link,
+#boardNavDesktopFoot a:visited { color: #34345C; }
+
+/* === Board Banner === */
+.boardTitle { color: #AF0A0F; }
+.boardSubtitle { color: #000; }
+
+/* === HR Separators === */
+hr { border-top-color: #B7C5D9; }
+
+/* === Post Form === */
+.postForm td:first-child {
+    background-color: #D6DAF0;
+    color: #000;
+    border: 1px solid #B7C5D9;
+    padding: 0 5px;
+}
+
+.postForm input[type="text"],
+.postForm input[type="password"],
+.postForm textarea {
+    background-color: #FFFFFF;
+    color: #000;
+    border: 1px solid #B7C5D9;
+}
+
+.postForm input[type="submit"] {
+    background-color: #D6DAF0;
+    color: #000;
+    border: 1px solid #B7C5D9;
+}
+
+#togglePostFormLink a { color: #34345C; }
+
+/* === Reply Posts === */
+.post.reply {
+    background-color: #D6DAF0;
+    border-color: #B7C5D9;
+}
+.post.reply:target { background-color: #D6BAD0 !important; }
+.post.reply.highlight { background-color: #C9CDDF !important; }
+
+/* === Post Info === */
+.postInfo { color: #000; }
+.name { color: #117743; }
+.subject { color: #CC1105; }
+.dateTime { color: #000; }
+.postertrip { color: #117743; }
+
+.postNum a:link,
+.postNum a:visited { color: #000; }
+
+/* === Backlinks === */
+.backlink a:link,
+.backlink a:visited { color: #34345C; }
+
+/* === Quotelinks === */
+.quotelink:link,
+.quotelink:visited { color: #34345C; }
+
+/* === Post Message === */
+.postMessage { color: #000; }
+.quote { color: #789922; }
+
+/* === Side Arrows === */
+.sideArrows { color: #D6DAF0; }
+
+/* === File Text === */
+.fileText { color: #707070; }
+.fileText a:link,
+.fileText a:visited { color: #34345C; }
+
+/* === Summary === */
+.summary { color: #707070; }
+
+/* === Pagination === */
+.pagelist {
+    background-color: #D6DAF0;
+    border: 1px solid #B7C5D9;
+    border-radius: 3px;
+}
+.pagelist .pages a:link,
+.pagelist .pages a:visited {
+    color: #34345C;
+    background-color: #EEF2FF;
+    border-color: #B7C5D9;
+}
+.pagelist .pages strong {
+    background-color: #34345C;
+    color: #EEF2FF;
+    border-color: #34345C;
+}
+.pagelist .prev:link,
+.pagelist .next:link {
+    color: #34345C;
+    border-color: #B7C5D9;
+}
+
+/* === Bottom Controls === */
+.bottomCtrl { color: #000; }
+.deleteform input[type="password"] { background-color: #FFFFFF; border: 1px solid #B7C5D9; }
+.stylechanger select { background-color: #FFFFFF; border: 1px solid #B7C5D9; }
+
+/* === Catalog === */
+.catalog-thread {
+    background-color: #D6DAF0;
+    border-color: #B7C5D9;
+}
+.catalog-thread:hover { border-color: #34345C; }
+.catalog-thread .meta { color: #707070; }
+.catalog-thread .teaser { color: #000; }
+.catalog-thread .subject { color: #CC1105; }
+
+/* === Archive === */
+.archiveList { background-color: #EEF2FF; }
+.archiveList th { background-color: #D6DAF0; border-color: #B7C5D9; color: #000; }
+.archiveList td { border-color: #B7C5D9; }
+
+/* === Quick Reply === */
+#quickReply { background-color: #D6DAF0; border-color: #B7C5D9; }
+#quickReply .move,
+.qrHeader {
+    background-color: #D1D5EE;
+    color: #000;
+    border-bottom-color: #B7C5D9;
+}
+#quickReply textarea,
+#quickReply input[type="text"],
+#quickReply input[type="password"] {
+    background-color: #FFFFFF;
+    color: #000;
+    border: 1px solid #B7C5D9;
+}
+#quickReply input[type="submit"] {
+    background-color: #D6DAF0;
+    color: #000;
+    border: 1px solid #B7C5D9;
+}
+
+/* === Quote Preview === */
+#quote-preview {
+    background-color: #D6DAF0;
+    border-color: #B7C5D9;
+}
+
+/* === Post Menu === */
+.postMenu,
+.postMenuList {
+    background-color: #D6DAF0;
+    border-color: #B7C5D9;
+}
+.postMenu li:hover,
+.postMenuList li:hover { background-color: #B7C5D9; }
+
+/* === Thread Watcher === */
+#threadWatcher { background-color: #D6DAF0; border-color: #B7C5D9; }
+#threadWatcher .move,
+.twHeader { background-color: #D1D5EE; color: #000; border-bottom-color: #B7C5D9; }
+#threadWatcher li { border-bottom-color: #B7C5D9; }
+#threadWatcher li a:link,
+#threadWatcher li a:visited { color: #34345C; }
+
+/* === Settings === */
+#settingsMenu,
+#settingsPanel { background-color: #D6DAF0; border-color: #B7C5D9; color: #000; }
+#settingsMenu .settings-header { border-bottom-color: #B7C5D9; }
+
+/* === Global Message === */
+.globalMessage { background-color: #D6DAF0; color: #000; border-bottom-color: #B7C5D9; }
+
+/* === Code === */
+.prettyprint { background-color: #FFFFFF; border-color: #B7C5D9; color: #000; }
+
+/* === Banned Text === */
+.banMessage { color: red; }
+
+/* === Board Nav Mobile === */
+#boardNavMobile { background-color: #D1D5EE; color: #000; border-bottom-color: #B7C5D9; }
+#boardNavMobile a:link,
+#boardNavMobile a:visited { color: #34345C; }
+
+/* === Rules === */
+.rules { color: #707070; }
+
+/* === Footer === */
+.footer { color: #707070; }
+.footer a:link,
+.footer a:visited { color: #34345C; }
+
+/* === Mobile === */
+@media screen and (max-width: 480px) {
+    .post.reply { border-left-color: #B7C5D9; }
+}
+
+/* === Inline Quote === */
+.inlineQuote { border-left-color: #B7C5D9; }
+
+/* === Selection === */
+::selection { background: #B7C5D9; color: #000; }
+
+/* === Scrollbar === */
+::-webkit-scrollbar-track { background: #EEF2FF; }
+::-webkit-scrollbar-thumb { background: #B7C5D9; }
+::-webkit-scrollbar-thumb:hover { background: #98AACC; }
+
+/* === CAPTCHA === */
+.captchaContainer input { background-color: #FFFFFF; color: #000; border: 1px solid #B7C5D9; }
+
+/* === Report Overlay === */
+#reportOverlay { background: rgba(0, 0, 0, 0.5); }
+#reportForm { background-color: #D6DAF0; border: 1px solid #B7C5D9; }
+
+/* === Consent Banner === */
+#consentBanner { background-color: #333; color: #fff; }
+#consentBanner a { color: #7799EE; }
+
+/* Threads & Posts */
+.post.reply {
+  background-color: #D6DAF0;
+  border-color: #B7C5D9;
+}
+.post.reply:target { background-color: #D6BAD0; }
+.sideArrows { color: #34345C; }
+.name { color: #117743; }
+.subject { color: #0F0C5D; }
+.postertrip { color: #228854; }
+.dateTime { color: #000; }
+.postNum a { color: #34345C; }
+.postMessage { color: #000; }
+.quotelink { color: #D00; }
+.quotelink:hover { color: #DD0000 !important; }
+.backlink a { color: #34345C; }
+.quote { color: #789922; }
+.deadlink { color: #789922 !important; }
+
+/* File info */
+.fileText { color: #707070; }
+.fileText a { color: #34345C; }
+
+/* Summary */
+.summary { color: #707070; }
+
+/* Bottom controls */
+.bottomCtrl { background: transparent; }
+.stylechanger select { background: #fff; border: 1px solid #B7C5D9; }
+
+/* Pagination */
+.pagelist { color: #89A; }
+.pagelist a { color: #34345C; }
+.pagelist strong a { color: #DD0000; }
+
+/* Capcode */
+.capcodeMod .name { color: #800080 !important; }
+.capcodeAdmin .name { color: #FF0000 !important; }
+
+/* Banned */
+.banMessage { color: red; }
+
+/* Quick Reply */
+#quickReply { background: #D6DAF0; border-color: #B7C5D9; }
+#quickReply .qrHeader { background: #B7C5D9; color: #000; }
+
+/* Quote Preview */
+#quote-preview { background: #D6DAF0; border-color: #B7C5D9; }
+
+/* Post Menu */
+.postMenu { background: #D6DAF0; border-color: #B7C5D9; }
+.postMenu li:hover { background: #B7C5D9; }
+
+/* Catalog */
+.catalog-thread img { border-color: #B7C5D9; }
+.catalog-thread .meta { color: #707070; }
+
+/* Thread Watcher */
+#threadWatcher { background: #D6DAF0; border-color: #B7C5D9; }
+#threadWatcher .twHeader { background: #B7C5D9; }
+
+/* Settings */
+#settingsPanel { background: #D6DAF0; border-color: #B7C5D9; }
+
+/* Report */
+#reportForm { background: #D6DAF0; border-color: #B7C5D9; }
+
+/* Archive */
+#arc-list th { background: #B7C5D9; }
+#arc-list td { border-bottom-color: #B7C5D9; }
+
+/* Footer */
+#absbot { color: #707070; }
+#footer-links a { color: #34345C; }
+
+/* Highlight */
+.highlight { animation-name: highlight-burichan; }
+@keyframes highlight-burichan {
+  0% { background-color: rgba(52, 52, 92, 0.2); }
+  100% { background-color: transparent; }
+}
+
+/* Poster UID */
+.posteruid { background: #C5C9E2; color: #000; }
+
+/* Spoiler */
+.spoiler, s { color: #000; background: #000; }
+.spoiler:hover, s:hover { color: #fff; }
+
+/* Ad placeholder */
+.adl { color: #707070; }
+.adl a { color: #34345C; }

@@ -1,0 +1,233 @@
+/* ============================================================
+   ashchan - Tomorrow Theme
+   Dark theme with soft pastel accents on charcoal background.
+   ============================================================ */
+
+/* === Body === */
+body { background: #1D1F21; color: #C5C8C6; }
+
+/* === Links === */
+a:link { color: #81A2BE; }
+a:visited { color: #81A2BE; }
+a:hover { color: #5F89AD !important; }
+
+/* === Board Navigation === */
+#boardNavDesktop {
+  background-color: #282A2E;
+  border-bottom: 1px solid #373B41;
+  color: #C5C8C6;
+}
+#boardNavDesktop a:link,
+#boardNavDesktop a:visited { color: #81A2BE; }
+#boardNavDesktop a:hover { color: #5F89AD !important; }
+
+#boardNavDesktopFoot {
+  background-color: #282A2E;
+  border-top: 1px solid #373B41;
+  color: #C5C8C6;
+  padding: 3px 0;
+}
+#boardNavDesktopFoot a:link,
+#boardNavDesktopFoot a:visited { color: #81A2BE; }
+
+/* === Board Banner === */
+.boardTitle { color: #C5C8C6; }
+.boardSubtitle { color: #C5C8C6; }
+
+/* === HR === */
+hr { border-top-color: #373B41; }
+
+/* === Post Form === */
+.postForm td:first-child {
+  background: #282A2E;
+  color: #C5C8C6;
+  border: 1px solid #373B41;
+  padding: 0 5px;
+}
+.postForm input[type="text"],
+.postForm input[type="password"],
+.postForm textarea {
+  border: 1px solid #373B41;
+  background: #282A2E;
+  color: #C5C8C6;
+}
+.postForm input[type="submit"] {
+  background: #282A2E;
+  border: 1px solid #373B41;
+  color: #C5C8C6;
+}
+#togglePostFormLink a { color: #81A2BE; }
+
+/* === Reply Posts === */
+.post.reply {
+  background-color: #282A2E;
+  border-color: #373B41;
+}
+.post.reply:target { background-color: #373B41 !important; }
+.post.reply.highlight { background-color: #353840 !important; }
+
+/* === Post Info === */
+.postInfo { color: #C5C8C6; }
+.name { color: #C5C8C6; }
+.subject { color: #B294BB; }
+.dateTime { color: #707880; }
+.postertrip { color: #8ABEB7; }
+
+.postNum a:link,
+.postNum a:visited { color: #81A2BE; }
+
+/* === Backlinks / Quotelinks === */
+.backlink a:link,
+.backlink a:visited { color: #81A2BE; }
+.quotelink:link,
+.quotelink:visited { color: #81A2BE; }
+.quotelink:hover { color: #5F89AD !important; }
+
+/* === Post Message === */
+.postMessage { color: #C5C8C6; }
+.quote { color: #B5BD68; }
+.sideArrows { color: #707070; }
+
+/* === File Text === */
+.fileText { color: #707880; }
+.fileText a:link,
+.fileText a:visited { color: #81A2BE; }
+
+/* === Summary === */
+.summary { color: #707880; }
+
+/* === Pagination === */
+.pagelist {
+  background-color: #282A2E;
+  border: 1px solid #373B41;
+  border-radius: 3px;
+}
+.pagelist .pages a:link,
+.pagelist .pages a:visited {
+  color: #81A2BE;
+  background-color: #1D1F21;
+  border-color: #373B41;
+}
+.pagelist .pages strong {
+  background-color: #81A2BE;
+  color: #1D1F21;
+  border-color: #81A2BE;
+}
+.pagelist .prev:link,
+.pagelist .next:link {
+  color: #81A2BE;
+  border-color: #373B41;
+}
+
+/* === Bottom Controls === */
+.bottomCtrl { background: transparent; color: #C5C8C6; }
+.deleteform input[type="password"] { background: #282A2E; border: 1px solid #373B41; color: #C5C8C6; }
+.stylechanger select { background: #282A2E; border: 1px solid #373B41; color: #C5C8C6; }
+
+/* === Catalog === */
+.catalog-thread { background-color: #282A2E; border-color: #373B41; }
+.catalog-thread:hover { border-color: #81A2BE; }
+.catalog-thread .meta { color: #707880; }
+.catalog-thread .teaser { color: #C5C8C6; }
+.catalog-thread .subject { color: #B294BB; }
+
+/* === Archive === */
+.archiveList { background-color: #1D1F21; }
+.archiveList th { background-color: #282A2E; border-color: #373B41; color: #C5C8C6; }
+.archiveList td { border-color: #373B41; color: #C5C8C6; }
+#arc-list th { background: #373B41; color: #C5C8C6; }
+#arc-list td { border-bottom-color: #373B41; color: #C5C8C6; }
+
+/* === Quick Reply === */
+#quickReply { background: #282A2E; border-color: #373B41; }
+#quickReply .move,
+.qrHeader { background: #373B41; color: #C5C8C6; border-bottom-color: #282A2E; }
+#quickReply textarea,
+#quickReply input[type="text"],
+#quickReply input[type="password"] { background: #282A2E; color: #C5C8C6; border: 1px solid #373B41; }
+#quickReply input[type="submit"] { background: #282A2E; color: #C5C8C6; border: 1px solid #373B41; }
+
+/* === Quote Preview === */
+#quote-preview { background: #282A2E; border-color: #373B41; }
+
+/* === Post Menu === */
+.postMenu,
+.postMenuList { background: #282A2E; border-color: #373B41; color: #C5C8C6; }
+.postMenu li:hover,
+.postMenuList li:hover { background: #373B41; }
+
+/* === Thread Watcher === */
+#threadWatcher { background: #282A2E; border-color: #373B41; color: #C5C8C6; }
+#threadWatcher .move,
+.twHeader { background: #373B41; color: #C5C8C6; border-bottom-color: #282A2E; }
+#threadWatcher li { border-bottom-color: #373B41; }
+#threadWatcher li a:link,
+#threadWatcher li a:visited { color: #81A2BE; }
+
+/* === Settings === */
+#settingsMenu,
+#settingsPanel { background: #282A2E; border-color: #373B41; color: #C5C8C6; }
+#settingsMenu .settings-header { border-bottom-color: #373B41; }
+
+/* === Global Message === */
+.globalMessage { background: #282A2E; color: #C5C8C6; border-bottom-color: #373B41; }
+
+/* === Code === */
+.prettyprint { background: #1D1F21; border-color: #373B41; color: #C5C8C6; }
+
+/* === Capcode === */
+.capcodeMod .name { color: #B294BB !important; }
+.capcodeAdmin .name { color: #CC6666 !important; }
+
+/* === Banned === */
+.banMessage { color: #CC6666; }
+
+/* === Board Nav Mobile === */
+#boardNavMobile { background-color: #282A2E; color: #C5C8C6; border-bottom-color: #373B41; }
+#boardNavMobile a:link,
+#boardNavMobile a:visited { color: #81A2BE; }
+
+/* === Rules / Footer === */
+.rules { color: #707880; }
+.footer { color: #707880; }
+.footer a:link,
+.footer a:visited { color: #81A2BE; }
+#absbot { color: #707880; }
+
+/* === Poster UID === */
+.posteruid { background: #373B41; color: #C5C8C6; }
+
+/* === Spoiler === */
+.spoiler, s { color: #1D1F21; background: #1D1F21; }
+.spoiler:hover, s:hover { color: #C5C8C6; }
+
+/* === Mobile === */
+@media screen and (max-width: 480px) {
+    .post.reply { border-left-color: #373B41; }
+}
+
+/* === Inline Quote === */
+.inlineQuote { border-left-color: #373B41; }
+
+/* === Selection === */
+::selection { background: #373B41; color: #C5C8C6; }
+
+/* === Scrollbar === */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #1D1F21; }
+::-webkit-scrollbar-thumb { background: #373B41; }
+::-webkit-scrollbar-thumb:hover { background: #4B5059; }
+
+/* === CAPTCHA === */
+.captchaContainer input { background: #282A2E; color: #C5C8C6; border: 1px solid #373B41; }
+
+/* === Report Overlay === */
+#reportOverlay { background: rgba(0, 0, 0, 0.7); }
+#reportForm { background: #282A2E; border: 1px solid #373B41; color: #C5C8C6; }
+
+/* === Consent Banner === */
+#consentBanner a { color: #81A2BE; }
+
+/* === Ad placeholder === */
+.adl { color: #707880; }
+.adl a { color: #81A2BE; }

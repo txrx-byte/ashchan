@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThreadCreated",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string"},
+    "type": {"const": "thread.created"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {
+      "type": "object",
+      "properties": {
+        "board_id": {"type": "string"},
+        "thread_id": {"type": "string"},
+        "op_post_id": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"}
+      },
+      "required": ["board_id", "thread_id", "op_post_id", "created_at"]
+    }
+  },
+  "required": ["id", "type", "occurred_at", "payload"]
+}

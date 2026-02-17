@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: moderation-anti-spam
+  namespace: ashchan
+spec:
+  ports:
+  - port: 9506
+    targetPort: 9506
+  selector:
+    app: moderation-anti-spam
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moderation-anti-spam
+  namespace: ashchan
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: moderation-anti-spam
+  template:
+    metadata:
+      labels:
+        app: moderation-anti-spam
+    spec:
+      containers:
+      - name: moderation-anti-spam
+        image: ashchan/moderation-anti-spam:latest
+        ports:
+        - containerPort: 9506
+        env:
+        - name: APP_ENV
+          value: production
+        - name: SERVICE_NAME
+          value: moderation-anti-spam
+        - name: PORT
+          value: "9506"
+        - name: DB_DSN
+          value: pgsql:host=postgres;port=5432;dbname=ashchan
+        - name: DB_USER
+          value: ashchan
+        - name: DB_PASSWORD
+          value: ashchan
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"

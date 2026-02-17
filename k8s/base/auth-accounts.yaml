@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-accounts
+  namespace: ashchan
+spec:
+  ports:
+  - port: 9502
+    targetPort: 9502
+  selector:
+    app: auth-accounts
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-accounts
+  namespace: ashchan
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-accounts
+  template:
+    metadata:
+      labels:
+        app: auth-accounts
+    spec:
+      containers:
+      - name: auth-accounts
+        image: ashchan/auth-accounts:latest
+        ports:
+        - containerPort: 9502
+        env:
+        - name: APP_ENV
+          value: production
+        - name: SERVICE_NAME
+          value: auth-accounts
+        - name: PORT
+          value: "9502"
+        - name: DB_DSN
+          value: pgsql:host=postgres;port=5432;dbname=ashchan
+        - name: DB_USER
+          value: ashchan
+        - name: DB_PASSWORD
+          value: ashchan
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"

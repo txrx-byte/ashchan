@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="board-controls">
+  <span id="ctrl-top">
+    [<a href="/{{ board_slug }}/">Return</a>]
+    [<a href="/{{ board_slug }}/catalog">Catalog</a>]
+    [<a href="#bottom">Bottom</a>]
+  </span>
+</div>
+
+<hr>
+
+<!-- Archive Controls -->
+<div id="archive-controls" style="text-align:center;margin:10px 0;">
+  <input type="text" id="archive-search-input" placeholder="Search archived threads..." autocomplete="off" style="width:300px;padding:4px;">
+</div>
+
+<hr>
+
+<!-- Archive List -->
+<table class="archive-list" id="arc-list" style="margin:0 auto;border-collapse:collapse;">
+  <thead>
+    <tr>
+      <th style="padding:3px 10px;">No.</th>
+      <th style="padding:3px 10px;">Excerpt</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for thread in archived_threads %}
+    <tr class="archive-row" data-text="{{ thread.excerpt_lower }}">
+      <td style="padding:3px 10px;"><a href="/{{ board_slug }}/thread/{{ thread.id }}">{{ thread.id }}</a></td>
+      <td style="padding:3px 10px;">{{ thread.excerpt }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if not archived_threads %}
+<div style="text-align:center;padding:30px;color:#666;">No archived threads.</div>
+{% endif %}
+
+<hr>
+
+<div class="board-controls">
+  <span>
+    [<a href="/{{ board_slug }}/">Return</a>]
+    [<a href="#top">Top</a>]
+  </span>
+</div>
+
+<a id="bottom"></a>
+
+<script>
+(function() {
+  var search = document.getElementById('archive-search-input');
+  if (!search) return;
+  search.addEventListener('input', function() {
+    var q = search.value.toLowerCase();
+    var rows = document.querySelectorAll('.archive-row');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].style.display = rows[i].dataset.text.indexOf(q) !== -1 ? '' : 'none';
+    }
+  });
+})();
+</script>
+
+{% endblock %}

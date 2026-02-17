@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PostCreated",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string"},
+    "type": {"const": "post.created"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {
+      "type": "object",
+      "properties": {
+        "board_id": {"type": "string"},
+        "thread_id": {"type": "string"},
+        "post_id": {"type": "string"},
+        "author_id": {"type": ["string", "null"]},
+        "created_at": {"type": "string", "format": "date-time"},
+        "content": {"type": "string"},
+        "media_refs": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["board_id", "thread_id", "post_id", "created_at", "content"]
+    }
+  },
+  "required": ["id", "type", "occurred_at", "payload"]
+}
