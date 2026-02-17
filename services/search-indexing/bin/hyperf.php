@@ -2,14 +2,20 @@
 <?php
 declare(strict_types=1);
 
-use Hyperf\Di\Container;
-use Hyperf\Di\Definition\DefinitionSourceFactory;
-use Hyperf\Framework\Application;
+ini_set('display_errors', 'on');
+ini_set('display_startup_errors', 'on');
+error_reporting(E_ALL);
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
+! defined('BASE_PATH') && define('BASE_PATH', dirname(__DIR__, 1));
 
-define('BASE_PATH', dirname(__DIR__));
+require BASE_PATH . '/vendor/autoload.php';
 
-$container = new Container((new DefinitionSourceFactory(true))());
-$app = $container->get(Application::class);
-$app->run();
+// Load .env if present (for local dev; docker-compose provides env_file)
+if (file_exists(BASE_PATH . '/.env')) {
+    (Dotenv\Dotenv::createMutable(BASE_PATH))->safeLoad();
+}
+
+$container = require BASE_PATH . '/config/container.php';
+
+$application = $container->get(\Hyperf\Contract\ApplicationInterface::class);
+$application->run();

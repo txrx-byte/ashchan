@@ -18,7 +18,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class Consent extends Model
 {
-    protected string $table = 'consents';
+    protected ?string $table = 'consents';
     public bool $timestamps = false;
 
     protected array $fillable = [

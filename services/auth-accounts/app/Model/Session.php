@@ -16,7 +16,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class Session extends Model
 {
-    protected string $table = 'sessions';
+    protected ?string $table = 'sessions';
     public bool $timestamps = false;
 
     protected array $fillable = [

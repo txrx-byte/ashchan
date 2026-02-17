@@ -18,7 +18,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class Report extends Model
 {
-    protected string $table = 'reports';
+    protected ?string $table = 'reports';
 
     protected array $fillable = [
         'post_id', 'reason', 'details', 'reporter_ip_hash', 'status', 'reviewed_by',

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -35,7 +33,7 @@ services:
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ashchan
-      MINIO_ROOT_PASSWORD: ashchan
+      MINIO_ROOT_PASSWORD: ashchan123
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -55,6 +53,8 @@ services:
       - "9501:9501"
     env_file:
       - ./services/api-gateway/.env
+    volumes:
+      - ./frontend/static:/app/frontend/static:ro
     depends_on:
       postgres:
         condition: service_healthy

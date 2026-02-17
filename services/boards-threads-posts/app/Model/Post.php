@@ -34,7 +34,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class Post extends Model
 {
-    protected string $table = 'posts';
+    protected ?string $table = 'posts';
 
     protected array $fillable = [
         'thread_id', 'is_op', 'author_name', 'tripcode', 'capcode',

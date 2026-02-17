@@ -19,7 +19,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class User extends Model
 {
-    protected string $table = 'users';
+    protected ?string $table = 'users';
 
     protected array $fillable = [
         'username', 'password_hash', 'email', 'role',

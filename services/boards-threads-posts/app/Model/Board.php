@@ -25,7 +25,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class Board extends Model
 {
-    protected string $table = 'boards';
+    protected ?string $table = 'boards';
 
     protected array $fillable = [
         'slug', 'title', 'subtitle', 'category', 'nsfw',

@@ -15,7 +15,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class ModerationDecision extends Model
 {
-    protected string $table = 'moderation_decisions';
+    protected ?string $table = 'moderation_decisions';
     public bool $timestamps = false;
 
     protected array $fillable = [

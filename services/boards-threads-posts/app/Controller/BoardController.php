@@ -4,13 +4,10 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\BoardService;
-use Hyperf\HttpServer\Annotation\Controller;
-use Hyperf\HttpServer\Annotation\RequestMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 
-#[Controller(prefix: '/api/v1/boards')]
 final class BoardController
 {
     public function __construct(
@@ -19,7 +16,6 @@ final class BoardController
     ) {}
 
     /** GET /api/v1/boards */
-    #[RequestMapping(path: '', methods: ['GET'])]
     public function list(): ResponseInterface
     {
         $boards = $this->boardService->listBoards();
@@ -27,7 +23,6 @@ final class BoardController
     }
 
     /** GET /api/v1/boards/{slug} */
-    #[RequestMapping(path: '{slug}', methods: ['GET'])]
     public function show(string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);

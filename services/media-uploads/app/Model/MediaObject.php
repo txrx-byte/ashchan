@@ -22,7 +22,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class MediaObject extends Model
 {
-    protected string $table = 'media_objects';
+    protected ?string $table = 'media_objects';
     public bool $timestamps = false;
 
     protected array $fillable = [

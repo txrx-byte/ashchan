@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\ProxyClient;
-use Hyperf\HttpServer\Annotation\Controller;
-use Hyperf\HttpServer\Annotation\RequestMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
@@ -23,7 +21,6 @@ use Psr\Http\Message\ResponseInterface;
  *   /api/v1/captcha/**  → moderation-anti-spam
  *   /api/v1/consent     → auth-accounts
  */
-#[Controller]
 final class GatewayController
 {
     private const ROUTE_MAP = [
@@ -40,7 +37,6 @@ final class GatewayController
     ) {}
 
     /** Catch-all proxy for /api/v1/* routes */
-    #[RequestMapping(path: '/api/v1/{path:.*}', methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])]
     public function proxy(RequestInterface $request, string $path): ResponseInterface
     {
         $service = $this->resolveService($path);

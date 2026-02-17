@@ -19,7 +19,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class Thread extends Model
 {
-    protected string $table = 'threads';
+    protected ?string $table = 'threads';
 
     protected array $fillable = [
         'board_id', 'sticky', 'locked', 'archived',

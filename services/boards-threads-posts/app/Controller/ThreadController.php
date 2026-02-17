@@ -5,13 +5,10 @@ namespace App\Controller;
 
 use App\Model\Thread;
 use App\Service\BoardService;
-use Hyperf\HttpServer\Annotation\Controller;
-use Hyperf\HttpServer\Annotation\RequestMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 
-#[Controller(prefix: '/api/v1/boards')]
 final class ThreadController
 {
     public function __construct(
@@ -20,7 +17,6 @@ final class ThreadController
     ) {}
 
     /** GET /api/v1/boards/{slug}/threads?page=1 */
-    #[RequestMapping(path: '{slug}/threads', methods: ['GET'])]
     public function index(RequestInterface $request, string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);
@@ -33,7 +29,6 @@ final class ThreadController
     }
 
     /** GET /api/v1/boards/{slug}/catalog */
-    #[RequestMapping(path: '{slug}/catalog', methods: ['GET'])]
     public function catalog(string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);
@@ -45,7 +40,6 @@ final class ThreadController
     }
 
     /** GET /api/v1/boards/{slug}/archive */
-    #[RequestMapping(path: '{slug}/archive', methods: ['GET'])]
     public function archive(string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);
@@ -57,7 +51,6 @@ final class ThreadController
     }
 
     /** GET /api/v1/boards/{slug}/threads/{id} */
-    #[RequestMapping(path: '{slug}/threads/{id:\d+}', methods: ['GET'])]
     public function show(string $slug, int $id): ResponseInterface
     {
         $data = $this->boardService->getThread($id);
@@ -68,7 +61,6 @@ final class ThreadController
     }
 
     /** POST /api/v1/boards/{slug}/threads – Create new thread */
-    #[RequestMapping(path: '{slug}/threads', methods: ['POST'])]
     public function create(RequestInterface $request, string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);
@@ -106,7 +98,6 @@ final class ThreadController
     }
 
     /** POST /api/v1/boards/{slug}/threads/{id}/posts – Reply to thread */
-    #[RequestMapping(path: '{slug}/threads/{id:\d+}/posts', methods: ['POST'])]
     public function reply(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $thread = Thread::find($id);
@@ -141,7 +132,6 @@ final class ThreadController
     }
 
     /** GET /api/v1/boards/{slug}/threads/{id}/posts?after=0 – New posts */
-    #[RequestMapping(path: '{slug}/threads/{id:\d+}/posts', methods: ['GET'])]
     public function newPosts(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $after = max(0, (int) $request->query('after', '0'));
@@ -150,7 +140,6 @@ final class ThreadController
     }
 
     /** POST /api/v1/posts/delete – Delete own posts */
-    #[RequestMapping(path: '/api/v1/posts/delete', methods: ['POST'])]
     public function deletePost(RequestInterface $request): ResponseInterface
     {
         $ids = (array) $request->input('ids', []);

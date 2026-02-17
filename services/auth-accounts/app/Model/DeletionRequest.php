@@ -17,7 +17,7 @@ use Hyperf\DbConnection\Model\Model;
  */
 class DeletionRequest extends Model
 {
-    protected string $table = 'deletion_requests';
+    protected ?string $table = 'deletion_requests';
     public bool $timestamps = false;
 
     protected array $fillable = [

@@ -1,0 +1,70 @@
+<?php ob_start(); ?>
+
+<div class="board-controls">
+  <span id="ctrl-top">
+    [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
+    [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+    [<a href="#bottom">Bottom</a>]
+  </span>
+</div>
+
+<hr>
+
+<!-- Archive Controls -->
+<div id="archive-controls" style="text-align:center;margin:10px 0;">
+  <input type="text" id="archive-search-input" placeholder="Search archived threads..." autocomplete="off" style="width:300px;padding:4px;">
+</div>
+
+<hr>
+
+<!-- Archive List -->
+<table class="archive-list" id="arc-list" style="margin:0 auto;border-collapse:collapse;">
+  <thead>
+    <tr>
+      <th style="padding:3px 10px;">No.</th>
+      <th style="padding:3px 10px;">Excerpt</th>
+    </tr>
+  </thead>
+  <tbody>
+    <?php foreach (($archived_threads ?? []) as $thread): ?>
+    <tr class="archive-row" data-text="<?= htmlspecialchars(strtolower($thread['excerpt'] ?? '')) ?>">
+      <td style="padding:3px 10px;"><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>"><?= (int)$thread['id'] ?></a></td>
+      <td style="padding:3px 10px;"><?= htmlspecialchars($thread['excerpt'] ?? '') ?></td>
+    </tr>
+    <?php endforeach; ?>
+  </tbody>
+</table>
+
+<?php if (empty($archived_threads)): ?>
+<div style="text-align:center;padding:30px;color:#666;">No archived threads.</div>
+<?php endif; ?>
+
+<hr>
+
+<div class="board-controls">
+  <span>
+    [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
+    [<a href="#top">Top</a>]
+  </span>
+</div>
+
+<a id="bottom"></a>
+
+<script>
+(function() {
+  var search = document.getElementById('archive-search-input');
+  if (!search) return;
+  search.addEventListener('input', function() {
+    var q = search.value.toLowerCase();
+    var rows = document.querySelectorAll('.archive-row');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].style.display = rows[i].dataset.text.indexOf(q) !== -1 ? '' : 'none';
+    }
+  });
+})();
+</script>
+
+<?php
+$__content = ob_get_clean();
+include __DIR__ . '/layout.php';
+?>

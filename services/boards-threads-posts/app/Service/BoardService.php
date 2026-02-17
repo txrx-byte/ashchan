@@ -23,10 +23,14 @@ final class BoardService
     /** List all boards, cached. */
     public function listBoards(): array
     {
-        $key = 'boards:all';
-        $cached = $this->redis->get($key);
-        if ($cached) {
-            return json_decode($cached, true);
+        try {
+            $key = 'boards:all';
+            $cached = $this->redis->get($key);
+            if ($cached) {
+                return json_decode($cached, true);
+            }
+        } catch (\Throwable $e) {
+            // Redis unavailable, fall through to DB
         }
         $boards = Board::query()
             ->where('archived', false)
@@ -34,20 +38,32 @@ final class BoardService
             ->orderBy('slug')
             ->get()
             ->toArray();
-        $this->redis->setex($key, 300, json_encode($boards));
+        try {
+            $this->redis->setex($key ?? 'boards:all', 300, json_encode($boards));
+        } catch (\Throwable $e) {
+            // Redis unavailable, skip caching
+        }
         return $boards;
     }
 
     public function getBoard(string $slug): ?Board
     {
-        $key = "board:{$slug}";
-        $cached = $this->redis->get($key);
-        if ($cached) {
-            return new Board(json_decode($cached, true));
+        try {
+            $key = "board:{$slug}";
+            $cached = $this->redis->get($key);
+            if ($cached) {
+                return new Board(json_decode($cached, true));
+            }
+        } catch (\Throwable $e) {
+            // Redis unavailable, fall through to DB
         }
         $board = Board::query()->where('slug', $slug)->first();
         if ($board) {
-            $this->redis->setex($key, 300, json_encode($board->toArray()));
+            try {
+                $this->redis->setex("board:{$slug}", 300, json_encode($board->toArray()));
+            } catch (\Throwable $e) {
+                // Redis unavailable
+            }
         }
         return $board;
     }
