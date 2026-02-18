@@ -25,9 +25,12 @@ final class BoardService
     {
         try {
             $key = 'boards:all';
-            $cached = $this->redis->get($key);
-            if ($cached) {
-                return json_decode($cached, true);
+            // Disable cache in development mode
+            if (env('APP_ENV', 'production') !== 'local') {
+                $cached = $this->redis->get($key);
+                if ($cached) {
+                    return json_decode($cached, true);
+                }
             }
         } catch (\Throwable $e) {
             // Redis unavailable, fall through to DB
@@ -39,7 +42,9 @@ final class BoardService
             ->get()
             ->toArray();
         try {
-            $this->redis->setex($key ?? 'boards:all', 300, json_encode($boards));
+            if (env('APP_ENV', 'production') !== 'local') {
+                $this->redis->setex($key ?? 'boards:all', 300, json_encode($boards));
+            }
         } catch (\Throwable $e) {
             // Redis unavailable, skip caching
         }
@@ -48,23 +53,35 @@ final class BoardService
 
     public function getBoard(string $slug): ?Board
     {
+        // Always query DB to ensure proper model hydration
+        // Cache is used only to check if board exists (fast path for 404s)
         try {
             $key = "board:{$slug}";
-            $cached = $this->redis->get($key);
-            if ($cached) {
-                return new Board(json_decode($cached, true));
+            // Disable cache in development mode
+            if (env('APP_ENV', 'production') !== 'local') {
+                $cached = $this->redis->get($key);
+                if ($cached === 'NOT_FOUND') {
+                    return null;
+                }
             }
         } catch (\Throwable $e) {
             // Redis unavailable, fall through to DB
         }
+        
         $board = Board::query()->where('slug', $slug)->first();
-        if ($board) {
-            try {
-                $this->redis->setex("board:{$slug}", 300, json_encode($board->toArray()));
-            } catch (\Throwable $e) {
-                // Redis unavailable
+        
+        try {
+            if (env('APP_ENV', 'production') !== 'local') {
+                if ($board) {
+                    $this->redis->setex("board:{$slug}", 300, json_encode($board->toArray()));
+                } else {
+                    $this->redis->setex("board:{$slug}", 60, 'NOT_FOUND');
+                }
             }
+        } catch (\Throwable $e) {
+            // Redis unavailable
         }
+        
         return $board;
     }
 
@@ -266,15 +283,20 @@ final class BoardService
 
     public function createThread(Board $board, array $data): array
     {
-        return Db::transaction(function () use ($board, $data) {
+        $boardId = (int) $board->id;
+        if ($boardId <= 0) {
+            throw new \RuntimeException("Board ID is missing or invalid: " . var_export($board->id, true) . " (type: " . gettype($board->id) . ")");
+        }
+
+        return Db::transaction(function () use ($board, $boardId, $data) {
             $thread = Thread::create([
-                'board_id' => $board->id,
+                'board_id' => $boardId,
                 'sticky'   => false,
                 'locked'   => false,
                 'archived' => false,
             ]);
             $thread->update([
-                'bumped_at'   => now(),
+                'bumped_at'   => \Carbon\Carbon::now(),
                 'reply_count' => 0,
                 'image_count' => isset($data['media_url']) ? 1 : 0,
             ]);
@@ -361,7 +383,7 @@ final class BoardService
                 $board = $thread->board;
                 $bumpLimit = $board ? $board->bump_limit : 300;
                 if ($thread->reply_count <= $bumpLimit) {
-                    $thread->update(['bumped_at' => now()]);
+                    $thread->update(['bumped_at' => \Carbon\Carbon::now()]);
                 }
             }
 
@@ -397,7 +419,7 @@ final class BoardService
         } else {
             $post->update([
                 'deleted'    => true,
-                'deleted_at' => now(),
+                'deleted_at' => \Carbon\Carbon::now(),
                 'content'    => '',
                 'content_html' => '',
                 'media_url'  => null,

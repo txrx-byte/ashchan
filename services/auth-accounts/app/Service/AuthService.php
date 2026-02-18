@@ -207,7 +207,7 @@ final class AuthService
             'user_id'      => $userId,
             'status'       => 'pending',
             'request_type' => 'data_export',
-            'requested_at' => now(),
+            'requested_at' => \Carbon\Carbon::now(),
         ]);
     }
 
@@ -217,7 +217,7 @@ final class AuthService
             'user_id'      => $userId,
             'status'       => 'pending',
             'request_type' => 'data_deletion',
-            'requested_at' => now(),
+            'requested_at' => \Carbon\Carbon::now(),
         ]);
     }
 
