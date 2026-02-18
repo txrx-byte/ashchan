@@ -8,6 +8,7 @@ use App\Service\TemplateRenderer;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
+use Hyperf\Logger\LoggerFactory;
 
 /**
  * Serves the frontend HTML pages and static files.
@@ -368,7 +369,19 @@ final class FrontendController
         ]);
 
         if ($result['status'] >= 400) {
-            return ['error' => 'Upstream error', 'status' => $result['status']];
+            // Log the error but don't return an error array that breaks destructuring
+            // For example, if boards backend returns 404 for a specific board,
+            // we want to display "Board not found" without crashing.
+            // Other errors (e.g. 5xx) will result in empty data and generic error messages.
+            // If the service is completely down, it'll still return empty data.
+            \Hyperf\Logger\LoggerFactory::get('default')->error(sprintf(
+                'Upstream service "%s" returned error status %d for path "%s". Body: %s',
+                $service,
+                $result['status'],
+                $path,
+                (string) ($result['body'] ?? 'N/A')
+            ));
+            return [];
         }
 
         $body = $result['body'];

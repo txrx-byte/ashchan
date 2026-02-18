@@ -77,7 +77,7 @@ final class BoardService
             // Redis unavailable, fall through to DB
         }
         
-        $board = Board::query()->where('slug', $slug)->first();
+        $board = Board::query()->where('slug', $slug)->where(function ($query) { $query->where('nsfw', false)->orWhere('nsfw', true); })->first();
         
         try {
             if (env('APP_ENV', 'production') !== 'local') {

@@ -36,16 +36,21 @@ class StaffAuthMiddleware implements MiddlewareInterface
     {
         $uri = $request->getUri();
         $path = $uri->getPath();
-        
+
+        // Only protect /staff/* routes - all other routes are public
+        if (!str_starts_with($path, '/staff/')) {
+            return $handler->handle($request);
+        }
+
         // Allow login/logout pages without auth
         if (in_array($path, ['/staff/login', '/staff/logout'])) {
             return $handler->handle($request);
         }
-        
+
         // Get session token from cookie
         $cookies = $request->getCookieParams();
         $sessionToken = $cookies['staff_session'] ?? null;
-        
+
         if (!$sessionToken) {
             return $this->redirectToLogin($request, 'Session expired. Please login again.');
         }
