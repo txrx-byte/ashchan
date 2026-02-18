@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="referrer" content="never">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
   <title>Staff Login - Ashchan</title>
   <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
   <link rel="stylesheet" type="text/css" href="/staff/css/login.css">
@@ -11,30 +12,90 @@
 </head>
 <body class="login-page">
 <div id="login-container">
-  <h1 class="login-title">Ashchan Staff Login</h1>
+  <div class="login-header">
+    <h1 class="login-title">Ashchan Staff Login</h1>
+    <p class="login-subtitle">Authorized personnel only</p>
+  </div>
   
-  <?php if ($error): ?>
-  <div class="error-message"><?= htmlspecialchars($error) ?></div>
+  <?php if (!empty($error)): ?>
+  <div class="alert alert-error">
+    <span class="alert-icon">⚠️</span>
+    <span class="alert-message"><?= htmlspecialchars($error) ?></span>
+  </div>
   <?php endif ?>
   
-  <form method="POST" action="/staff/login" class="login-form">
+  <form method="POST" action="/staff/login" class="login-form" autocomplete="off">
     <div class="form-group">
-      <label for="username">Username</label>
-      <input type="text" id="username" name="username" required autofocus>
+      <label for="username">Username or Email</label>
+      <input 
+        type="text" 
+        id="username" 
+        name="username" 
+        required 
+        autofocus 
+        autocomplete="username"
+        placeholder="Enter your username or email"
+        spellcheck="false"
+      >
     </div>
+    
     <div class="form-group">
       <label for="password">Password</label>
-      <input type="password" id="password" name="password" required>
+      <input 
+        type="password" 
+        id="password" 
+        name="password" 
+        required 
+        autocomplete="current-password"
+        placeholder="Enter your password"
+      >
     </div>
+    
+    <div class="form-options">
+      <label class="checkbox-label">
+        <input type="checkbox" name="remember" value="1">
+        <span>Remember me (8 hours)</span>
+      </label>
+    </div>
+    
     <div class="form-group">
-      <button type="submit" class="button button-primary button-full">Login</button>
+      <button type="submit" class="button button-primary button-full">
+        <span class="button-icon">🔐</span>
+        Sign In
+      </button>
     </div>
   </form>
   
+  <div class="login-security-notice">
+    <div class="security-icon">🛡️</div>
+    <p><strong>Security Notice:</strong></p>
+    <ul>
+      <li>All login attempts are logged and monitored</li>
+      <li>Failed attempts may result in temporary lockout</li>
+      <li>Use strong, unique passwords</li>
+      <li>Never share your credentials</li>
+    </ul>
+  </div>
+  
   <div class="login-help">
-    <p>Staff access is restricted to authorized personnel only.</p>
-    <p>If you believe you should have access, contact your administrator.</p>
+    <p>Having trouble? Contact your administrator.</p>
+    <p class="login-version">Staff Panel v2.0</p>
   </div>
 </div>
+
+<script>
+// Clear form on page load (security)
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.querySelector('.login-form');
+  if (form) {
+    form.reset();
+  }
+  
+  // Prevent form resubmission
+  if (window.history.replaceState) {
+    window.history.replaceState(null, null, window.location.href);
+  }
+});
+</script>
 </body>
 </html>
