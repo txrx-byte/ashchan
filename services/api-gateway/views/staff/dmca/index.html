@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMCA Notices - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Moderation</div>
+                <a href="/staff/reports" class="nav-item">
+                    <span class="nav-icon">🚩</span>
+                    <span>Reports Queue</span>
+                </a>
+                <a href="/staff/reports/ban-requests" class="nav-item">
+                    <span class="nav-icon">⚖️</span>
+                    <span>Ban Requests</span>
+                </a>
+                <a href="/staff/bans" class="nav-item">
+                    <span class="nav-icon">🚫</span>
+                    <span>Bans</span>
+                </a>
+                <div class="nav-section">Management</div>
+                <a href="/staff/accounts" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/staff/capcodes" class="nav-item">
+                    <span class="nav-icon">🏷️</span>
+                    <span>Capcodes</span>
+                </a>
+                <a href="/staff/iprangebans" class="nav-item">
+                    <span class="nav-icon">🌐</span>
+                    <span>IP Range Bans</span>
+                </a>
+                <a href="/staff/autopurge" class="nav-item">
+                    <span class="nav-icon">🗑️</span>
+                    <span>Autopurge</span>
+                </a>
+                <a href="/staff/dmca" class="nav-item active">
+                    <span class="nav-icon">📧</span>
+                    <span>DMCA</span>
+                </a>
+                <a href="/staff/blotter" class="nav-item">
+                    <span class="nav-icon">📢</span>
+                    <span>Blotter</span>
+                </a>
+                <a href="/staff/site-messages" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span>Site Messages</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <a href="/staff/logout" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>DMCA Notices</h2>
+                <a href="/staff/dmca/create" class="btn btn-primary">+ New Notice</a>
+            </header>
+
+            <?php if (empty($notices)): ?>
+                <div class="empty-state">
+                    <p>No DMCA notices found.</p>
+                </div>
+            <?php else: ?>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Claimant</th>
+                                <th>Copyrighted Work</th>
+                                <th>URLs</th>
+                                <th>Received</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($notices as $notice): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?= htmlspecialchars($notice->claimant_name) ?></strong>
+                                        <?php if ($notice->claimant_company): ?>
+                                            <br><small><?= htmlspecialchars($notice->claimant_company) ?></small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="truncate"><?= htmlspecialchars($notice->copyrighted_work) ?></td>
+                                    <td>
+                                        <?php 
+                                        $urls = is_array($notice->infringing_urls) ? $notice->infringing_urls : [];
+                                        echo count($urls) . ' URL(s)';
+                                        ?>
+                                    </td>
+                                    <td><?= date('Y-m-d', strtotime($notice->received_at)) ?></td>
+                                    <td>
+                                        <?php
+                                        $statusClass = [
+                                            'pending' => 'badge-warning',
+                                            'processed' => 'badge-success',
+                                            'rejected' => 'badge-danger',
+                                        ][$notice->status] ?? 'badge-secondary';
+                                        ?>
+                                        <span class="badge <?= $statusClass ?>">
+                                            <?= ucfirst($notice->status) ?>
+                                        </span>
+                                    </td>
+                                    <td class="actions">
+                                        <a href="/staff/dmca/<?= $notice->id ?>" class="btn btn-sm">View</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+</body>
+</html>

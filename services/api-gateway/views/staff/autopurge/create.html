@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Autopurge Rule - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Moderation</div>
+                <a href="/staff/reports" class="nav-item">
+                    <span class="nav-icon">🚩</span>
+                    <span>Reports Queue</span>
+                </a>
+                <a href="/staff/reports/ban-requests" class="nav-item">
+                    <span class="nav-icon">⚖️</span>
+                    <span>Ban Requests</span>
+                </a>
+                <a href="/staff/bans" class="nav-item">
+                    <span class="nav-icon">🚫</span>
+                    <span>Bans</span>
+                </a>
+                <div class="nav-section">Management</div>
+                <a href="/staff/accounts" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/staff/capcodes" class="nav-item">
+                    <span class="nav-icon">🏷️</span>
+                    <span>Capcodes</span>
+                </a>
+                <a href="/staff/iprangebans" class="nav-item">
+                    <span class="nav-icon">🌐</span>
+                    <span>IP Range Bans</span>
+                </a>
+                <a href="/staff/autopurge" class="nav-item active">
+                    <span class="nav-icon">🗑️</span>
+                    <span>Autopurge</span>
+                </a>
+                <a href="/staff/dmca" class="nav-item">
+                    <span class="nav-icon">📧</span>
+                    <span>DMCA</span>
+                </a>
+                <a href="/staff/blotter" class="nav-item">
+                    <span class="nav-icon">📢</span>
+                    <span>Blotter</span>
+                </a>
+                <a href="/staff/site-messages" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span>Site Messages</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <a href="/staff/logout" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>Create Autopurge Rule</h2>
+                <a href="/staff/autopurge" class="btn">Cancel</a>
+            </header>
+
+            <form id="autopurgeForm" class="form">
+                <div class="form-group">
+                    <label for="pattern">Pattern *</label>
+                    <input type="text" id="pattern" name="pattern" required 
+                           placeholder="Text or regex pattern to match">
+                    <small>Content that matches this pattern will be automatically purged</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="isRegex" name="is_regex">
+                        This is a regular expression
+                    </label>
+                    <small>Check if pattern is regex, otherwise treated as literal text</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Board Restrictions</label>
+                    <div class="board-checkboxes">
+                        <?php foreach ($boards as $board): ?>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="boards[]" value="<?= htmlspecialchars($board) ?>">
+                                /<?= htmlspecialchars($board) ?>/
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <small>Leave empty for all boards</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Purge Options</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="purge_threads" checked>
+                            Purge Threads
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="purge_replies" checked>
+                            Purge Replies
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="ban_length_days">Ban Length (days)</label>
+                    <input type="number" id="ban_length_days" name="ban_length_days" value="0" min="0">
+                    <small>0 = no ban, just purge. Set days to also ban the poster.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="ban_reason">Ban Reason</label>
+                    <input type="text" id="ban_reason" name="ban_reason" 
+                           placeholder="Reason shown to user if banned">
+                    <small>Only used if ban length > 0</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_active" checked>
+                        Active
+                    </label>
+                    <small>Enable this rule immediately</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create Rule</button>
+                    <a href="/staff/autopurge" class="btn">Cancel</a>
+                </div>
+            </form>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+    <script>
+        document.getElementById('autopurgeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = {
+                pattern: formData.get('pattern'),
+                is_regex: formData.has('is_regex'),
+                boards: formData.getAll('boards[]'),
+                purge_threads: formData.has('purge_threads'),
+                purge_replies: formData.has('purge_replies'),
+                ban_length_days: parseInt(formData.get('ban_length_days')) || 0,
+                ban_reason: formData.get('ban_reason') || '',
+                is_active: formData.has('is_active'),
+            };
+
+            fetch('/staff/autopurge/store', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Error: ' + (data.errors ? data.errors.join('\n') : data.error));
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -10,6 +10,12 @@ use App\Controller\Staff\StaffReportController;
 use App\Controller\Staff\StaffBanTemplateController;
 use App\Controller\Staff\StaffReportCategoryController;
 use App\Controller\Staff\StaffToolsController;
+use App\Controller\Staff\CapcodeController;
+use App\Controller\Staff\IpRangeBanController;
+use App\Controller\Staff\AutopurgeController;
+use App\Controller\Staff\DmcaController;
+use App\Controller\Staff\BlotterController;
+use App\Controller\Staff\SiteMessageController;
 
 // Health check
 Router::get('/health', [HealthController::class, 'check']);
@@ -73,6 +79,59 @@ Router::post('/staff/accounts/{id:\d+}/update', [\App\Controller\Staff\AccountMa
 Router::post('/staff/accounts/{id:\d+}/delete', [\App\Controller\Staff\AccountManagementController::class, 'delete']);
 Router::post('/staff/accounts/{id:\d+}/reset-password', [\App\Controller\Staff\AccountManagementController::class, 'resetPassword']);
 Router::post('/staff/accounts/{id:\d+}/unlock', [\App\Controller\Staff\AccountManagementController::class, 'unlock']);
+
+// Staff Capcodes Management (Manager+)
+Router::get('/staff/capcodes', [\App\Controller\Staff\CapcodeController::class, 'index']);
+Router::get('/staff/capcodes/create', [\App\Controller\Staff\CapcodeController::class, 'create']);
+Router::post('/staff/capcodes/store', [\App\Controller\Staff\CapcodeController::class, 'store']);
+Router::get('/staff/capcodes/{id:\d+}/edit', [\App\Controller\Staff\CapcodeController::class, 'edit']);
+Router::post('/staff/capcodes/{id:\d+}/update', [\App\Controller\Staff\CapcodeController::class, 'update']);
+Router::post('/staff/capcodes/{id:\d+}/delete', [\App\Controller\Staff\CapcodeController::class, 'delete']);
+Router::post('/staff/capcodes/test', [\App\Controller\Staff\CapcodeController::class, 'test']);
+
+// Staff IP Range Bans (Manager+)
+Router::get('/staff/iprangebans', [\App\Controller\Staff\IpRangeBanController::class, 'index']);
+Router::get('/staff/iprangebans/create', [\App\Controller\Staff\IpRangeBanController::class, 'create']);
+Router::post('/staff/iprangebans/store', [\App\Controller\Staff\IpRangeBanController::class, 'store']);
+Router::get('/staff/iprangebans/{id:\d+}/edit', [\App\Controller\Staff\IpRangeBanController::class, 'edit']);
+Router::post('/staff/iprangebans/{id:\d+}/update', [\App\Controller\Staff\IpRangeBanController::class, 'update']);
+Router::post('/staff/iprangebans/{id:\d+}/delete', [\App\Controller\Staff\IpRangeBanController::class, 'delete']);
+Router::post('/staff/iprangebans/test', [\App\Controller\Staff\IpRangeBanController::class, 'test']);
+
+// Staff Autopurge Rules (Manager+)
+Router::get('/staff/autopurge', [\App\Controller\Staff\AutopurgeController::class, 'index']);
+Router::get('/staff/autopurge/create', [\App\Controller\Staff\AutopurgeController::class, 'create']);
+Router::post('/staff/autopurge/store', [\App\Controller\Staff\AutopurgeController::class, 'store']);
+Router::get('/staff/autopurge/{id:\d+}/edit', [\App\Controller\Staff\AutopurgeController::class, 'edit']);
+Router::post('/staff/autopurge/{id:\d+}/update', [\App\Controller\Staff\AutopurgeController::class, 'update']);
+Router::post('/staff/autopurge/{id:\d+}/delete', [\App\Controller\Staff\AutopurgeController::class, 'delete']);
+Router::post('/staff/autopurge/test', [\App\Controller\Staff\AutopurgeController::class, 'test']);
+
+// Staff DMCA Management (Manager+)
+Router::get('/staff/dmca', [\App\Controller\Staff\DmcaController::class, 'index']);
+Router::get('/staff/dmca/create', [\App\Controller\Staff\DmcaController::class, 'create']);
+Router::post('/staff/dmca/store', [\App\Controller\Staff\DmcaController::class, 'store']);
+Router::get('/staff/dmca/{id:\d+}', [\App\Controller\Staff\DmcaController::class, 'view']);
+Router::post('/staff/dmca/{id:\d+}/process', [\App\Controller\Staff\DmcaController::class, 'process']);
+Router::post('/staff/dmca/{id:\d+}/status', [\App\Controller\Staff\DmcaController::class, 'updateStatus']);
+
+// Staff Blotter Messages (Manager+)
+Router::get('/staff/blotter', [\App\Controller\Staff\BlotterController::class, 'index']);
+Router::get('/staff/blotter/create', [\App\Controller\Staff\BlotterController::class, 'create']);
+Router::post('/staff/blotter/store', [\App\Controller\Staff\BlotterController::class, 'store']);
+Router::get('/staff/blotter/{id:\d+}/edit', [\App\Controller\Staff\BlotterController::class, 'edit']);
+Router::post('/staff/blotter/{id:\d+}/update', [\App\Controller\Staff\BlotterController::class, 'update']);
+Router::post('/staff/blotter/{id:\d+}/delete', [\App\Controller\Staff\BlotterController::class, 'delete']);
+Router::post('/staff/blotter/preview', [\App\Controller\Staff\BlotterController::class, 'preview']);
+
+// Staff Site Messages (Manager+)
+Router::get('/staff/site-messages', [\App\Controller\Staff\SiteMessageController::class, 'index']);
+Router::get('/staff/site-messages/create', [\App\Controller\Staff\SiteMessageController::class, 'create']);
+Router::post('/staff/site-messages/store', [\App\Controller\Staff\SiteMessageController::class, 'store']);
+Router::get('/staff/site-messages/{id:\d+}/edit', [\App\Controller\Staff\SiteMessageController::class, 'edit']);
+Router::post('/staff/site-messages/{id:\d+}/update', [\App\Controller\Staff\SiteMessageController::class, 'update']);
+Router::post('/staff/site-messages/{id:\d+}/delete', [\App\Controller\Staff\SiteMessageController::class, 'delete']);
+Router::post('/staff/site-messages/preview', [\App\Controller\Staff\SiteMessageController::class, 'preview']);
 
 // ============== Moderation API Routes ==============
 

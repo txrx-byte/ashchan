@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create IP Range Ban - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Moderation</div>
+                <a href="/staff/reports" class="nav-item">
+                    <span class="nav-icon">🚩</span>
+                    <span>Reports Queue</span>
+                </a>
+                <a href="/staff/reports/ban-requests" class="nav-item">
+                    <span class="nav-icon">⚖️</span>
+                    <span>Ban Requests</span>
+                </a>
+                <a href="/staff/bans" class="nav-item">
+                    <span class="nav-icon">🚫</span>
+                    <span>Bans</span>
+                </a>
+                <div class="nav-section">Management</div>
+                <a href="/staff/accounts" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/staff/capcodes" class="nav-item">
+                    <span class="nav-icon">🏷️</span>
+                    <span>Capcodes</span>
+                </a>
+                <a href="/staff/iprangebans" class="nav-item active">
+                    <span class="nav-icon">🌐</span>
+                    <span>IP Range Bans</span>
+                </a>
+                <a href="/staff/autopurge" class="nav-item">
+                    <span class="nav-icon">🗑️</span>
+                    <span>Autopurge</span>
+                </a>
+                <a href="/staff/dmca" class="nav-item">
+                    <span class="nav-icon">📧</span>
+                    <span>DMCA</span>
+                </a>
+                <a href="/staff/blotter" class="nav-item">
+                    <span class="nav-icon">📢</span>
+                    <span>Blotter</span>
+                </a>
+                <a href="/staff/site-messages" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span>Site Messages</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <a href="/staff/logout" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>Create IP Range Ban</h2>
+                <a href="/staff/iprangebans" class="btn">Cancel</a>
+            </header>
+
+            <form id="rangeBanForm" class="form">
+                <div class="form-group">
+                    <label for="range">IP Range (CIDR) *</label>
+                    <input type="text" id="range" name="range" required 
+                           placeholder="192.168.1.0/24"
+                           pattern="\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}">
+                    <small>Enter IP range in CIDR notation (e.g., 192.168.1.0/24)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">Reason *</label>
+                    <textarea id="reason" name="reason" required rows="3" 
+                              placeholder="Reason for the IP range ban"></textarea>
+                    <small>Explain why this range is being banned</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Board Restrictions</label>
+                    <div class="board-checkboxes">
+                        <?php foreach ($boards as $board): ?>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="boards[]" value="<?= htmlspecialchars($board) ?>">
+                                /<?= htmlspecialchars($board) ?>/
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <small>Leave empty for all boards</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="expires_at">Expires At</label>
+                    <input type="datetime-local" id="expires_at" name="expires_at">
+                    <small>Leave empty for permanent ban</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_active" checked>
+                        Active
+                    </label>
+                    <small>Enable this ban immediately</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create Range Ban</button>
+                    <a href="/staff/iprangebans" class="btn">Cancel</a>
+                </div>
+            </form>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+    <script>
+        document.getElementById('rangeBanForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = {
+                range: formData.get('range'),
+                reason: formData.get('reason'),
+                boards: formData.getAll('boards[]'),
+                expires_at: formData.get('expires_at') || null,
+                is_active: formData.has('is_active'),
+            };
+
+            fetch('/staff/iprangebans/store', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Error: ' + (data.errors ? data.errors.join('\n') : data.error));
+                }
+            });
+        });
+    </script>
+</body>
+</html>

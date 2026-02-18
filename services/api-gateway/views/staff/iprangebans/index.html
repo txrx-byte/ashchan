@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Range Bans - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Moderation</div>
+                <a href="/staff/reports" class="nav-item">
+                    <span class="nav-icon">🚩</span>
+                    <span>Reports Queue</span>
+                </a>
+                <a href="/staff/reports/ban-requests" class="nav-item">
+                    <span class="nav-icon">⚖️</span>
+                    <span>Ban Requests</span>
+                </a>
+                <a href="/staff/bans" class="nav-item">
+                    <span class="nav-icon">🚫</span>
+                    <span>Bans</span>
+                </a>
+                <div class="nav-section">Management</div>
+                <a href="/staff/accounts" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/staff/capcodes" class="nav-item">
+                    <span class="nav-icon">🏷️</span>
+                    <span>Capcodes</span>
+                </a>
+                <a href="/staff/iprangebans" class="nav-item active">
+                    <span class="nav-icon">🌐</span>
+                    <span>IP Range Bans</span>
+                </a>
+                <a href="/staff/autopurge" class="nav-item">
+                    <span class="nav-icon">🗑️</span>
+                    <span>Autopurge</span>
+                </a>
+                <a href="/staff/dmca" class="nav-item">
+                    <span class="nav-icon">📧</span>
+                    <span>DMCA</span>
+                </a>
+                <a href="/staff/blotter" class="nav-item">
+                    <span class="nav-icon">📢</span>
+                    <span>Blotter</span>
+                </a>
+                <a href="/staff/site-messages" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span>Site Messages</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <a href="/staff/logout" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>IP Range Bans</h2>
+                <a href="/staff/iprangebans/create" class="btn btn-primary">+ New Range Ban</a>
+            </header>
+
+            <div class="test-tool">
+                <h3>Test IP Address</h3>
+                <div class="test-form">
+                    <input type="text" id="testIp" placeholder="192.168.1.100">
+                    <button class="btn" onclick="testIp()">Test</button>
+                </div>
+                <div id="testResult" class="test-result"></div>
+            </div>
+
+            <?php if (empty($rangeBans)): ?>
+                <div class="empty-state">
+                    <p>No IP range bans found.</p>
+                </div>
+            <?php else: ?>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Range</th>
+                                <th>Reason</th>
+                                <th>Boards</th>
+                                <th>Expires</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($rangeBans as $ban): ?>
+                                <tr>
+                                    <td>
+                                        <code><?= htmlspecialchars($ban->range_start) ?> - <?= htmlspecialchars($ban->range_end) ?></code>
+                                    </td>
+                                    <td><?= htmlspecialchars($ban->reason) ?></td>
+                                    <td>
+                                        <?php if (empty($ban->boards)): ?>
+                                            <em>All boards</em>
+                                        <?php else: ?>
+                                            <?= htmlspecialchars(implode(', ', $ban->boards)) ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($ban->expires_at): ?>
+                                            <?= date('Y-m-d H:i', strtotime($ban->expires_at)) ?>
+                                        <?php else: ?>
+                                            <em>Never</em>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($ban->is_active): ?>
+                                            <span class="badge badge-success">Active</span>
+                                        <?php else: ?>
+                                            <span class="badge badge-secondary">Inactive</span>
+                                        <?php endif; ?>
+                                        <?php if ($ban->expires_at && strtotime($ban->expires_at) < time()): ?>
+                                            <span class="badge badge-warning">Expired</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= date('Y-m-d', strtotime($ban->created_at)) ?></td>
+                                    <td class="actions">
+                                        <a href="/staff/iprangebans/<?= $ban->id ?>/edit" class="btn btn-sm">Edit</a>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteRangeBan(<?= $ban->id ?>)">Delete</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+    <script>
+        function deleteRangeBan(id) {
+            if (!confirm('Are you sure you want to delete this IP range ban?')) return;
+            fetch('/staff/iprangebans/' + id + '/delete', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                });
+        }
+
+        function testIp() {
+            const ip = document.getElementById('testIp').value.trim();
+            if (!ip) {
+                alert('Please enter an IP address');
+                return;
+            }
+            fetch('/staff/iprangebans/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ip }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                const result = document.getElementById('testResult');
+                if (!data.valid) {
+                    result.innerHTML = '<p class="text-danger">Error: ' + data.error + '</p>';
+                } else if (data.matches > 0) {
+                    let html = '<p class="text-danger">IP matches ' + data.matches + ' active ban(s):</p><ul>';
+                    data.bans.forEach(ban => {
+                        html += '<li>' + ban.reason + ' (expires: ' + (ban.expires_at || 'never') + ')</li>';
+                    });
+                    html += '</ul>';
+                    result.innerHTML = html;
+                } else {
+                    result.innerHTML = '<p class="text-success">IP is not banned.</p>';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

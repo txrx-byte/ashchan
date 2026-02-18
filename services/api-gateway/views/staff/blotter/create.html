@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Blotter Message - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Moderation</div>
+                <a href="/staff/reports" class="nav-item">
+                    <span class="nav-icon">🚩</span>
+                    <span>Reports Queue</span>
+                </a>
+                <a href="/staff/reports/ban-requests" class="nav-item">
+                    <span class="nav-icon">⚖️</span>
+                    <span>Ban Requests</span>
+                </a>
+                <a href="/staff/bans" class="nav-item">
+                    <span class="nav-icon">🚫</span>
+                    <span>Bans</span>
+                </a>
+                <div class="nav-section">Management</div>
+                <a href="/staff/accounts" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/staff/capcodes" class="nav-item">
+                    <span class="nav-icon">🏷️</span>
+                    <span>Capcodes</span>
+                </a>
+                <a href="/staff/iprangebans" class="nav-item">
+                    <span class="nav-icon">🌐</span>
+                    <span>IP Range Bans</span>
+                </a>
+                <a href="/staff/autopurge" class="nav-item">
+                    <span class="nav-icon">🗑️</span>
+                    <span>Autopurge</span>
+                </a>
+                <a href="/staff/dmca" class="nav-item">
+                    <span class="nav-icon">📧</span>
+                    <span>DMCA</span>
+                </a>
+                <a href="/staff/blotter" class="nav-item active">
+                    <span class="nav-icon">📢</span>
+                    <span>Blotter</span>
+                </a>
+                <a href="/staff/site-messages" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span>Site Messages</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <a href="/staff/logout" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>Create Blotter Message</h2>
+                <a href="/staff/blotter" class="btn">Cancel</a>
+            </header>
+
+            <form id="blotterForm" class="form">
+                <div class="form-group">
+                    <label for="message">Message *</label>
+                    <textarea id="message" name="message" required rows="5" 
+                              placeholder="Enter blotter message content..."></textarea>
+                    <small>Site-wide announcement displayed to users</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="isHtml" name="is_html">
+                        This is HTML
+                    </label>
+                    <small>Allow HTML formatting (p, br, strong, em, a, ul, ol, li tags only)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="priority">Priority</label>
+                    <input type="number" id="priority" name="priority" value="0">
+                    <small>Higher priority messages appear first. Default is 0.</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_active" checked>
+                        Active
+                    </label>
+                    <small>Display this message immediately</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="preview()">Preview</button>
+                    <button type="submit" class="btn btn-primary">Create Message</button>
+                    <a href="/staff/blotter" class="btn">Cancel</a>
+                </div>
+
+                <div id="preview" class="preview-box" style="display: none;"></div>
+            </form>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+    <script>
+        function preview() {
+            const message = document.getElementById('message').value;
+            const isHtml = document.getElementById('isHtml').checked;
+            fetch('/staff/blotter/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, is_html: isHtml }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                const preview = document.getElementById('preview');
+                preview.innerHTML = '<h4>Preview:</h4>' + data.preview;
+                preview.style.display = 'block';
+            });
+        }
+
+        document.getElementById('blotterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = {
+                message: formData.get('message'),
+                is_html: formData.has('is_html'),
+                priority: parseInt(formData.get('priority')) || 0,
+                is_active: formData.has('is_active'),
+            };
+
+            fetch('/staff/blotter/store', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Error: ' + (data.errors ? data.errors.join('\n') : data.error));
+                }
+            });
+        });
+    </script>
+</body>
+</html>

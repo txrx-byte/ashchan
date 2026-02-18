@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Site Message - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Moderation</div>
+                <a href="/staff/reports" class="nav-item">
+                    <span class="nav-icon">🚩</span>
+                    <span>Reports Queue</span>
+                </a>
+                <a href="/staff/reports/ban-requests" class="nav-item">
+                    <span class="nav-icon">⚖️</span>
+                    <span>Ban Requests</span>
+                </a>
+                <a href="/staff/bans" class="nav-item">
+                    <span class="nav-icon">🚫</span>
+                    <span>Bans</span>
+                </a>
+                <div class="nav-section">Management</div>
+                <a href="/staff/accounts" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/staff/capcodes" class="nav-item">
+                    <span class="nav-icon">🏷️</span>
+                    <span>Capcodes</span>
+                </a>
+                <a href="/staff/iprangebans" class="nav-item">
+                    <span class="nav-icon">🌐</span>
+                    <span>IP Range Bans</span>
+                </a>
+                <a href="/staff/autopurge" class="nav-item">
+                    <span class="nav-icon">🗑️</span>
+                    <span>Autopurge</span>
+                </a>
+                <a href="/staff/dmca" class="nav-item">
+                    <span class="nav-icon">📧</span>
+                    <span>DMCA</span>
+                </a>
+                <a href="/staff/blotter" class="nav-item">
+                    <span class="nav-icon">📢</span>
+                    <span>Blotter</span>
+                </a>
+                <a href="/staff/site-messages" class="nav-item active">
+                    <span class="nav-icon">📝</span>
+                    <span>Site Messages</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <a href="/staff/logout" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>Create Site Message</h2>
+                <a href="/staff/site-messages" class="btn">Cancel</a>
+            </header>
+
+            <form id="siteMessageForm" class="form">
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" required 
+                           placeholder="e.g., Maintenance Notice, Site Update">
+                </div>
+
+                <div class="form-group">
+                    <label for="message">Message *</label>
+                    <textarea id="message" name="message" required rows="5" 
+                              placeholder="Enter message content..."></textarea>
+                    <small>Message displayed to users on targeted boards</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="isHtml" name="is_html">
+                        This is HTML
+                    </label>
+                    <small>Allow HTML formatting (p, br, strong, em, a, ul, ol, li tags only)</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Target Boards</label>
+                    <div class="board-checkboxes">
+                        <?php foreach ($boards as $board): ?>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="boards[]" value="<?= htmlspecialchars($board) ?>">
+                                /<?= htmlspecialchars($board) ?>/
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <small>Leave empty for all boards</small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="start_at">Start At</label>
+                        <input type="datetime-local" id="start_at" name="start_at">
+                        <small>Leave empty for immediate</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="end_at">End At</label>
+                        <input type="datetime-local" id="end_at" name="end_at">
+                        <small>Leave empty for no end date</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="is_active" checked>
+                        Active
+                    </label>
+                    <small>Enable this message</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="preview()">Preview</button>
+                    <button type="submit" class="btn btn-primary">Create Message</button>
+                    <a href="/staff/site-messages" class="btn">Cancel</a>
+                </div>
+
+                <div id="preview" class="preview-box" style="display: none;"></div>
+            </form>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+    <script>
+        function preview() {
+            const title = document.getElementById('title').value;
+            const message = document.getElementById('message').value;
+            const isHtml = document.getElementById('isHtml').checked;
+            fetch('/staff/site-messages/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, message, is_html: isHtml }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                const preview = document.getElementById('preview');
+                preview.innerHTML = '<h4>Preview:</h4><strong>' + data.title + '</strong><br>' + data.preview;
+                preview.style.display = 'block';
+            });
+        }
+
+        document.getElementById('siteMessageForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = {
+                title: formData.get('title'),
+                message: formData.get('message'),
+                is_html: formData.has('is_html'),
+                boards: formData.getAll('boards[]'),
+                start_at: formData.get('start_at') || null,
+                end_at: formData.get('end_at') || null,
+                is_active: formData.has('is_active'),
+            };
+
+            fetch('/staff/site-messages/store', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Error: ' + (data.errors ? data.errors.join('\n') : data.error));
+                }
+            });
+        });
+    </script>
+</body>
+</html>

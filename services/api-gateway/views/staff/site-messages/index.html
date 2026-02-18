@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Messages - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Moderation</div>
+                <a href="/staff/reports" class="nav-item">
+                    <span class="nav-icon">🚩</span>
+                    <span>Reports Queue</span>
+                </a>
+                <a href="/staff/reports/ban-requests" class="nav-item">
+                    <span class="nav-icon">⚖️</span>
+                    <span>Ban Requests</span>
+                </a>
+                <a href="/staff/bans" class="nav-item">
+                    <span class="nav-icon">🚫</span>
+                    <span>Bans</span>
+                </a>
+                <div class="nav-section">Management</div>
+                <a href="/staff/accounts" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/staff/capcodes" class="nav-item">
+                    <span class="nav-icon">🏷️</span>
+                    <span>Capcodes</span>
+                </a>
+                <a href="/staff/iprangebans" class="nav-item">
+                    <span class="nav-icon">🌐</span>
+                    <span>IP Range Bans</span>
+                </a>
+                <a href="/staff/autopurge" class="nav-item">
+                    <span class="nav-icon">🗑️</span>
+                    <span>Autopurge</span>
+                </a>
+                <a href="/staff/dmca" class="nav-item">
+                    <span class="nav-icon">📧</span>
+                    <span>DMCA</span>
+                </a>
+                <a href="/staff/blotter" class="nav-item">
+                    <span class="nav-icon">📢</span>
+                    <span>Blotter</span>
+                </a>
+                <a href="/staff/site-messages" class="nav-item active">
+                    <span class="nav-icon">📝</span>
+                    <span>Site Messages</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <a href="/staff/logout" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>Site Messages</h2>
+                <a href="/staff/site-messages/create" class="btn btn-primary">+ New Message</a>
+            </header>
+
+            <?php if (empty($messages)): ?>
+                <div class="empty-state">
+                    <p>No site messages found.</p>
+                </div>
+            <?php else: ?>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Message</th>
+                                <th>Boards</th>
+                                <th>Schedule</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($messages as $msg): ?>
+                                <tr>
+                                    <td><strong><?= htmlspecialchars($msg->title) ?></strong></td>
+                                    <td class="truncate"><?= htmlspecialchars($msg->message) ?></td>
+                                    <td>
+                                        <?php if (empty($msg->boards)): ?>
+                                            <em>All boards</em>
+                                        <?php else: ?>
+                                            <?= htmlspecialchars(implode(', ', $msg->boards)) ?>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($msg->start_at): ?>
+                                            <small>Start: <?= date('Y-m-d', strtotime($msg->start_at)) ?></small><br>
+                                        <?php endif; ?>
+                                        <?php if ($msg->end_at): ?>
+                                            <small>End: <?= date('Y-m-d', strtotime($msg->end_at)) ?></small>
+                                        <?php else: ?>
+                                            <small>No end date</small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($msg->is_active): ?>
+                                            <span class="badge badge-success">Active</span>
+                                        <?php else: ?>
+                                            <span class="badge badge-secondary">Inactive</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="actions">
+                                        <a href="/staff/site-messages/<?= $msg->id ?>/edit" class="btn btn-sm">Edit</a>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteMessage(<?= $msg->id ?>)">Delete</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+    <script>
+        function deleteMessage(id) {
+            if (!confirm('Are you sure you want to delete this site message?')) return;
+            fetch('/staff/site-messages/' + id + '/delete', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                });
+        }
+    </script>
+</body>
+</html>
