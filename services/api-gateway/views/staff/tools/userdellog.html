@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>User Deletion Log - Ashchan</title>
+  <link rel="stylesheet" href="/staff/css/admincore.css">
+  <link rel="stylesheet" href="/staff/css/admin.css">
+</head>
+<body>
+<nav id="admin-nav"><div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section"><li class="nav-header">Logs</li>
+    <li><a href="/staff/userdellog" class="active">User Del Log</a></li>
+  </ul>
+  <ul class="nav-section nav-footer"><li><a href="/staff/logout" class="logout">Logout</a></li></ul>
+</nav>
+<main id="admin-content">
+<header class="content-header"><h1>User Deletion Log</h1></header>
+<?php if (empty($logs)): ?>
+<div class="empty-state"><h2>No Deletions Found</h2></div>
+<?php else: ?>
+<table class="items-table">
+<thead><tr><th>Time</th><th>Board</th><th>Post No</th><th>IP</th></tr></thead>
+<tbody>
+<?php foreach ($logs as $log): ?>
+<tr>
+  <td><?= date('m/d/y H:i', strtotime($log->time ?? $log->created_at)) ?></td>
+  <td>/<?= htmlspecialchars($log->board ?? '') ?>/</td>
+  <td>No.<?= $log->postno ?? $log->resource_id ?? 'N/A' ?></td>
+  <td><?= htmlspecialchars($log->ip ?? '') ?></td>
+</tr>
+<?php endforeach ?>
+</tbody>
+</table>
+<?php endif ?>
+</main>
+</body>
+</html>

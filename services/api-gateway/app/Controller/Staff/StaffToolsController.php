@@ -118,11 +118,15 @@ final class StaffToolsController
     #[GetMapping(path: 'staff-roster')]
     public function staffRoster(): ResponseInterface
     {
-        $staff = Db::table('mod_users')
-            ->select('username', 'level', 'flags', 'last_login', 'ips')
-            ->orderBy('level', 'desc')
-            ->orderBy('username')
-            ->get();
+        try {
+            $staff = Db::table('staff_users')
+                ->select('id', 'username', 'email', 'access_level', 'is_active', 'last_login_at', 'created_at')
+                ->orderBy('access_level', 'desc')
+                ->orderBy('username')
+                ->get();
+        } catch (\Throwable $e) {
+            $staff = [];
+        }
         
         $html = $this->viewService->render('staff/tools/staff-roster', [
             'staff' => $staff,
@@ -139,19 +143,23 @@ final class StaffToolsController
         $ip = $this->request->query('ip', '');
         $board = $this->request->query('board', '');
         
-        $query = Db::table('flood_log')
-            ->select('ip', 'board', 'thread_id', 'req_sig', 'created_on')
-            ->orderBy('created_on', 'desc')
-            ->limit(100);
-        
-        if ($ip !== '') {
-            $query->where('ip', $ip);
+        try {
+            $query = Db::table('flood_log')
+                ->select('ip', 'board', 'thread_id', 'req_sig', 'created_on')
+                ->orderBy('created_on', 'desc')
+                ->limit(100);
+            
+            if ($ip !== '') {
+                $query->where('ip', $ip);
+            }
+            if ($board !== '') {
+                $query->where('board', $board);
+            }
+            
+            $logs = $query->get();
+        } catch (\Throwable $e) {
+            $logs = [];
         }
-        if ($board !== '') {
-            $query->where('board', $board);
-        }
-        
-        $logs = $query->get();
         
         $html = $this->viewService->render('staff/tools/floodlog', [
             'logs' => $logs,
@@ -171,22 +179,26 @@ final class StaffToolsController
         $board = $this->request->query('board', '');
         $action = $this->request->query('action', '');
         
-        $query = Db::table('event_log')
-            ->select('type', 'ip', 'board', 'thread_id', 'post_id', 'arg_str', 'pwd', 'created_on')
-            ->orderBy('created_on', 'desc')
-            ->limit(100);
-        
-        if ($username !== '') {
-            $query->where('pwd', $username);
+        try {
+            $query = Db::table('admin_audit_log')
+                ->select('action_type', 'ip_address as ip', 'board', 'resource_id as post_id', 'description as arg_str', 'username as pwd', 'created_at')
+                ->orderBy('created_at', 'desc')
+                ->limit(100);
+            
+            if ($username !== '') {
+                $query->where('username', $username);
+            }
+            if ($board !== '') {
+                $query->where('board', $board);
+            }
+            if ($action !== '') {
+                $query->where('action_type', $action);
+            }
+            
+            $logs = $query->get();
+        } catch (\Throwable $e) {
+            $logs = [];
         }
-        if ($board !== '') {
-            $query->where('board', $board);
-        }
-        if ($action !== '') {
-            $query->where('type', $action);
-        }
-        
-        $logs = $query->get();
         
         $html = $this->viewService->render('staff/tools/stafflog', [
             'logs' => $logs,
@@ -203,12 +215,16 @@ final class StaffToolsController
     #[GetMapping(path: 'userdellog')]
     public function userDelLog(): ResponseInterface
     {
-        $logs = Db::table('user_actions')
-            ->select('action', 'ip', 'board', 'postno', 'time')
-            ->where('action', 'delete')
-            ->orderBy('time', 'desc')
-            ->limit(100)
-            ->get();
+        try {
+            $logs = Db::table('admin_audit_log')
+                ->select('action_type', 'ip_address as ip', 'board', 'resource_id as postno', 'created_at as time')
+                ->where('action_type', 'delete')
+                ->orderBy('created_at', 'desc')
+                ->limit(100)
+                ->get();
+        } catch (\Throwable $e) {
+            $logs = [];
+        }
         
         $html = $this->viewService->render('staff/tools/userdellog', [
             'logs' => $logs,

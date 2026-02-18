@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Staff Log - Ashchan</title>
+  <link rel="stylesheet" href="/staff/css/admincore.css">
+  <link rel="stylesheet" href="/staff/css/admin.css">
+</head>
+<body>
+<nav id="admin-nav"><div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section"><li class="nav-header">Logs</li>
+    <li><a href="/staff/stafflog" class="active">Staff Log</a></li>
+  </ul>
+  <ul class="nav-section nav-footer"><li><a href="/staff/logout" class="logout">Logout</a></li></ul>
+</nav>
+<main id="admin-content">
+<header class="content-header"><h1>Staff Action Log</h1></header>
+<form method="GET" class="search-form" style="margin-bottom:20px">
+  <input type="text" name="username" placeholder="Staff" value="<?= htmlspecialchars($filterUsername ?? '') ?>" style="padding:8px;width:120px">
+  <input type="text" name="board" placeholder="Board" value="<?= htmlspecialchars($filterBoard ?? '') ?>" style="padding:8px;width:80px">
+  <input type="text" name="action" placeholder="Action" value="<?= htmlspecialchars($filterAction ?? '') ?>" style="padding:8px;width:120px">
+  <button type="submit" class="button button-primary">Filter</button>
+</form>
+<?php if (empty($logs)): ?>
+<div class="empty-state"><h2>No Staff Actions Logged</h2></div>
+<?php else: ?>
+<table class="items-table">
+<thead><tr><th>Time</th><th>Staff</th><th>Action</th><th>Board</th><th>Details</th></tr></thead>
+<tbody>
+<?php foreach ($logs as $log): ?>
+<tr>
+  <td><?= date('m/d/y H:i', strtotime($log->created_at)) ?></td>
+  <td><?= htmlspecialchars($log->pwd ?? $log->username ?? 'System') ?></td>
+  <td><span class="badge"><?= htmlspecialchars($log->action_type ?? $log->type ?? '') ?></span></td>
+  <td>/<?= htmlspecialchars($log->board ?? '') ?>/</td>
+  <td><?= htmlspecialchars($log->arg_str ?? $log->description ?? '') ?></td>
+</tr>
+<?php endforeach ?>
+</tbody>
+</table>
+<?php endif ?>
+</main>
+</body>
+</html>

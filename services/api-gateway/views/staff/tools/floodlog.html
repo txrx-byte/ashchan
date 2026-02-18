@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Flood Log - Ashchan</title>
+  <link rel="stylesheet" href="/staff/css/admincore.css">
+  <link rel="stylesheet" href="/staff/css/admin.css">
+</head>
+<body>
+<nav id="admin-nav"><div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section"><li class="nav-header">Logs</li>
+    <li><a href="/staff/floodlog" class="active">Flood Log</a></li>
+  </ul>
+  <ul class="nav-section nav-footer"><li><a href="/staff/logout" class="logout">Logout</a></li></ul>
+</nav>
+<main id="admin-content">
+<header class="content-header"><h1>Flood Log</h1></header>
+<form method="GET" class="search-form" style="margin-bottom:20px">
+  <input type="text" name="ip" placeholder="Filter by IP" value="<?= htmlspecialchars($filterIp ?? '') ?>" style="padding:8px;width:200px">
+  <input type="text" name="board" placeholder="Board" value="<?= htmlspecialchars($filterBoard ?? '') ?>" style="padding:8px;width:80px">
+  <button type="submit" class="button button-primary">Filter</button>
+</form>
+<?php if (empty($logs)): ?>
+<div class="empty-state"><h2>No Flood Log Entries</h2></div>
+<?php else: ?>
+<table class="items-table">
+<thead><tr><th>Time</th><th>IP</th><th>Board</th><th>Thread</th><th>Req Sig</th></tr></thead>
+<tbody>
+<?php foreach ($logs as $log): ?>
+<tr>
+  <td><?= date('m/d/y H:i', strtotime($log->created_on ?? $log->created_at)) ?></td>
+  <td><?= htmlspecialchars($log->ip ?? '') ?></td>
+  <td>/<?= htmlspecialchars($log->board ?? '') ?>/</td>
+  <td><?= $log->thread_id ?? 'N/A' ?></td>
+  <td><code><?= htmlspecialchars(substr($log->req_sig ?? '', 0, 16)) ?>...</code></td>
+</tr>
+<?php endforeach ?>
+</tbody>
+</table>
+<?php endif ?>
+</main>
+</body>
+</html>
