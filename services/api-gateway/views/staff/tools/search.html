@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Search - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/bans.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+    <li><a href="/staff/bans">Bans</a></li>
+    <li><a href="/staff/ban-templates">Ban Templates</a></li>
+    <li><a href="/staff/report-categories">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Search & Tools</li>
+    <li><a href="/staff/search" class="active">Search</a></li>
+    <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+    <li><a href="/staff/check-md5">Check MD5</a></li>
+    <li><a href="/staff/check-filter">Check Filter</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><a href="/staff/logout" class="logout">Logout</a></li>
+  </ul>
+</nav>
+
+<main id="admin-content">
+<header class="content-header">
+  <h1>Search</h1>
+</header>
+
+<div class="search-form-container">
+  <form method="GET" action="/staff/search" class="search-form">
+    <input type="text" name="q" placeholder="Search query (IP, ban ID, MD5, reason)" value="<?= htmlspecialchars($query ?? '') ?>" class="search-input" style="max-width: 600px;">
+    <select name="type" class="filter-select">
+      <option value="all" <?= $type === 'all' ? 'selected' : '' ?>>All</option>
+      <option value="bans" <?= $type === 'bans' ? 'selected' : '' ?>>Bans Only</option>
+      <option value="reports" <?= $type === 'reports' ? 'selected' : '' ?>>Reports Only</option>
+    </select>
+    <button type="submit" class="button button-primary">🔍 Search</button>
+  </form>
+</div>
+
+<?php if ($query !== ''): ?>
+<div class="content-section">
+  <h2>Search Results for "<?= htmlspecialchars($query) ?>"</h2>
+  
+  <?php if ($results === null || (empty($results['bans']) && empty($results['reports']))): ?>
+  <div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h2>No Results Found</h2>
+    <p>Try adjusting your search terms</p>
+  </div>
+  <?php else: ?>
+  
+  <?php if (!empty($results['bans'])): ?>
+  <h3>Bans (<?= count($results['bans']) ?>)</h3>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Board</th>
+        <th>IP</th>
+        <th>Reason</th>
+        <th>Banned On</th>
+        <th>Length</th>
+        <th>Banned By</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($results['bans'] as $ban): ?>
+      <tr>
+        <td>#<?= $ban->id ?></td>
+        <td>/<?= htmlspecialchars($ban->board ?: 'Global') ?>/</td>
+        <td><?= htmlspecialchars($ban->host) ?></td>
+        <td><?= htmlspecialchars($ban->reason ?? '') ?></td>
+        <td><?= date('m/d/y H:i', strtotime($ban->now)) ?></td>
+        <td><?= $ban->length ? 'Permanent' : 'Temporary' ?></td>
+        <td><?= htmlspecialchars($ban->admin) ?></td>
+      </tr>
+      <?php endforeach ?>
+    </tbody>
+  </table>
+  <?php endif ?>
+  
+  <?php if (!empty($results['reports'])): ?>
+  <h3 style="margin-top: 20px;">Reports (<?= count($results['reports']) ?>)</h3>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Board</th>
+        <th>Post No</th>
+        <th>Time</th>
+        <th>Cleared</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($results['reports'] as $report): ?>
+      <tr>
+        <td>#<?= $report->id ?></td>
+        <td>/<?= htmlspecialchars($report->board) ?>/</td>
+        <td>No.<?= $report->no ?></td>
+        <td><?= date('m/d/y H:i', strtotime($report->ts)) ?></td>
+        <td><?= $report->cleared ? '✓ Yes' : 'No' ?></td>
+      </tr>
+      <?php endforeach ?>
+    </tbody>
+  </table>
+  <?php endif ?>
+  
+  <?php endif ?>
+</div>
+<?php else: ?>
+<div class="content-section">
+  <h2>Search Tips</h2>
+  <ul class="search-tips">
+    <li>Search by IP address to find all bans and reports from that IP</li>
+    <li>Search by ban ID to find specific ban details</li>
+    <li>Search by MD5 hash to find duplicate files</li>
+    <li>Search by reason text to find similar bans</li>
+    <li>Search by post number to find related reports</li>
+  </ul>
+</div>
+<?php endif ?>
+</main>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Check Filter - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/bans.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+    <li><a href="/staff/bans">Bans</a></li>
+    <li><a href="/staff/ban-templates">Ban Templates</a></li>
+    <li><a href="/staff/report-categories">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Search & Tools</li>
+    <li><a href="/staff/search">Search</a></li>
+    <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+    <li><a href="/staff/check-md5">Check MD5</a></li>
+    <li><a href="/staff/check-filter" class="active">Check Filter</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><a href="/staff/logout" class="logout">Logout</a></li>
+  </ul>
+</nav>
+
+<main id="admin-content">
+<header class="content-header">
+  <h1>Check Post Filter</h1>
+</header>
+
+<form method="GET" action="/staff/check-filter" class="filter-test-form" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+  <div class="form-group">
+    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Comment</label>
+    <textarea name="comment" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"><?= htmlspecialchars($comment ?? '') ?></textarea>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+    <div class="form-group">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Name</label>
+      <input type="text" name="name" value="<?= htmlspecialchars($name ?? '') ?>" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+    </div>
+    <div class="form-group">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">Subject</label>
+      <input type="text" name="subject" value="<?= htmlspecialchars($subject ?? '') ?>" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+    </div>
+  </div>
+  
+  <button type="submit" class="button button-primary" style="margin-top: 15px;">🔍 Test Filter</button>
+</form>
+
+<?php if ($result !== null): ?>
+<div class="content-section">
+  <h2>Filter Test Results</h2>
+  
+  <?php if ($result['would_be_banned']): ?>
+  <div class="alert alert-danger" style="background: #ffebee; border-left: 4px solid #e74c3c; padding: 15px; margin: 15px 0;">
+    <strong>⚠️ This post would be FLAGGED!</strong><br>
+    Matches <?= count($result['matches']) ?> filter rule(s)
+  </div>
+  <?php else: ?>
+  <div class="alert alert-success" style="background: #e8f5e9; border-left: 4px solid #27ae60; padding: 15px; margin: 15px 0;">
+    <strong>✓ This post would PASS</strong><br>
+    No filter rules matched
+  </div>
+  <?php endif ?>
+  
+  <?php if (!empty($result['matches'])): ?>
+  <h3>Matched Filters</h3>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>Filter ID</th>
+        <th>Pattern</th>
+        <th>Board</th>
+        <th>Ban Days</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($result['matches'] as $match): ?>
+      <tr>
+        <td>#<?= $match['id'] ?></td>
+        <td><code><?= htmlspecialchars($match['pattern']) ?></code></td>
+        <td>/<?= htmlspecialchars($match['board'] ?: 'All') ?>/</td>
+        <td><?= $match['ban_days'] > 0 ? $match['ban_days'] . ' days' : 'Auto-delete' ?></td>
+      </tr>
+      <?php endforeach ?>
+    </tbody>
+  </table>
+  <?php endif ?>
+</div>
+<?php else: ?>
+<div class="content-section">
+  <h2>Post Filter Testing</h2>
+  <p>Enter post content to test against active post filters:</p>
+  <ul class="search-tips">
+    <li>Tests comment, name, and subject fields</li>
+    <li>Checks against all active filter rules</li>
+    <li>Shows which filters would be triggered</li>
+    <li>Indicates if post would be banned or deleted</li>
+  </ul>
+</div>
+<?php endif ?>
+</main>
+
+<style>
+.filter-test-form .form-group { margin-bottom: 15px; }
+.alert { border-radius: 4px; }
+</style>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Check MD5 - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/bans.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+    <li><a href="/staff/bans">Bans</a></li>
+    <li><a href="/staff/ban-templates">Ban Templates</a></li>
+    <li><a href="/staff/report-categories">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Search & Tools</li>
+    <li><a href="/staff/search">Search</a></li>
+    <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+    <li><a href="/staff/check-md5" class="active">Check MD5</a></li>
+    <li><a href="/staff/check-filter">Check Filter</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><a href="/staff/logout" class="logout">Logout</a></li>
+  </ul>
+</nav>
+
+<main id="admin-content">
+<header class="content-header">
+  <h1>Check MD5</h1>
+</header>
+
+<div class="search-form-container">
+  <form method="GET" action="/staff/check-md5" class="search-form">
+    <input type="text" name="md5" placeholder="Enter MD5 hash (e.g., abc123...)" value="<?= htmlspecialchars($md5 ?? '') ?>" class="search-input" style="max-width: 400px; font-family: monospace;">
+    <button type="submit" class="button button-primary">🔍 Check</button>
+  </form>
+</div>
+
+<?php if ($results !== null): ?>
+<div class="content-section">
+  <h2>MD5: <code style="font-size: 14px;"><?= htmlspecialchars($md5) ?></code></h2>
+  
+  <?php if ($results['blacklisted']): ?>
+  <div class="alert alert-danger" style="background: #ffebee; border-left: 4px solid #e74c3c; padding: 15px; margin: 15px 0;">
+    <strong>⚠️ This MD5 is blacklisted!</strong><br>
+    Reason: <?= htmlspecialchars($results['blacklist_reason']) ?>
+  </div>
+  <?php endif ?>
+  
+  <div class="ip-summary">
+    <div class="summary-item">
+      <span class="summary-label">Posts Found:</span>
+      <span class="summary-value"><?= $results['post_count'] ?></span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">Blacklisted:</span>
+      <span class="summary-value <?= $results['blacklisted'] ? 'text-danger' : 'text-success' ?>">
+        <?= $results['blacklisted'] ? 'Yes' : 'No' ?>
+      </span>
+    </div>
+  </div>
+  
+  <?php if (!empty($results['posts'])): ?>
+  <h3 style="margin-top: 20px;">Posts with this MD5</h3>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>Board</th>
+        <th>Post No</th>
+        <th>Thread</th>
+        <th>Filename</th>
+        <th>MD5</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($results['posts'] as $post): ?>
+      <tr>
+        <td>/<?= htmlspecialchars($post->board) ?>/</td>
+        <td>No.<?= $post->no ?></td>
+        <td><?= $post->resto ? 'Reply to No.' . $post->resto : 'OP' ?></td>
+        <td><?= htmlspecialchars($post->filename ?? 'N/A') ?></td>
+        <td><code><?= htmlspecialchars(substr($post->md5, 0, 16)) ?>...</code></td>
+      </tr>
+      <?php endforeach ?>
+    </tbody>
+  </table>
+  <?php else: ?>
+  <p style="margin-top: 20px; color: #666;">No posts found with this MD5</p>
+  <?php endif ?>
+</div>
+<?php else: ?>
+<div class="content-section">
+  <h2>MD5 Hash Lookup</h2>
+  <p>Enter an MD5 hash to check:</p>
+  <ul class="search-tips">
+    <li>If the file has been posted on any board</li>
+    <li>If the MD5 is blacklisted (and why)</li>
+    <li>All posts containing this file</li>
+  </ul>
+  <p style="margin-top: 15px;"><strong>Note:</strong> MD5 hashes are typically 32 hexadecimal characters.</p>
+</div>
+<?php endif ?>
+</main>
+
+<style>
+.ip-summary {
+  display: flex;
+  gap: 30px;
+  margin: 20px 0;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+.summary-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.summary-label { color: #666; font-size: 14px; }
+.summary-value { font-weight: bold; font-size: 20px; }
+.text-danger { color: #e74c3c; }
+.text-success { color: #27ae60; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
+</style>
+</body>
+</html>

@@ -37,6 +37,16 @@ Router::get('/staff/bans', [StaffController::class, 'bans']);
 Router::get('/staff/reports', [StaffController::class, 'reports']);
 Router::get('/staff/reports/ban-requests', [StaffController::class, 'banRequests']);
 
+// Staff Tools
+Router::get('/staff/search', [StaffToolsController::class, 'search']);
+Router::get('/staff/ip-lookup', [StaffToolsController::class, 'ipLookup']);
+Router::get('/staff/check-md5', [StaffToolsController::class, 'checkMd5']);
+Router::get('/staff/check-filter', [StaffToolsController::class, 'checkFilter']);
+Router::get('/staff/staff-roster', [StaffToolsController::class, 'staffRoster']);
+Router::get('/staff/floodlog', [StaffToolsController::class, 'floodLog']);
+Router::get('/staff/stafflog', [StaffToolsController::class, 'staffLog']);
+Router::get('/staff/userdellog', [StaffToolsController::class, 'userDelLog']);
+
 // Staff ban templates (Manager+)
 Router::get('/staff/ban-templates', [StaffBanTemplateController::class, 'index']);
 Router::get('/staff/ban-templates/create', [StaffBanTemplateController::class, 'create']);
