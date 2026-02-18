@@ -1,0 +1,91 @@
+/* Ban Requests CSS */
+
+#no-requests {
+  text-align: center;
+  padding: 50px;
+  color: #888;
+  font-size: 14px;
+}
+
+.items-table .col-id {
+  width: 50px;
+}
+
+.items-table .col-board {
+  width: 60px;
+}
+
+.items-table .col-post {
+  width: 100px;
+}
+
+.items-table .col-janitor {
+  width: 120px;
+}
+
+.items-table .col-template {
+  width: 120px;
+}
+
+.items-table .col-reason {
+  min-width: 200px;
+}
+
+.items-table .col-date {
+  width: 120px;
+  white-space: nowrap;
+}
+
+.items-table .col-actions {
+  width: 200px;
+  text-align: center;
+}
+
+.items-table .col-actions button {
+  margin: 2px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.button-view {
+  background: linear-gradient(to bottom, #2196F3, #1976D2);
+  color: #FFF;
+}
+
+/* Request detail panel */
+.request-detail {
+  padding: 15px;
+}
+
+.request-detail dl {
+  font-size: 12px;
+}
+
+.request-detail dt {
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.request-detail dd {
+  margin-left: 20px;
+  color: #666;
+}
+
+.request-post-preview {
+  background: #F9F9F9;
+  border: 1px solid #DDD;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+/* Dark theme */
+body.dark-theme .request-detail dd {
+  color: #999;
+}
+
+body.dark-theme .request-post-preview {
+  background: #222;
+  border-color: #444;
+}

@@ -1,0 +1,160 @@
+/* Bans CSS - ported from OpenYotsuba/admin/css/bans.css */
+
+#front-form-qs {
+  float: right;
+}
+
+#front-field-qs {
+  width: 300px;
+  padding: 5px;
+  background: #D2D4D3;
+  border: none;
+  border-radius: 3px;
+}
+
+.items-table .col-edit {
+  width: 50px;
+  text-align: center;
+}
+
+.items-table .col-act {
+  width: 40px;
+  text-align: center;
+}
+
+.items-table .col-board {
+  width: 60px;
+}
+
+.items-table .col-name {
+  width: 150px;
+}
+
+.items-table .col-ip {
+  width: 150px;
+  font-family: monospace;
+}
+
+.items-table .col-reason {
+  min-width: 200px;
+}
+
+.items-table .col-date {
+  width: 120px;
+  white-space: nowrap;
+}
+
+.items-table .col-length {
+  width: 100px;
+}
+
+.items-table .col-by {
+  width: 100px;
+}
+
+.act-active {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.act-expired {
+  color: #F44336;
+}
+
+.ban-board {
+  font-weight: bold;
+  color: #1d8dc4;
+}
+
+.ban-name {
+  font-weight: normal;
+}
+
+.ban-tripcode {
+  color: #117743;
+  font-size: 11px;
+}
+
+.ban-host {
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.ban-reverse {
+  font-size: 10px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.ban-pubreason {
+  font-size: 12px;
+}
+
+.ban-privreason {
+  font-size: 11px;
+  color: #888;
+  margin-top: 3px;
+  font-style: italic;
+}
+
+.ban-notes {
+  font-size: 10px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.ban-notes.is-pass {
+  color: #1d8dc4;
+}
+
+.ban-geoloc {
+  font-size: 10px;
+  color: #888;
+}
+
+#no-results {
+  text-align: center;
+  padding: 50px;
+  color: #888;
+  font-size: 14px;
+}
+
+.page-nav {
+  text-align: center;
+  padding: 10px;
+}
+
+.page-nav a {
+  margin: 0 10px;
+}
+
+/* Ban IP form */
+#ban-ip-form th {
+  text-align: right;
+  padding: 8px;
+  width: 150px;
+  font-weight: bold;
+}
+
+#ban-ip-form td {
+  padding: 8px;
+}
+
+/* Search form */
+#search-form table {
+  max-width: 600px;
+}
+
+/* Dark theme */
+body.dark-theme #front-field-qs {
+  background: #333;
+  color: #CCC;
+}
+
+body.dark-theme .ban-board {
+  color: #64B5F6;
+}
+
+body.dark-theme .ban-tripcode {
+  color: #81C784;
+}

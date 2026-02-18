@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><?= htmlspecialchars($title ?? 'Staff') ?> - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/staff.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+  <script type="text/javascript" src="/staff/js/helpers.js"></script>
+  <script type="text/javascript" src="/staff/js/admincore.js"></script>
+</head>
+<body <?php echo isset($bodyAttrs) ? $bodyAttrs : '' ?>>
+<header>
+  <h1 id="title"><?= htmlspecialchars($title ?? 'Staff') ?></h1>
+  <div id="staff-info">
+    <span class="username"><?= htmlspecialchars($username ?? 'Staff') ?></span>
+    <span class="level">(<?= htmlspecialchars($level ?? 'Janitor') ?>)</span>
+    <a href="/staff/logout" class="logout-link">Logout</a>
+  </div>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
+    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
+    <li><a href="/staff/reports/ban-requests" class="button button-light">Ban Requests</a></li>
+    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
+    <?php if ($isManager ?? false): ?>
+    <li><a href="/staff/ban-templates" class="button button-light">Ban Templates</a></li>
+    <li><a href="/staff/report-categories" class="button button-light">Report Categories</a></li>
+    <?php endif ?>
+  </ul>
+</nav>
+<div id="content">
+<?= $content ?? '' ?>
+</div>
+<footer>
+  <div class="footer-content">
+    Ashchan Staff Interface &copy; <?= date('Y') ?>
+  </div>
+</footer>
+<script type="text/javascript" src="/staff/js/staff.js"></script>
+</body>
+</html>

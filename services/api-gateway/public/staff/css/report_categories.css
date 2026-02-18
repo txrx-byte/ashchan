@@ -1,0 +1,71 @@
+/* Report Categories CSS - ported from OpenYotsuba/admin/css/report_categories.css */
+
+#form-edit-rule th {
+  text-align: right;
+  padding: 8px;
+  width: 180px;
+  font-weight: bold;
+  background-color: #F9F9F9;
+}
+
+#form-edit-rule td {
+  padding: 8px;
+}
+
+#form-edit-rule input[type="text"],
+#form-edit-rule input[type="number"],
+#form-edit-rule select {
+  width: 300px;
+}
+
+#form-edit-rule .note {
+  font-size: 11px;
+  color: #888;
+  margin-top: 5px;
+}
+
+.category-options {
+  margin: 10px 0;
+}
+
+.category-options label {
+  display: block;
+  margin: 5px 0;
+}
+
+/* Settings page for board coefficients */
+#form-edit-settings th {
+  text-align: right;
+  padding: 8px;
+  width: 180px;
+  font-weight: bold;
+}
+
+#form-edit-settings td {
+  padding: 8px;
+}
+
+.boards-list {
+  width: 400px;
+  height: 200px;
+  overflow-y: auto;
+  border: 1px solid #CCC;
+  padding: 5px;
+}
+
+.boards-list label {
+  display: block;
+  margin: 3px 0;
+}
+
+/* Dark theme */
+body.dark-theme #form-edit-rule th,
+body.dark-theme #form-edit-settings th {
+  background-color: #333;
+  border-color: #444;
+}
+
+body.dark-theme #form-edit-rule td,
+body.dark-theme #form-edit-settings td {
+  border-color: #444;
+}

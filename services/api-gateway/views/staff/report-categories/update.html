@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><?= $action === 'create' ? 'Add' : 'Edit' ?> Report Category - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/report_categories.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body data-tips>
+<header>
+  <h1 id="title"><?= $action === 'create' ? 'Add' : 'Edit' ?> Report Category</h1>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a class="button button-light" href="/staff/report-categories">Return</a></li>
+  </ul>
+</nav>
+<div id="content">
+<form class="form" action="/staff/report-categories<?= $action === 'edit' && $category ? '/' . $category['id'] : '' ?>" method="POST">
+  <table>
+    <tr>
+      <th>Board</th>
+      <td>
+        <select name="board">
+          <option value="">All Boards</option>
+          <option value="_ws_" <?= ($category['board'] ?? '') === '_ws_' ? 'selected' : '' ?>>All Worksafe</option>
+          <option value="_nws_" <?= ($category['board'] ?? '') === '_nws_' ? 'selected' : '' ?>>All NSFW</option>
+          <?php foreach ($boardList as $board => $label): ?>
+          <option value="<?= $board ?>" <?= ($category['board'] ?? '') === $board ? 'selected' : '' ?>><?= is_numeric($board) ? $label : $board ?></option>
+          <?php endforeach ?>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Title</th>
+      <td><input type="text" name="title" value="<?= htmlspecialchars($category['title'] ?? '') ?>" required></td>
+    </tr>
+    <tr>
+      <th>Weight</th>
+      <td><input type="number" name="weight" step="0.01" min="0.01" value="<?= htmlspecialchars((string)($category['weight'] ?? '1')) ?>" required></td>
+    </tr>
+    <tr>
+      <th>Exclude Boards</th>
+      <td><input type="text" name="exclude_boards" value="<?= htmlspecialchars($category['exclude_boards'] ?? '') ?>" placeholder="a,b,c (comma-separated)"></td>
+    </tr>
+    <tr>
+      <th>Filtered Threshold</th>
+      <td>
+        <input type="number" name="filtered" value="<?= htmlspecialchars((string)($category['filtered'] ?? '0')) ?>" min="0">
+        <span class="note">0 = disabled, >0 = clears before filtering</span>
+      </td>
+    </tr>
+    <tr>
+      <th>Options</th>
+      <td>
+        <label><input type="checkbox" name="op_only" <?= ($category['op_only'] ?? 0) ? 'checked' : '' ?>> OPs only</label><br>
+        <label><input type="checkbox" name="reply_only" <?= ($category['reply_only'] ?? 0) ? 'checked' : '' ?>> Replies only</label><br>
+        <label><input type="checkbox" name="image_only" <?= ($category['image_only'] ?? 0) ? 'checked' : '' ?>> Images only</label>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button class="button btn-submit" type="submit">Save</button>
+      </td>
+    </tr>
+  </table>
+</form>
+</div>
+<footer></footer>
+</body>
+</html>

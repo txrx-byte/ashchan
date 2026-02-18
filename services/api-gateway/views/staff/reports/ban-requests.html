@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ban Requests - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/ban-requests.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+  <script type="text/javascript" src="/staff/js/helpers.js"></script>
+  <script type="text/javascript" src="/staff/js/admincore.js"></script>
+</head>
+<body>
+<header>
+  <h1 id="title">Ban Requests</h1>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
+    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
+    <li><a href="/staff/reports/ban-requests" class="button button-light">Ban Requests</a></li>
+    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
+  </ul>
+</nav>
+<div id="content">
+<?php if (empty($requests)): ?>
+<div id="no-requests">
+  <p>No pending ban requests</p>
+</div>
+<?php else: ?>
+<table class="items-table">
+<thead>
+  <tr>
+    <th>ID</th>
+    <th>Board</th>
+    <th>Post No</th>
+    <th>Janitor</th>
+    <th>Template</th>
+    <th>Reason</th>
+    <th>Created</th>
+    <th>Actions</th>
+  </tr>
+</thead>
+<tbody>
+  <?php foreach ($requests as $req): ?>
+  <tr id="request-<?= $req['id'] ?>">
+    <td class="col-id"><?= $req['id'] ?></td>
+    <td class="col-board">/<?= htmlspecialchars($req['board']) ?>/</td>
+    <td class="col-post">
+      <a href="/<?= htmlspecialchars($req['board']) ?>/thread/<?= $req['post_no'] ?>#<?= $req['post_no'] ?>" target="_blank">
+        No.<?= $req['post_no'] ?>
+      </a>
+    </td>
+    <td class="col-janitor"><?= htmlspecialchars($req['janitor']) ?></td>
+    <td class="col-template">Template #<?= $req['ban_template'] ?></td>
+    <td class="col-reason"><?= htmlspecialchars($req['reason'] ?? '') ?></td>
+    <td class="col-date"><?= date('m/d/y H:i', strtotime($req['created_at'])) ?></td>
+    <td class="col-actions">
+      <button class="button button-approve" data-cmd="approve-request" data-id="<?= $req['id'] ?>">Approve</button>
+      <button class="button button-deny" data-cmd="deny-request" data-id="<?= $req['id'] ?>">Deny</button>
+      <button class="button button-view" data-cmd="view-request" data-id="<?= $req['id'] ?>">View</button>
+    </td>
+  </tr>
+  <?php endforeach ?>
+</tbody>
+</table>
+<?php endif ?>
+</div>
+<footer></footer>
+
+<script type="text/javascript">
+//<![CDATA[
+document.addEventListener('DOMContentLoaded', function() {
+  // Approve request
+  document.querySelectorAll('[data-cmd="approve-request"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = this.getAttribute('data-id');
+      if (confirm('Approve ban request #' + id + '?')) {
+        fetch('/staff/reports/ban-requests/' + id + '/approve', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'success') {
+            document.getElementById('request-' + id).remove();
+            alert('Ban request approved');
+          } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+          }
+        });
+      }
+    });
+  });
+  
+  // Deny request
+  document.querySelectorAll('[data-cmd="deny-request"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = this.getAttribute('data-id');
+      if (confirm('Deny ban request #' + id + '?')) {
+        fetch('/staff/reports/ban-requests/' + id + '/deny', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'success') {
+            document.getElementById('request-' + id).remove();
+            alert('Ban request denied');
+          } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+          }
+        });
+      }
+    });
+  });
+});
+//]]>
+</script>
+</body>
+</html>

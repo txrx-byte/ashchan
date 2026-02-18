@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Staff Dashboard - Ashchan</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/dashboard.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<header>
+  <h1 id="title">Staff Dashboard</h1>
+  <div id="staff-info">
+    <span class="username"><?= htmlspecialchars($username) ?></span>
+    <span class="level">(<?= htmlspecialchars(ucfirst($level)) ?>)</span>
+    <a href="/staff/logout" class="logout-link">Logout</a>
+  </div>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a href="/staff/dashboard" class="button button-light active">Dashboard</a></li>
+    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
+    <li><a href="/staff/reports/ban-requests" class="button button-light">Ban Requests</a></li>
+    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
+    <?php if ($isManager): ?>
+    <li><a href="/staff/ban-templates" class="button button-light">Ban Templates</a></li>
+    <li><a href="/staff/report-categories" class="button button-light">Report Categories</a></li>
+    <?php endif ?>
+  </ul>
+</nav>
+<div id="content">
+<div class="dashboard-grid">
+  <!-- Reports Panel -->
+  <div class="dashboard-panel">
+    <h2>Reports</h2>
+    <div class="stat-large"><?= $totalReports ?></div>
+    <div class="stat-label">Pending Reports</div>
+    <a href="/staff/reports" class="button button-primary">View Queue</a>
+  </div>
+  
+  <!-- Ban Requests Panel -->
+  <div class="dashboard-panel">
+    <h2>Ban Requests</h2>
+    <div class="stat-large"><?= $banRequestCount ?></div>
+    <div class="stat-label">Pending Requests</div>
+    <a href="/staff/reports/ban-requests" class="button button-primary">Review</a>
+  </div>
+  
+  <!-- Quick Actions -->
+  <div class="dashboard-panel">
+    <h2>Quick Actions</h2>
+    <ul class="quick-actions">
+      <li><a href="/staff/reports?cleared=1">View Cleared Reports</a></li>
+      <li><a href="/staff/bans">Search Bans</a></li>
+      <?php if ($isMod): ?>
+      <li><a href="/staff/bans">Create Ban</a></li>
+      <?php endif ?>
+      <?php if ($isManager): ?>
+      <li><a href="/staff/ban-templates/create">New Ban Template</a></li>
+      <li><a href="/staff/report-categories/create">New Report Category</a></li>
+      <?php endif ?>
+    </ul>
+  </div>
+  
+  <!-- Board Report Counts -->
+  <div class="dashboard-panel dashboard-panel-wide">
+    <h2>Reports by Board</h2>
+    <?php if (empty($reportCounts)): ?>
+    <p class="no-data">No pending reports</p>
+    <?php else: ?>
+    <table class="board-stats">
+      <thead>
+        <tr>
+          <th>Board</th>
+          <th>Reports</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($reportCounts as $board => $count): ?>
+        <tr>
+          <td>/<?= htmlspecialchars($board) ?>/</td>
+          <td><?= $count ?></td>
+          <td><a href="/staff/reports?board=<?= htmlspecialchars($board) ?>">View</a></td>
+        </tr>
+        <?php endforeach ?>
+      </tbody>
+    </table>
+    <?php endif ?>
+  </div>
+</div>
+</div>
+<footer>
+  <div class="footer-content">
+    Ashchan Staff Interface &copy; <?= date('Y') ?>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,15 +1,20 @@
-# Database Schemas
+# Database Migrations
 
-This directory contains PostgreSQL migrations and schema definitions for all services.
+This directory contains PostgreSQL migrations for all Ashchan services.
 
-## Conventions
-- Migrations versioned with timestamp.
-- Separate schema namespace per service (optional; depends on deployment).
-- Foreign keys only within service boundaries.
+## Running Migrations
 
-## Schema Ownership
-- **Auth/Accounts:** users, sessions, consents, deletion_requests.
-- **Boards/Threads/Posts:** boards, threads, posts.
-- **Media/Uploads:** media_objects, media_metadata.
-- **Search/Indexing:** search_documents (or external index).
-- **Moderation/Anti-spam:** reports, decisions, risk_scores.
+```bash
+# From service directory
+php bin/hyperf.php db:migrate
+
+# Seed data
+php bin/hyperf.php db:seed
+```
+
+## Migration Conventions
+
+- Filename format: `YYYYMMDDHHMMSS_create_table_name.php`
+- One table per migration file
+- Use `up()` and `down()` methods
+- Always provide rollback capability

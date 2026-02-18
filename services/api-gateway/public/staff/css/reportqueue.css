@@ -1,0 +1,318 @@
+/* Report Queue CSS - ported from OpenYotsuba/reports/css/reportqueue.css */
+
+#filter-form {
+  margin-right: 5px;
+  position: absolute;
+  top: 8px;
+  left: 7px;
+}
+
+#search-box {
+  background-color: #D2D4D3;
+  border: 0 none;
+  padding: 0 2px;
+  width: 180px;
+  vertical-align: top;
+  height: 22px;
+  border-radius: 3px;
+  margin: 0;
+}
+
+#search-btn, #reset-btn {
+  padding: 2px 8px;
+  margin-left: 2px;
+}
+
+.search-help-tt {
+  font-size: 11px;
+  display: inline-block;
+  width: 20px;
+  vertical-align: sub;
+  cursor: default;
+  background: #D2D4D3;
+  border-radius: 50%;
+  text-align: center;
+  margin-left: 5px;
+}
+
+#cfg-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  cursor: pointer;
+}
+
+#cfg-btn > div {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #FFF;
+  border: 1px solid #CCC;
+  border-radius: 3px;
+  padding: 10px;
+  z-index: 100;
+}
+
+#cfg-btn:hover > div {
+  display: block;
+}
+
+/* Board menu */
+#board-menu {
+  list-style: none;
+  display: inline-block;
+  margin-left: 20px;
+}
+
+#board-menu li {
+  display: inline-block;
+  padding: 3px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+#board-menu li:hover {
+  background-color: #E0E0E0;
+}
+
+#board-menu li.active {
+  background-color: #1d8dc4;
+  color: #FFF;
+}
+
+#more-slugs {
+  position: relative;
+}
+
+#more-slugs > div {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #FFF;
+  border: 1px solid #CCC;
+  border-radius: 3px;
+  padding: 5px;
+  z-index: 100;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+#more-slugs:hover > div {
+  display: block;
+}
+
+/* Report items */
+#items {
+  margin-top: 15px;
+}
+
+.report-item {
+  background: #FFF;
+  border: 1px solid #DDD;
+  border-radius: 3px;
+  padding: 10px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.report-item.highlighted {
+  border-color: #FF9800;
+  background: #FFF8E1;
+}
+
+.report-item.unlocked {
+  border-color: #4CAF50;
+}
+
+.report-item.cleared {
+  opacity: 0.6;
+  background: #F5F5F5;
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #EEE;
+}
+
+.report-board {
+  font-weight: bold;
+  color: #1d8dc4;
+}
+
+.report-weight {
+  font-size: 11px;
+  color: #888;
+}
+
+.report-post {
+  margin-left: 10px;
+}
+
+.report-thumb {
+  float: left;
+  margin: 0 10px 10px 0;
+}
+
+.report-thumb img {
+  max-width: 150px;
+  max-height: 150px;
+}
+
+.report-content {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.report-comment {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.report-meta {
+  font-size: 11px;
+  color: #888;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #EEE;
+}
+
+.report-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.report-actions button {
+  margin-left: 3px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+/* Panel stack */
+#panel-stack {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 380px;
+  height: 100%;
+  background: #FFF;
+  border-left: 1px solid #CCC;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  transition: right 0.3s ease;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+#panel-stack.active {
+  right: 0;
+}
+
+.panel-content {
+  padding: 15px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #EEE;
+  background: #F9F9F9;
+}
+
+.panel-close {
+  cursor: pointer;
+  font-size: 18px;
+  color: #888;
+}
+
+/* Ban request panel */
+.ban-request-form textarea {
+  width: 100%;
+  height: 80px;
+  margin: 10px 0;
+}
+
+.ban-template-select {
+  width: 100%;
+  padding: 5px;
+  margin: 10px 0;
+}
+
+/* Settings panel */
+#settings-panel kbd {
+  cursor: pointer;
+  margin: 2px;
+}
+
+.settings-row {
+  margin: 10px 0;
+  padding: 10px;
+  background: #F9F9F9;
+  border-radius: 3px;
+}
+
+.settings-row label {
+  display: block;
+  margin: 5px 0;
+}
+
+/* Quick ban */
+#quick-ban-panel select {
+  width: 100%;
+  margin: 10px 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  #board-menu.desktop {
+    display: none;
+  }
+  
+  #filter-form {
+    position: static;
+    margin-bottom: 10px;
+  }
+  
+  #search-box {
+    width: 150px;
+  }
+}
+
+/* Dark theme */
+body.dark-theme .report-item {
+  background: #2a2a2a;
+  border-color: #444;
+}
+
+body.dark-theme .report-item.cleared {
+  background: #222;
+}
+
+body.dark-theme .report-header {
+  border-bottom-color: #444;
+}
+
+body.dark-theme .report-meta {
+  border-top-color: #444;
+}
+
+body.dark-theme #panel-stack {
+  background: #2a2a2a;
+  border-left-color: #444;
+}
+
+body.dark-theme .panel-header {
+  background: #222;
+  border-bottom-color: #444;
+}
+
+body.dark-theme .settings-row {
+  background: #222;
+}

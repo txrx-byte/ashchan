@@ -6,19 +6,35 @@ namespace App\Model;
 use Hyperf\DbConnection\Model\Model;
 
 /**
- * @property int    $id
- * @property int    $post_id
- * @property string $reason        (rule_violation|spam|illegal|other)
- * @property string $details
- * @property string $reporter_ip_hash
- * @property string $status        (pending|reviewed|resolved|dismissed)
- * @property int|null $reviewed_by
- * @property string $created_at
- * @property string $updated_at
+ * Report model - ported from OpenYotsuba ReportQueue system.
+ * 
+ * Represents a user-submitted report for a post/thread.
+ * 
+ * @property int        $id
+ * @property string     $ip                Reporter IP (encrypted)
+ * @property string|null $pwd              Reporter password hash
+ * @property string|null $pass_id          4chan Pass ID
+ * @property string     $board             Board slug (e.g., 'g', 'a')
+ * @property int        $no                Post number
+ * @property int        $resto             Thread number (0 if OP)
+ * @property int        $cat               Category type (1=rule, 2=illegal)
+ * @property float      $weight            Report weight/severity
+ * @property int        $report_category   Specific category ID
+ * @property string     $post_ip           Post author IP
+ * @property string     $post_json         JSON snapshot of the post
+ * @property int        $cleared           0=pending, 1=cleared
+ * @property string     $cleared_by        Staff who cleared
+ * @property string|null $req_sig          Request signature for spam filtering
+ * @property int        $ws                Worksafe flag (1=ws, 0=nws)
+ * @property \Carbon\Carbon $ts            Timestamp
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ * 
+ * @method static \Hyperf\Database\Model\Builder<Report> query()
  * @method static Report|null find(mixed $id)
  * @method static Report findOrFail(mixed $id)
- * @method static \Hyperf\Database\Model\Builder<Report> query()
  * @method static Report create(array<string, mixed> $attributes)
+ * @method static int count(array<string, mixed> $where = [])
  */
 class Report extends Model
 {
@@ -26,13 +42,147 @@ class Report extends Model
 
     /** @var array<int, string> */
     protected array $fillable = [
-        'post_id', 'reason', 'details', 'reporter_ip_hash', 'status', 'reviewed_by',
+        'ip',
+        'pwd',
+        'pass_id',
+        'board',
+        'no',
+        'resto',
+        'cat',
+        'weight',
+        'report_category',
+        'post_ip',
+        'post_json',
+        'cleared',
+        'cleared_by',
+        'req_sig',
+        'ws',
+        'ts',
     ];
 
     /** @var array<string, string> */
     protected array $casts = [
-        'id'          => 'integer',
-        'post_id'     => 'integer',
-        'reviewed_by' => 'integer',
+        'id'              => 'integer',
+        'no'              => 'integer',
+        'resto'           => 'integer',
+        'cat'             => 'integer',
+        'weight'          => 'float',
+        'report_category' => 'integer',
+        'cleared'         => 'integer',
+        'ws'              => 'integer',
+        'ts'              => 'datetime',
     ];
+
+    protected string $createdAtColumn = 'created_at';
+    protected string $updatedAtColumn = 'updated_at';
+
+    /**
+     * Report categories
+     */
+    public const CAT_RULE = 1;
+    public const CAT_ILLEGAL = 2;
+
+    /**
+     * Weight thresholds (from OpenYotsuba)
+     */
+    public const GLOBAL_THRES = 1500;      // Weight after which report is globally unlocked
+    public const HIGHLIGHT_THRES = 500;    // Weight for highlighting
+    public const THREAD_WEIGHT_BOOST = 1.25; // Weight multiplier for threads
+
+    /**
+     * Get reports for a specific board
+     */
+    public function scopeForBoard(
+        \Hyperf\Database\Model\Builder $query,
+        string $board
+    ): \Hyperf\Database\Model\Builder {
+        return $query->where('board', $board);
+    }
+
+    /**
+     * Get only cleared reports
+     */
+    public function scopeCleared(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
+    {
+        return $query->where('cleared', 1);
+    }
+
+    /**
+     * Get only pending reports
+     */
+    public function scopePending(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
+    {
+        return $query->where('cleared', 0);
+    }
+
+    /**
+     * Get reports grouped by post with aggregated weight
+     */
+    public function scopeGroupedByPost(
+        \Hyperf\Database\Model\Builder $query,
+        ?string $board = null
+    ): \Hyperf\Database\Model\Builder {
+        $query = $query->selectRaw('
+            no,
+            board,
+            SUM(weight) as total_weight,
+            COUNT(*) as cnt,
+            GROUP_CONCAT(DISTINCT report_category) as cats,
+            MAX(ts) as `time`,
+            ANY_VALUE(id) as id,
+            ANY_VALUE(post_json) as post_json,
+            ANY_VALUE(resto) as resto,
+            ANY_VALUE(post_ip) as post_ip,
+            ANY_VALUE(ws) as ws,
+            ANY_VALUE(cleared_by) as cleared_by
+        ')
+        ->groupBy('no', 'board');
+
+        if ($board !== null) {
+            $query->where('board', $board);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Check if a report is unlocked (high weight)
+     */
+    public function isUnlocked(): bool
+    {
+        return (float) $this->getAttribute('total_weight') >= self::GLOBAL_THRES;
+    }
+
+    /**
+     * Get the post data as array
+     * @return array<string, mixed>
+     */
+    public function getPostData(): array
+    {
+        $json = $this->getAttribute('post_json');
+        if (is_string($json)) {
+            $decoded = json_decode($json, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+        return [];
+    }
+
+    /**
+     * Get the reporter's IP (decrypted if needed)
+     */
+    public function getReporterIp(): string
+    {
+        // In production, this should decrypt the IP
+        return $this->getAttribute('ip') ?? '';
+    }
+
+    /**
+     * Get report category name
+     */
+    public function getCategoryName(): string
+    {
+        $categoryId = (int) $this->getAttribute('report_category');
+        $category = ReportCategory::find($categoryId);
+        return $category ? $category->getAttribute('title') : 'Unknown';
+    }
 }

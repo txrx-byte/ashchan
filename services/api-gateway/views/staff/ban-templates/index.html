@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ban Templates - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/ban_templates.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<header>
+  <h1 id="title">Ban Templates</h1>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
+    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
+    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
+    <li><a href="/staff/ban-templates" class="button button-light">Ban Templates</a></li>
+    <li><a href="/staff/report-categories" class="button button-light">Report Categories</a></li>
+  </ul>
+</nav>
+<div id="menu">
+  <ul class="right">
+    <li><a class="button button-light" href="/staff/ban-templates/create">Add Template</a></li>
+  </ul>
+</div>
+<div id="content">
+<table class="items-table">
+<thead>
+  <tr>
+    <th>ID</th>
+    <th>Rule</th>
+    <th>Name</th>
+    <th>Public Reason</th>
+    <th>Ban Length</th>
+    <th>Exclude</th>
+    <th></th>
+  </tr>
+</thead>
+<tbody>
+  <?php foreach ($templates as $tpl): ?>
+  <tr id="tpl-<?= $tpl['id'] ?>">
+    <td class="col-id"><?= $tpl['id'] ?></td>
+    <td class="col-rule"><?= htmlspecialchars($tpl['rule']) ?></td>
+    <td class="col-name"><?= htmlspecialchars($tpl['name']) ?></td>
+    <td class="col-reason"><?= nl2br(htmlspecialchars($tpl['public_reason'])) ?></td>
+    <td class="col-length">
+      <div>
+        <?php
+        $days = (int)$tpl['ban_days'];
+        if ($days < 0) {
+          echo 'Permanent';
+        } elseif ($days == 0) {
+          echo 'Warning';
+        } else {
+          echo $days . ' day' . ($days > 1 ? 's' : '');
+        }
+        ?>
+      </div>
+      <?php if ($tpl['ban_type'] === 'global'): ?>
+      <div class="note">Global</div>
+      <?php endif ?>
+      <?php if ($tpl['ban_type'] === 'zonly'): ?>
+      <div class="note note-red">Unappealable</div>
+      <?php endif ?>
+    </td>
+    <td class="col-exclude"><?= htmlspecialchars($tpl['exclude'] ?? '') ?></td>
+    <td class="col-meta">
+      <a href="/staff/ban-templates/<?= $tpl['id'] ?>/edit">Edit</a>
+    </td>
+  </tr>
+  <?php endforeach ?>
+</tbody>
+</table>
+</div>
+<footer></footer>
+</body>
+</html>

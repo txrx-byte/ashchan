@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Report Categories - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/report_categories.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<header>
+  <h1 id="title">Report Categories</h1>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
+    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
+    <li><a href="/staff/ban-templates" class="button button-light">Ban Templates</a></li>
+    <li><a href="/staff/report-categories" class="button button-light">Report Categories</a></li>
+  </ul>
+</nav>
+<div id="menu">
+  <ul>
+    <li><a class="button button-light" href="/staff/report-categories/create">Add Category</a></li>
+  </ul>
+</div>
+<div id="content">
+<table class="items-table items-table-compact">
+<thead>
+  <tr>
+    <th>ID</th>
+    <th>Board</th>
+    <th>Title</th>
+    <th>Weight</th>
+    <th>Options</th>
+    <th></th>
+  </tr>
+</thead>
+<tbody>
+  <?php foreach ($categories as $cat): ?>
+  <tr>
+    <td class="col-id"><?= $cat['id'] ?></td>
+    <td class="col-board"><?= htmlspecialchars($cat['board'] ?: 'All') ?></td>
+    <td class="col-title"><?= htmlspecialchars($cat['title']) ?></td>
+    <td class="col-meta"><?= (float)$cat['weight'] ?></td>
+    <td class="col-options">
+      <?php if ($cat['op_only']): ?><span class="note note-blue">OPs only</span><?php endif ?>
+      <?php if ($cat['reply_only']): ?><span class="note note-blue">Replies only</span><?php endif ?>
+      <?php if ($cat['image_only']): ?><span class="note note-blue">Images only</span><?php endif ?>
+      <?php if ($cat['filtered']): ?><span class="note note-green">Filtered (<?= $cat['filtered'] ?>)</span><?php endif ?>
+    </td>
+    <td class="col-meta">
+      <a href="/staff/report-categories/<?= $cat['id'] ?>/edit">Edit</a>
+    </td>
+  </tr>
+  <?php endforeach ?>
+</tbody>
+</table>
+</div>
+<footer></footer>
+</body>
+</html>

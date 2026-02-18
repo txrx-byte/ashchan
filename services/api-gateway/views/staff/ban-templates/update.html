@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><?= $action === 'create' ? 'Add' : 'Edit' ?> Ban Template - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/ban_templates.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body data-tips>
+<header>
+  <h1 id="title"><?= $action === 'create' ? 'Add' : 'Edit' ?> Ban Template</h1>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a class="button button-light" href="/staff/ban-templates">Return</a></li>
+  </ul>
+</nav>
+<div id="content">
+<form class="form" action="/staff/ban-templates<?= $action === 'edit' && $template ? '/' . $template['id'] : '' ?>" method="POST">
+  <table>
+    <tr>
+      <th>Name</th>
+      <td><input type="text" name="name" value="<?= htmlspecialchars($template['name'] ?? '') ?>" required></td>
+    </tr>
+    <tr>
+      <th>Rule</th>
+      <td>
+        <select name="rule">
+          <option value="global1" <?= ($template['rule'] ?? '') === 'global1' ? 'selected' : '' ?>>global1 - Illegal Content</option>
+          <option value="global2" <?= ($template['rule'] ?? '') === 'global2' ? 'selected' : '' ?>>global2 - NSFW on WS</option>
+          <option value="global3" <?= ($template['rule'] ?? '') === 'global3' ? 'selected' : '' ?>>global3 - Report Abuse</option>
+          <option value="global4" <?= ($template['rule'] ?? '') === 'global4' ? 'selected' : '' ?>>global4 - Ban Evasion</option>
+          <option value="global5" <?= ($template['rule'] ?? '') === 'global5' ? 'selected' : '' ?>>global5 - Spam</option>
+          <option value="global6" <?= ($template['rule'] ?? '') === 'global6' ? 'selected' : '' ?>>global6 - Advertising</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Ban Type</th>
+      <td>
+        <select name="ban_type">
+          <option value="local" <?= ($template['ban_type'] ?? '') === 'local' ? 'selected' : '' ?>>Local</option>
+          <option value="global" <?= ($template['ban_type'] ?? '') === 'global' ? 'selected' : '' ?>>Global</option>
+          <option value="zonly" <?= ($template['ban_type'] ?? '') === 'zonly' ? 'selected' : '' ?>>Unappealable (Z-Only)</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Ban Days</th>
+      <td>
+        <input type="number" name="ban_days" value="<?= htmlspecialchars((string)($template['ban_days'] ?? '1')) ?>" min="-1">
+        <span class="note">-1 = Permanent, 0 = Warning</span>
+      </td>
+    </tr>
+    <tr>
+      <th>Public Reason</th>
+      <td><textarea name="public_reason" rows="3"><?= htmlspecialchars($template['public_reason'] ?? '') ?></textarea></td>
+    </tr>
+    <tr>
+      <th>Private Reason</th>
+      <td><textarea name="private_reason" rows="2"><?= htmlspecialchars($template['private_reason'] ?? '') ?></textarea></td>
+    </tr>
+    <tr>
+      <th>Action</th>
+      <td>
+        <select name="action">
+          <option value="">(none)</option>
+          <option value="quarantine" <?= ($template['action'] ?? '') === 'quarantine' ? 'selected' : '' ?>>Quarantine</option>
+          <option value="revokepass_illegal" <?= ($template['action'] ?? '') === 'revokepass_illegal' ? 'selected' : '' ?>>Revoke Pass (Illegal)</option>
+          <option value="delfile" <?= ($template['action'] ?? '') === 'delfile' ? 'selected' : '' ?>>Delete File</option>
+          <option value="delall" <?= ($template['action'] ?? '') === 'delall' ? 'selected' : '' ?>>Delete All by IP</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Exclude</th>
+      <td>
+        <input type="text" name="exclude" value="<?= htmlspecialchars($template['exclude'] ?? '') ?>" placeholder="__nofile__ or __nws__">
+        <span class="note">__nofile__ = requires image, __nws__ = not on NSFW boards</span>
+      </td>
+    </tr>
+    <tr>
+      <th>Access Level</th>
+      <td>
+        <select name="access">
+          <option value="janitor" <?= ($template['access'] ?? '') === 'janitor' ? 'selected' : '' ?>>Janitor</option>
+          <option value="mod" <?= ($template['access'] ?? '') === 'mod' ? 'selected' : '' ?>>Moderator</option>
+          <option value="manager" <?= ($template['access'] ?? '') === 'manager' ? 'selected' : '' ?>>Manager</option>
+          <option value="admin" <?= ($template['access'] ?? '') === 'admin' ? 'selected' : '' ?>>Admin</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <th>Options</th>
+      <td>
+        <label><input type="checkbox" name="publicban" <?= ($template['publicban'] ?? 0) ? 'checked' : '' ?>> Public Ban</label><br>
+        <label><input type="checkbox" name="is_public" <?= ($template['is_public'] ?? 0) ? 'checked' : '' ?>> Display on ban page</label><br>
+        <label><input type="checkbox" name="can_warn" <?= ($template['can_warn'] ?? 1) ? 'checked' : '' ?>> Can Warn</label><br>
+        <label><input type="checkbox" name="appealable" <?= ($template['appealable'] ?? 1) ? 'checked' : '' ?>> Appealable</label><br>
+        <label><input type="checkbox" name="blacklist_image" <?= ($template['blacklist_image'] ?? 0) ? 'checked' : '' ?>> Blacklist Image</label>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button class="button btn-submit" type="submit">Save</button>
+      </td>
+    </tr>
+  </table>
+</form>
+</div>
+<footer></footer>
+</body>
+</html>

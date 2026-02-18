@@ -1,0 +1,103 @@
+/* Ban Templates CSS - ported from OpenYotsuba/admin/css/ban_templates.css */
+
+#form-edit-template th {
+  text-align: right;
+  padding: 8px;
+  width: 180px;
+  font-weight: bold;
+  background-color: #F9F9F9;
+  vertical-align: top;
+}
+
+#form-edit-template td {
+  padding: 8px;
+}
+
+#form-edit-template textarea {
+  width: 400px;
+  height: 80px;
+}
+
+#form-edit-template select {
+  min-width: 200px;
+}
+
+.ban-template-options {
+  margin: 10px 0;
+}
+
+.ban-template-options label {
+  display: block;
+  margin: 5px 0;
+}
+
+.template-preview {
+  background: #F9F9F9;
+  border: 1px solid #DDD;
+  padding: 15px;
+  margin: 15px 0;
+  border-radius: 3px;
+}
+
+.template-preview h4 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.template-preview dl {
+  font-size: 12px;
+}
+
+.template-preview dt {
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+.template-preview dd {
+  margin-left: 20px;
+  color: #666;
+}
+
+/* Stats page */
+.template-stats {
+  margin-top: 20px;
+}
+
+.template-stats table {
+  width: 100%;
+  font-size: 12px;
+}
+
+.template-stats th {
+  text-align: left;
+  padding: 8px;
+  background: #F0F0F0;
+}
+
+.template-stats td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #EEE;
+}
+
+/* Dark theme */
+body.dark-theme #form-edit-template th {
+  background-color: #333;
+  border-color: #444;
+}
+
+body.dark-theme #form-edit-template td {
+  border-color: #444;
+}
+
+body.dark-theme .template-preview {
+  background: #222;
+  border-color: #444;
+}
+
+body.dark-theme .template-preview dt {
+  color: #CCC;
+}
+
+body.dark-theme .template-preview dd {
+  color: #999;
+}

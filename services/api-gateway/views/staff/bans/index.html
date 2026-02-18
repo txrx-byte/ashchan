@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bans - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/bans.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<header>
+  <h1 id="title">Bans</h1>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
+    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
+    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
+  </ul>
+</nav>
+<div id="menu">
+  <ul class="left">
+    <li><a class="button button-light" href="/staff/bans">Refresh</a></li>
+  </ul>
+  <ul class="right">
+    <li><a class="button button-light" href="/staff/bans/create">New Ban</a></li>
+    <li><a class="button button-light" href="/staff/bans/search">Search</a></li>
+  </ul>
+  <form id="front-form-qs" action="/staff/bans/search" method="GET">
+    <input id="front-field-qs" placeholder="Quicksearch: IP, Ban ID, or Reason" name="q" type="text">
+  </form>
+</div>
+<div id="content">
+<div class="info-panel">
+  <h3>Ban Management</h3>
+  <p>Use this interface to manage user bans. Search for existing bans or create new ones.</p>
+  <p>Bans can be created from templates or customized manually.</p>
+</div>
+</div>
+<footer></footer>
+</body>
+</html>

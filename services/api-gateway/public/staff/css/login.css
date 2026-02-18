@@ -1,0 +1,149 @@
+/* Login CSS */
+
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+#login-container {
+  background: #FFF;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-title {
+  text-align: center;
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 24px;
+}
+
+.login-subtitle {
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+  margin-bottom: 30px;
+}
+
+.login-form .form-group {
+  margin-bottom: 20px;
+}
+
+.login-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #555;
+  font-size: 13px;
+}
+
+.login-form input[type="text"],
+.login-form input[type="password"] {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #DDD;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.login-form input[type="text"]:focus,
+.login-form input[type="password"]:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.error-message {
+  background-color: #FFEBEE;
+  color: #D32F2F;
+  padding: 12px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  border-left: 4px solid #D32F2F;
+}
+
+.success-message {
+  background-color: #E8F5E9;
+  color: #388E3C;
+  padding: 12px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  border-left: 4px solid #388E3C;
+}
+
+.login-help {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #EEE;
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.login-help a {
+  color: #667eea;
+}
+
+/* Security notice */
+.security-notice {
+  background: #FFF3CD;
+  border: 1px solid #FFC107;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 20px;
+  font-size: 11px;
+  color: #856404;
+}
+
+.security-notice strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  .login-page {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  }
+  
+  #login-container {
+    background: #2a2a2a;
+  }
+  
+  .login-title {
+    color: #EEE;
+  }
+  
+  .login-subtitle {
+    color: #999;
+  }
+  
+  .login-form label {
+    color: #CCC;
+  }
+  
+  .login-form input {
+    background: #333;
+    border-color: #444;
+    color: #EEE;
+  }
+  
+  .login-form input:focus {
+    border-color: #667eea;
+  }
+  
+  .login-help {
+    border-top-color: #444;
+    color: #999;
+  }
+}

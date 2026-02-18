@@ -3,14 +3,23 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Model\BanTemplate;
+use App\Model\Report;
+use App\Model\ReportCategory;
 use App\Service\ModerationService;
 use App\Service\SpamService;
 use Hyperf\HttpServer\Annotation\Controller;
-use Hyperf\HttpServer\Annotation\RequestMapping;
+use Hyperf\HttpServer\Annotation\GetMapping;
+use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * ModerationController - ported from OpenYotsuba reports and admin systems.
+ *
+ * Handles report submission, queue management, ban requests, and moderation actions.
+ */
 #[Controller(prefix: '/api/v1')]
 final class ModerationController
 {
@@ -21,166 +30,467 @@ final class ModerationController
     ) {}
 
     /* ──────────────────────────────────────────────
-     * Reports
+     * Report Categories (for report form)
      * ────────────────────────────────────────────── */
 
-    /** POST /api/v1/reports – Submit a report */
-    #[RequestMapping(path: 'reports', methods: ['POST'])]
+    /**
+     * GET /api/v1/report-categories - Get available report categories
+     */
+    #[GetMapping(path: 'report-categories')]
+    public function getReportCategories(RequestInterface $request): ResponseInterface
+    {
+        $board = $request->query('board', '');
+        $isWorksafe = (bool) $request->query('ws', false);
+
+        if (!is_string($board)) {
+            $board = '';
+        }
+
+        $categories = ReportCategory::getForReportForm($board, $isWorksafe);
+
+        return $this->response->json([
+            'categories' => $categories,
+        ]);
+    }
+
+    /* ──────────────────────────────────────────────
+     * Reports - Public Submission
+     * ────────────────────────────────────────────── */
+
+    /**
+     * POST /api/v1/reports - Submit a new report
+     */
+    #[PostMapping(path: 'reports')]
     public function createReport(RequestInterface $request): ResponseInterface
     {
-        $postId  = $request->input('post_id');
-        $reason  = $request->input('reason');
-        $details = $request->input('details', '');
+        $postId = $request->input('post_id');
+        $board = $request->input('board');
+        $categoryId = $request->input('category_id');
+        $captchaToken = $request->input('captcha_token');
+
+        // Validation
+        if (!is_numeric($postId) || (int) $postId === 0) {
+            return $this->response->json(['error' => 'Invalid post_id']);
+        }
+        if (!is_string($board) || $board === '') {
+            return $this->response->json(['error' => 'Invalid board']);
+        }
+        if (!is_numeric($categoryId) || (int) $categoryId === 0) {
+            return $this->response->json(['error' => 'Invalid category_id']);
+        }
+
+        // Verify captcha (if required)
+        if ($captchaToken !== null) {
+            // Captcha verification would go here
+        }
+
+        // Get post data (would fetch from boards service in production)
+        $postData = [
+            'no' => (int) $postId,
+            'resto' => 0,
+            'com' => '',
+            'host' => '',
+        ];
+
+        // Get reporter info
         $remoteAddr = $request->server('remote_addr', '');
         $ip = $request->getHeaderLine('X-Forwarded-For') ?: (is_string($remoteAddr) ? $remoteAddr : '');
         $ipHash = hash('sha256', $ip);
 
-        if (!is_numeric($postId) || !is_string($reason) || (int)$postId === 0 || $reason === '') {
-            return $this->response->json(['error' => 'post_id and reason required']);
-        }
+        // Get request signature for spam filtering
+        $reqSig = $this->buildRequestSignature($request);
 
-        $report = $this->modService->createReport((int)$postId, $reason, is_string($details) ? $details : '', $ipHash);
-        return $this->response->json(['report' => $report->toArray()]);
+        try {
+            $report = $this->modService->createReport(
+                (int) $postId,
+                $board,
+                (int) $categoryId,
+                $postData,
+                $ipHash,
+                null, // pwd
+                null, // pass_id
+                $reqSig
+            );
+
+            return $this->response->json([
+                'status' => 'success',
+                'report' => [
+                    'id' => $report->getAttribute('id'),
+                    'post_id' => $report->getAttribute('no'),
+                    'board' => $report->getAttribute('board'),
+                ],
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->response->json(['error' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => 'Failed to submit report'], 500);
+        }
     }
 
-    /** GET /api/v1/reports?status=pending&page=1 – List reports (mod/admin) */
-    #[RequestMapping(path: 'reports', methods: ['GET'])]
+    /* ──────────────────────────────────────────────
+     * Report Queue - Staff Only
+     * ────────────────────────────────────────────── */
+
+    /**
+     * GET /api/v1/reports - Get report queue (staff only)
+     */
+    #[GetMapping(path: 'reports')]
     public function listReports(RequestInterface $request): ResponseInterface
     {
-        $status = $request->query('status', 'pending');
-        $page   = $request->query('page', '1');
+        // In production, verify staff authentication here
+        $board = $request->query('board');
+        $cleared = (bool) $request->query('cleared', false);
+        $page = max(1, (int) $request->query('page', 1));
 
-        $data = $this->modService->listReports(is_string($status) ? $status : 'pending', max(1, is_numeric($page) ? (int)$page : 1));
+        $data = $this->modService->getReportQueue(
+            is_string($board) ? $board : null,
+            $cleared,
+            $page
+        );
+
         return $this->response->json($data);
     }
 
-    /** POST /api/v1/reports/{id}/decide – Moderate a report */
-    #[RequestMapping(path: 'reports/{id:\d+}/decide', methods: ['POST'])]
-    public function decide(RequestInterface $request, int $id): ResponseInterface
+    /**
+     * GET /api/v1/reports/count - Get report counts by board
+     */
+    #[GetMapping(path: 'reports/count')]
+    public function countReports(): ResponseInterface
     {
-        $moderatorId = $request->input('moderator_id');
-        $action      = $request->input('action');
-        $reason      = $request->input('reason', '');
+        $counts = $this->modService->countReportsByBoard();
 
-        if (!is_numeric($moderatorId) || !is_string($action) || (int)$moderatorId === 0 || $action === '') {
-            return $this->response->json(['error' => 'moderator_id and action required']);
+        return $this->response->json([
+            'counts' => $counts,
+            'total' => array_sum($counts),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/reports/{id}/clear - Clear a report (staff only)
+     */
+    #[PostMapping(path: 'reports/{id:\d+}/clear')]
+    public function clearReport(RequestInterface $request, int $id): ResponseInterface
+    {
+        // In production, verify staff authentication and get username
+        $staffUsername = $request->input('staff_username', 'system');
+
+        if (!is_string($staffUsername)) {
+            return $this->response->json(['error' => 'Invalid staff username']);
         }
 
         try {
-            $decision = $this->modService->decide($id, (int)$moderatorId, $action, is_string($reason) ? $reason : '');
-            return $this->response->json(['decision' => $decision->toArray()]);
+            $this->modService->clearReport($id, $staffUsername);
+            return $this->response->json(['status' => 'cleared']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()]);
+            return $this->response->json(['error' => $e->getMessage()], 500);
         }
     }
 
-    /** POST /api/v1/reports/{id}/dismiss – Dismiss a report */
-    #[RequestMapping(path: 'reports/{id:\d+}/dismiss', methods: ['POST'])]
-    public function dismiss(RequestInterface $request, int $id): ResponseInterface
+    /**
+     * DELETE /api/v1/reports/{id} - Delete a report (staff only)
+     */
+    #[\Hyperf\HttpServer\Annotation\DeleteMapping(path: 'reports/{id:\d+}')]
+    public function deleteReport(int $id): ResponseInterface
     {
-        $moderatorId = $request->input('moderator_id');
-        if (!is_numeric($moderatorId)) {
-            return $this->response->json(['error' => 'Invalid moderator ID']);
-        }
         try {
-            $this->modService->dismiss($id, (int)$moderatorId);
-            return $this->response->json(['status' => 'dismissed']);
+            $this->modService->deleteReport($id);
+            return $this->response->json(['status' => 'deleted']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()]);
+            return $this->response->json(['error' => $e->getMessage()], 500);
         }
     }
 
     /* ──────────────────────────────────────────────
-     * Spam Check
+     * Ban Requests - Staff Only
      * ────────────────────────────────────────────── */
 
-    /** POST /api/v1/spam/check – Check content before posting */
-    #[RequestMapping(path: 'spam/check', methods: ['POST'])]
-    public function spamCheck(RequestInterface $request): ResponseInterface
+    /**
+     * POST /api/v1/ban-requests - Create a ban request (janitor)
+     */
+    #[PostMapping(path: 'ban-requests')]
+    public function createBanRequest(RequestInterface $request): ResponseInterface
     {
-        $ipHash    = $request->input('ip_hash');
-        $content   = $request->input('content');
-        $isThread  = (bool) $request->input('is_thread', false);
-        $imageHash = $request->input('image_hash');
+        $board = $request->input('board');
+        $postNo = $request->input('post_no');
+        $templateId = $request->input('template_id');
+        $reason = $request->input('reason');
+        $janitorUsername = $request->input('janitor_username');
 
-        if (!is_string($ipHash) || !is_string($content) || (!is_null($imageHash) && !is_string($imageHash))) {
-            return $this->response->json(['error' => 'Invalid input']);
+        // Validation
+        if (!is_string($board) || $board === '') {
+            return $this->response->json(['error' => 'Invalid board']);
+        }
+        if (!is_numeric($postNo) || (int) $postNo === 0) {
+            return $this->response->json(['error' => 'Invalid post_no']);
+        }
+        if (!is_numeric($templateId) || (int) $templateId === 0) {
+            return $this->response->json(['error' => 'Invalid template_id']);
+        }
+        if (!is_string($janitorUsername) || $janitorUsername === '') {
+            return $this->response->json(['error' => 'Invalid janitor_username']);
         }
 
-        $result = $this->spamService->check($ipHash, $content, $isThread, $imageHash);
-        return $this->response->json($result);
+        // Get post data
+        $postData = $request->input('post_data', []);
+        if (!is_array($postData)) {
+            $postData = [];
+        }
+
+        try {
+            $banRequest = $this->modService->createBanRequest(
+                $board,
+                (int) $postNo,
+                $janitorUsername,
+                (int) $templateId,
+                $postData,
+                is_string($reason) ? $reason : ''
+            );
+
+            return $this->response->json([
+                'status' => 'success',
+                'request' => $banRequest->toArray(),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->response->json(['error' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => 'Failed to create ban request'], 500);
+        }
+    }
+
+    /**
+     * GET /api/v1/ban-requests - Get pending ban requests (staff only)
+     */
+    #[GetMapping(path: 'ban-requests')]
+    public function getBanRequests(RequestInterface $request): ResponseInterface
+    {
+        $board = $request->query('board');
+
+        $data = $this->modService->getBanRequests(
+            is_string($board) ? $board : null
+        );
+
+        return $this->response->json($data);
+    }
+
+    /**
+     * POST /api/v1/ban-requests/{id}/approve - Approve ban request (mod+)
+     */
+    #[PostMapping(path: 'ban-requests/{id:\d+}/approve')]
+    public function approveBanRequest(RequestInterface $request, int $id): ResponseInterface
+    {
+        $approverUsername = $request->input('approver_username');
+
+        if (!is_string($approverUsername) || $approverUsername === '') {
+            return $this->response->json(['error' => 'Invalid approver_username']);
+        }
+
+        try {
+            $ban = $this->modService->approveBanRequest($id, $approverUsername);
+            return $this->response->json([
+                'status' => 'approved',
+                'ban' => $ban->getSummary(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/ban-requests/{id}/deny - Deny ban request (mod+)
+     */
+    #[PostMapping(path: 'ban-requests/{id:\d+}/deny')]
+    public function denyBanRequest(RequestInterface $request, int $id): ResponseInterface
+    {
+        $denierUsername = $request->input('denier_username');
+
+        if (!is_string($denierUsername) || $denierUsername === '') {
+            return $this->response->json(['error' => 'Invalid denier_username']);
+        }
+
+        try {
+            $this->modService->denyBanRequest($id, $denierUsername);
+            return $this->response->json(['status' => 'denied']);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => $e->getMessage()], 500);
+        }
     }
 
     /* ──────────────────────────────────────────────
-     * Captcha
+     * Ban Templates - Manager Only
      * ────────────────────────────────────────────── */
 
-    /** GET /api/v1/captcha – Generate a new captcha */
-    #[RequestMapping(path: 'captcha', methods: ['GET'])]
-    public function captcha(): ResponseInterface
+    /**
+     * GET /api/v1/ban-templates - Get ban templates
+     */
+    #[GetMapping(path: 'ban-templates')]
+    public function getBanTemplates(RequestInterface $request): ResponseInterface
     {
-        $captcha = $this->spamService->generateCaptcha();
+        $activeOnly = (bool) $request->query('active', true);
+        $board = $request->query('board');
 
-        // Generate captcha image
-        $width  = 200;
-        $height = 70;
-        $img = imagecreatetruecolor($width, $height);
-        if ($img === false) {
-             return $this->response->json(['error' => 'Failed to create image']);
-        }
-        $bg = imagecolorallocate($img, 255, 255, 255);
-        if ($bg === false) {
-            imagedestroy($img);
-            return $this->response->json(['error' => 'Failed to allocate color']);
-        }
-        imagefilledrectangle($img, 0, 0, $width, $height, $bg);
+        $query = BanTemplate::query();
 
-        // Add noise
-        for ($i = 0; $i < 50; $i++) {
-            $lineColor = imagecolorallocate($img, random_int(150, 230), random_int(150, 230), random_int(150, 230));
-            if ($lineColor !== false) {
-                imageline($img, random_int(0, $width), random_int(0, $height), random_int(0, $width), random_int(0, $height), $lineColor);
+        if ($activeOnly) {
+            $query->where('active', 1);
+        }
+
+        if (is_string($board) && $board !== '') {
+            $query->where(function ($q) use ($board) {
+                $q->where('boards', '')
+                  ->orWhere('boards', 'like', "%{$board}%");
+            });
+        }
+
+        $templates = $query->orderBy('rule')->orderBy('name')->get();
+
+        return $this->response->json([
+            'templates' => $templates->toArray(),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/ban-templates - Create ban template (manager only)
+     */
+    #[PostMapping(path: 'ban-templates')]
+    public function createBanTemplate(RequestInterface $request): ResponseInterface
+    {
+        $data = $request->all();
+
+        // Required fields
+        $required = ['rule', 'name', 'ban_type', 'ban_days', 'public_reason'];
+        foreach ($required as $field) {
+            if (!isset($data[$field])) {
+                return $this->response->json(['error' => "Missing field: {$field}"], 400);
             }
         }
 
-        // Draw text
-        $textColor = imagecolorallocate($img, 0, 0, 0);
-        if ($textColor === false) {
-            imagedestroy($img);
-            return $this->response->json(['error' => 'Failed to allocate color']);
+        try {
+            $template = BanTemplate::create($data);
+            return $this->response->json([
+                'status' => 'created',
+                'template' => $template->toArray(),
+            ], 201);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => 'Failed to create template'], 500);
         }
-        $chars = str_split((string) $captcha['answer']);
-        $x = 20;
-        foreach ($chars as $char) {
-            $y = random_int(25, 45);
-            $fontSize = random_int(4, 5);
-            imagestring($img, $fontSize, $x, $y, $char, $textColor);
-            $x += random_int(25, 32);
-        }
-
-        ob_start();
-        imagepng($img);
-        $imgData = ob_get_clean();
-        imagedestroy($img);
-
-        return $this->response->raw($imgData ?: '')
-            ->withHeader('Content-Type', 'image/png')
-            ->withHeader('X-Captcha-Token', (string) $captcha['token'])
-            ->withHeader('Cache-Control', 'no-store');
     }
 
-    /** POST /api/v1/captcha/verify – Verify captcha response */
-    #[RequestMapping(path: 'captcha/verify', methods: ['POST'])]
-    public function verifyCaptcha(RequestInterface $request): ResponseInterface
+    /**
+     * PUT /api/v1/ban-templates/{id} - Update ban template (manager only)
+     */
+    #[\Hyperf\HttpServer\Annotation\PutMapping(path: 'ban-templates/{id:\d+}')]
+    public function updateBanTemplate(RequestInterface $request, int $id): ResponseInterface
     {
-        $token    = $request->input('token');
-        $response = $request->input('response');
-
-        if (!is_string($token) || !is_string($response) || !$token || !$response) {
-            return $this->response->json(['valid' => false, 'error' => 'Missing token or response']);
+        $template = BanTemplate::find($id);
+        if (!$template) {
+            return $this->response->json(['error' => 'Template not found'], 404);
         }
 
-        $valid = $this->spamService->verifyCaptcha($token, $response);
-        return $this->response->json(['valid' => $valid]);
+        $data = $request->all();
+
+        try {
+            $template->update($data);
+            return $this->response->json([
+                'status' => 'updated',
+                'template' => $template->fresh()->toArray(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => 'Failed to update template'], 500);
+        }
+    }
+
+    /* ──────────────────────────────────────────────
+     * Bans - Check & Management
+     * ────────────────────────────────────────────── */
+
+    /**
+     * POST /api/v1/bans/check - Check if IP/pass is banned
+     */
+    #[PostMapping(path: 'bans/check')]
+    public function checkBan(RequestInterface $request): ResponseInterface
+    {
+        $board = $request->input('board');
+        $ip = $request->input('ip');
+        $passId = $request->input('pass_id');
+
+        if (!is_string($board) || !is_string($ip)) {
+            return $this->response->json(['error' => 'board and ip required']);
+        }
+
+        $result = $this->modService->checkBan(
+            $board,
+            $ip,
+            is_string($passId) ? $passId : null
+        );
+
+        return $this->response->json($result);
+    }
+
+    /**
+     * POST /api/v1/bans - Create ban (staff only)
+     */
+    #[PostMapping(path: 'bans')]
+    public function createBan(RequestInterface $request): ResponseInterface
+    {
+        $templateId = $request->input('template_id');
+        $board = $request->input('board');
+        $postNo = $request->input('post_no');
+        $targetIp = $request->input('ip');
+        $passId = $request->input('pass_id');
+        $customReason = $request->input('reason');
+        $adminUsername = $request->input('admin_username');
+
+        // Validation
+        if (!is_numeric($templateId) || (int) $templateId === 0) {
+            return $this->response->json(['error' => 'Invalid template_id']);
+        }
+        if (!is_string($board)) {
+            return $this->response->json(['error' => 'Invalid board']);
+        }
+        if (!is_numeric($postNo)) {
+            return $this->response->json(['error' => 'Invalid post_no']);
+        }
+        if (!is_string($adminUsername) || $adminUsername === '') {
+            return $this->response->json(['error' => 'Invalid admin_username']);
+        }
+
+        $template = BanTemplate::find((int) $templateId);
+        if (!$template) {
+            return $this->response->json(['error' => 'Template not found'], 404);
+        }
+
+        try {
+            $ban = $this->modService->createBanFromTemplate(
+                $template,
+                $board,
+                (int) $postNo,
+                $adminUsername,
+                is_string($customReason) ? $customReason : '',
+                [], // postData
+                is_string($targetIp) ? $targetIp : null,
+                is_string($passId) ? $passId : null
+            );
+
+            return $this->response->json([
+                'status' => 'created',
+                'ban' => $ban->getSummary(),
+            ], 201);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Build request signature for spam filtering
+     * @return string
+     */
+    private function buildRequestSignature(RequestInterface $request): string
+    {
+        $headers = [
+            'user-agent' => $request->getHeaderLine('User-Agent'),
+            'accept-language' => $request->getHeaderLine('Accept-Language'),
+        ];
+
+        return hash('sha256', json_encode($headers));
     }
 }
