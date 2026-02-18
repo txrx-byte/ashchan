@@ -7,38 +7,159 @@
   <title>Bans - Ashchan Staff</title>
   <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
   <link rel="stylesheet" type="text/css" href="/staff/css/bans.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
   <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
 </head>
 <body>
-<header>
-  <h1 id="title">Bans</h1>
-</header>
-<nav id="main-nav">
-  <ul>
-    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
-    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
-    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
+<!-- Navigation Sidebar -->
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <div class="admin-user">
+    <span class="username">Staff</span>
+  </div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+    <li><a href="/staff/bans" class="active">Bans</a></li>
+    <li><a href="/staff/ban-templates">Ban Templates</a></li>
+    <li><a href="/staff/report-categories">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><a href="/staff/logout" class="logout">Logout</a></li>
   </ul>
 </nav>
-<div id="menu">
-  <ul class="left">
-    <li><a class="button button-light" href="/staff/bans">Refresh</a></li>
-  </ul>
-  <ul class="right">
-    <li><a class="button button-light" href="/staff/bans/create">New Ban</a></li>
-    <li><a class="button button-light" href="/staff/bans/search">Search</a></li>
-  </ul>
-  <form id="front-form-qs" action="/staff/bans/search" method="GET">
-    <input id="front-field-qs" placeholder="Quicksearch: IP, Ban ID, or Reason" name="q" type="text">
+
+<main id="admin-content">
+<header class="content-header">
+  <h1>Bans</h1>
+  <div class="header-actions">
+    <a href="/staff/bans/create" class="button button-primary">+ New Ban</a>
+  </div>
+</header>
+
+<div class="search-bar">
+  <form method="GET" action="/staff/bans/search" class="search-form">
+    <input type="text" name="q" placeholder="Quicksearch: IP, Ban ID, MD5 or Reason" value="<?= htmlspecialchars($searchQuery ?? '') ?>" class="search-input">
+    <button type="submit" class="button button-primary">🔍 Search</button>
   </form>
 </div>
-<div id="content">
-<div class="info-panel">
-  <h3>Ban Management</h3>
-  <p>Use this interface to manage user bans. Search for existing bans or create new ones.</p>
-  <p>Bans can be created from templates or customized manually.</p>
+
+<div class="action-bar">
+  <div class="action-buttons">
+    <a href="/staff/bans" class="button button-light">Refresh</a>
+    <a href="/staff/bans/search" class="button button-light">Advanced Search</a>
+    <a href="/staff/bans/iprange" class="button button-light">IP Range Bans</a>
+  </div>
+  <div class="bulk-actions">
+    <button class="button button-deny" disabled>Bulk Unban</button>
+  </div>
 </div>
+
+<table class="items-table">
+<thead>
+  <tr>
+    <th><input type="checkbox" id="toggle-all" title="Toggle All"></th>
+    <th>Active</th>
+    <th>Board</th>
+    <th>Name</th>
+    <th>IP</th>
+    <th>Reason</th>
+    <th>Banned On</th>
+    <th>Length</th>
+    <th>Banned By</th>
+    <th>Actions</th>
+  </tr>
+</thead>
+<tbody>
+  <!-- Sample ban entries - would be populated from database -->
+  <tr class="ban-row">
+    <td class="col-edit"><input type="checkbox" class="ban-select"></td>
+    <td class="col-act"><span class="act-active">✓</span></td>
+    <td class="col-board">
+      <span class="ban-board">/g/</span>
+      <div class="ban-notes">Global</div>
+    </td>
+    <td class="col-name">
+      <span class="ban-name">Anonymous</span>
+    </td>
+    <td class="col-ip">
+      <span class="ban-host">192.168.1.1</span>
+    </td>
+    <td class="col-reason">
+      <div class="ban-pubreason">No spamming or flooding of any kind.</div>
+    </td>
+    <td class="col-date">02/18/26 10:30</td>
+    <td class="col-length">
+      <span>1 day</span>
+    </td>
+    <td class="col-by">testmod</td>
+    <td class="col-edit">
+      <a href="/staff/bans/edit/1" class="button button-light button-small">Edit</a>
+    </td>
+  </tr>
+  <tr class="ban-row">
+    <td class="col-edit"><input type="checkbox" class="ban-select"></td>
+    <td class="col-act"><span class="act-active">✓</span></td>
+    <td class="col-board">
+      <span class="ban-board">/v/</span>
+    </td>
+    <td class="col-name">
+      <span class="ban-name">Anonymous</span>
+    </td>
+    <td class="col-ip">
+      <span class="ban-host">10.0.0.1</span>
+    </td>
+    <td class="col-reason">
+      <div class="ban-pubreason">Advertising (all forms) is not welcome.</div>
+    </td>
+    <td class="col-date">02/17/26 15:45</td>
+    <td class="col-length">
+      <span>1 day</span>
+    </td>
+    <td class="col-by">admin</td>
+    <td class="col-edit">
+      <a href="/staff/bans/edit/2" class="button button-light button-small">Edit</a>
+    </td>
+  </tr>
+</tbody>
+<tfoot>
+  <tr>
+    <td colspan="10" class="page-nav">
+      <span>Showing 2 bans</span>
+    </td>
+  </tr>
+</tfoot>
+</table>
+
+<div class="ban-stats">
+  <div class="stat-item">
+    <span class="stat-label">Total Bans:</span>
+    <span class="stat-value">--</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">Active Bans:</span>
+    <span class="stat-value">--</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">Expiring Today:</span>
+    <span class="stat-value">--</span>
+  </div>
 </div>
-<footer></footer>
+</main>
+
+<script>
+// Toggle all checkboxes
+document.getElementById('toggle-all')?.addEventListener('change', function() {
+  document.querySelectorAll('.ban-select').forEach(cb => {
+    cb.checked = this.checked;
+  });
+});
+</script>
 </body>
 </html>

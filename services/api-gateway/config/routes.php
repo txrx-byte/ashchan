@@ -29,19 +29,13 @@ Router::get('/staff/login', [StaffController::class, 'login']);
 Router::post('/staff/login', [StaffController::class, 'loginPost']);
 Router::get('/staff/logout', [StaffController::class, 'logout']);
 
-// Staff dashboard
+// Staff admin dashboard (main admin panel)
 Router::get('/staff', [StaffController::class, 'index']);
+Router::get('/staff/admin', [StaffController::class, 'admin']);
 Router::get('/staff/dashboard', [StaffController::class, 'dashboard']);
 Router::get('/staff/bans', [StaffController::class, 'bans']);
-
-// Staff reports
-Router::get('/staff/reports', [StaffReportController::class, 'index']);
-Router::get('/staff/reports/data', [StaffReportController::class, 'data']);
-Router::post('/staff/reports/{id:\d+}/clear', [StaffReportController::class, 'clear']);
-Router::post('/staff/reports/{id:\d+}/delete', [StaffReportController::class, 'delete']);
-Router::get('/staff/reports/ban-requests', [StaffReportController::class, 'banRequests']);
-Router::post('/staff/reports/ban-requests/{id:\d+}/approve', [StaffReportController::class, 'approveBanRequest']);
-Router::post('/staff/reports/ban-requests/{id:\d+}/deny', [StaffReportController::class, 'denyBanRequest']);
+Router::get('/staff/reports', [StaffController::class, 'reports']);
+Router::get('/staff/reports/ban-requests', [StaffController::class, 'banRequests']);
 
 // Staff ban templates (Manager+)
 Router::get('/staff/ban-templates', [StaffBanTemplateController::class, 'index']);

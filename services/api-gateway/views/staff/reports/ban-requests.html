@@ -6,29 +6,63 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Ban Requests - Ashchan Staff</title>
   <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
-  <link rel="stylesheet" type="text/css" href="/staff/css/ban-requests.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/bans.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
   <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
-  <script type="text/javascript" src="/staff/js/helpers.js"></script>
-  <script type="text/javascript" src="/staff/js/admincore.js"></script>
 </head>
 <body>
-<header>
-  <h1 id="title">Ban Requests</h1>
-</header>
-<nav id="main-nav">
-  <ul>
-    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
-    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
-    <li><a href="/staff/reports/ban-requests" class="button button-light">Ban Requests</a></li>
-    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
+<!-- Navigation Sidebar -->
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <div class="admin-user">
+    <span class="username">Staff</span>
+  </div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests" class="active">Ban Requests <span class="badge"><?= $count ?></span></a></li>
+    <li><a href="/staff/bans">Bans</a></li>
+    <li><a href="/staff/ban-templates">Ban Templates</a></li>
+    <li><a href="/staff/report-categories">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><a href="/staff/logout" class="logout">Logout</a></li>
   </ul>
 </nav>
-<div id="content">
+
+<main id="admin-content">
+<header class="content-header">
+  <h1>Ban Requests</h1>
+  <div class="header-actions">
+    <span class="badge badge-primary"><?= $count ?> Pending</span>
+  </div>
+</header>
+
 <?php if (empty($requests)): ?>
-<div id="no-requests">
-  <p>No pending ban requests</p>
+<div class="empty-state">
+  <div class="empty-icon">✅</div>
+  <h2>No Pending Ban Requests</h2>
+  <p>All ban requests have been processed</p>
 </div>
 <?php else: ?>
+
+<div class="filter-bar">
+  <form method="GET" class="filter-form">
+    <select name="board" class="filter-select">
+      <option value="">All Boards</option>
+      <?php foreach ($boardlist as $board): ?>
+      <option value="<?= htmlspecialchars($board) ?>"><?= htmlspecialchars($board) ?></option>
+      <?php endforeach ?>
+    </select>
+    <button type="submit" class="button button-primary">Filter</button>
+  </form>
+</div>
+
 <table class="items-table">
 <thead>
   <tr>
@@ -45,78 +79,80 @@
 <tbody>
   <?php foreach ($requests as $req): ?>
   <tr id="request-<?= $req['id'] ?>">
-    <td class="col-id"><?= $req['id'] ?></td>
-    <td class="col-board">/<?= htmlspecialchars($req['board']) ?>/</td>
+    <td class="col-id">#<?= $req['id'] ?></td>
+    <td class="col-board">
+      <a href="/<?= htmlspecialchars($req['board']) ?>/" class="board-link">
+        /<?= htmlspecialchars($req['board']) ?>/
+      </a>
+    </td>
     <td class="col-post">
-      <a href="/<?= htmlspecialchars($req['board']) ?>/thread/<?= $req['post_no'] ?>#<?= $req['post_no'] ?>" target="_blank">
+      <a href="/<?= htmlspecialchars($req['board']) ?>/thread/<?= $req['post_no'] ?>#<?= $req['post_no'] ?>" target="_blank" class="post-link">
         No.<?= $req['post_no'] ?>
       </a>
     </td>
     <td class="col-janitor"><?= htmlspecialchars($req['janitor']) ?></td>
-    <td class="col-template">Template #<?= $req['ban_template'] ?></td>
-    <td class="col-reason"><?= htmlspecialchars($req['reason'] ?? '') ?></td>
+    <td class="col-template">
+      <span class="template-badge">Template #<?= $req['ban_template'] ?></span>
+    </td>
+    <td class="col-reason">
+      <div class="reason-text"><?= htmlspecialchars($req['reason'] ?? 'No reason provided') ?></div>
+    </td>
     <td class="col-date"><?= date('m/d/y H:i', strtotime($req['created_at'])) ?></td>
     <td class="col-actions">
-      <button class="button button-approve" data-cmd="approve-request" data-id="<?= $req['id'] ?>">Approve</button>
-      <button class="button button-deny" data-cmd="deny-request" data-id="<?= $req['id'] ?>">Deny</button>
-      <button class="button button-view" data-cmd="view-request" data-id="<?= $req['id'] ?>">View</button>
+      <button class="button button-approve" onclick="approveRequest(<?= $req['id'] ?>)" title="Approve Ban">
+        ✓ Approve
+      </button>
+      <button class="button button-deny" onclick="denyRequest(<?= $req['id'] ?>)" title="Deny Request">
+        ✕ Deny
+      </button>
+      <button class="button button-info" onclick="viewRequest(<?= $req['id'] ?>)" title="View Details">
+        👁 View
+      </button>
     </td>
   </tr>
   <?php endforeach ?>
 </tbody>
 </table>
 <?php endif ?>
-</div>
-<footer></footer>
+</main>
 
-<script type="text/javascript">
-//<![CDATA[
-document.addEventListener('DOMContentLoaded', function() {
-  // Approve request
-  document.querySelectorAll('[data-cmd="approve-request"]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var id = this.getAttribute('data-id');
-      if (confirm('Approve ban request #' + id + '?')) {
-        fetch('/staff/reports/ban-requests/' + id + '/approve', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'}
-        })
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === 'success') {
-            document.getElementById('request-' + id).remove();
-            alert('Ban request approved');
-          } else {
-            alert('Error: ' + (data.error || 'Unknown error'));
-          }
-        });
-      }
-    });
-  });
+<script>
+function approveRequest(id) {
+  if (!confirm('Approve ban request #' + id + '? This will issue the ban.')) return;
   
-  // Deny request
-  document.querySelectorAll('[data-cmd="deny-request"]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var id = this.getAttribute('data-id');
-      if (confirm('Deny ban request #' + id + '?')) {
-        fetch('/staff/reports/ban-requests/' + id + '/deny', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'}
-        })
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === 'success') {
-            document.getElementById('request-' + id).remove();
-            alert('Ban request denied');
-          } else {
-            alert('Error: ' + (data.error || 'Unknown error'));
-          }
-        });
+  fetch('/staff/reports/ban-requests/' + id + '/approve', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        document.getElementById('request-' + id)?.remove();
+        alert('Ban request approved and ban issued');
+      } else {
+        alert('Error: ' + (data.error || 'Unknown error'));
       }
-    });
-  });
-});
-//]]>
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function denyRequest(id) {
+  if (!confirm('Deny ban request #' + id + '?')) return;
+  
+  fetch('/staff/reports/ban-requests/' + id + '/deny', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'success') {
+        document.getElementById('request-' + id)?.remove();
+        alert('Ban request denied');
+      } else {
+        alert('Error: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function viewRequest(id) {
+  // Show request details in a modal or panel
+  alert('View details for request #' + id + '\n(This would show full post content and ban template details)');
+}
 </script>
 </body>
 </html>

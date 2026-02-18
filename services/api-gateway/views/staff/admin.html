@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ashchan Admin Panel</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body class="admin-panel">
+<div id="admin-container">
+  <!-- Navigation Sidebar -->
+  <nav id="admin-nav">
+    <div class="admin-logo">Ashchan Admin</div>
+    <div class="admin-user">
+      <span class="username"><?= htmlspecialchars($username) ?></span>
+      <span class="level">(<?= htmlspecialchars(ucfirst($level)) ?>)</span>
+    </div>
+    
+    <ul class="nav-section">
+      <li class="nav-header">Main</li>
+      <li><a href="/staff/admin" class="active">Overview</a></li>
+      <li><a href="/staff/dashboard">Dashboard</a></li>
+    </ul>
+    
+    <ul class="nav-section">
+      <li class="nav-header">Moderation</li>
+      <li><a href="/staff/reports">Reports Queue</a></li>
+      <li><a href="/staff/reports/ban-requests">Ban Requests <span class="badge"><?= $banRequestCount ?></span></a></li>
+      <li><a href="/staff/bans">Bans</a></li>
+      <li><a href="/staff/ban-templates">Ban Templates</a></li>
+      <li><a href="/staff/report-categories">Report Categories</a></li>
+    </ul>
+    
+    <ul class="nav-section">
+      <li class="nav-header">Search & Tools</li>
+      <li><a href="/staff/search">Search</a></li>
+      <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+      <li><a href="/staff/check-md5">Check MD5</a></li>
+      <li><a href="/staff/check-filter">Check Filter</a></li>
+    </ul>
+    
+    <?php if ($isManager): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Management</li>
+      <li><a href="/staff/staff-roster">Staff Roster</a></li>
+      <li><a href="/staff/add-account">Add Account</a></li>
+      <li><a href="/staff/capcodes">Capcodes</a></li>
+      <li><a href="/staff/iprangebans">IP Range Bans</a></li>
+      <li><a href="/staff/autopurge">Autopurge</a></li>
+      <li><a href="/staff/dmca">DMCA Tool</a></li>
+      <li><a href="/staff/maintenance">Maintenance</a></li>
+    </ul>
+    
+    <ul class="nav-section">
+      <li class="nav-header">Logs</li>
+      <li><a href="/staff/stafflog">Staff Action Log</a></li>
+      <li><a href="/staff/floodlog">Flood Log</a></li>
+      <li><a href="/staff/userdellog">User Deletion Log</a></li>
+    </ul>
+    <?php endif ?>
+    
+    <?php if ($isAdmin): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Admin</li>
+      <li><a href="/staff/blotter">Blotter</a></li>
+      <li><a href="/staff/globalmsg">Site Messages</a></li>
+      <li><a href="/staff/phpmyadmin" target="_blank">phpMyAdmin</a></li>
+    </ul>
+    <?php endif ?>
+    
+    <ul class="nav-section nav-footer">
+      <li><a href="/staff/changepass">Change Password</a></li>
+      <li><a href="/staff/logout" class="logout">Logout</a></li>
+    </ul>
+  </nav>
+  
+  <!-- Main Content -->
+  <main id="admin-content">
+    <header class="content-header">
+      <h1>Admin Overview</h1>
+      <div class="header-actions">
+        <button id="dark-theme-toggle" class="button button-light">
+          <span class="icon">🌙</span> Dark Theme
+        </button>
+      </div>
+    </header>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📋</div>
+        <div class="stat-info">
+          <div class="stat-value"><?= $totalReports ?></div>
+          <div class="stat-label">Pending Reports</div>
+        </div>
+        <a href="/staff/reports" class="stat-link">View →</a>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-info">
+          <div class="stat-value"><?= $banRequestCount ?></div>
+          <div class="stat-label">Ban Requests</div>
+        </div>
+        <a href="/staff/reports/ban-requests" class="stat-link">Review →</a>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">🔨</div>
+        <div class="stat-info">
+          <div class="stat-value">--</div>
+          <div class="stat-label">Active Bans</div>
+        </div>
+        <a href="/staff/bans" class="stat-link">View →</a>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-info">
+          <div class="stat-value">--</div>
+          <div class="stat-label">Posts Today</div>
+        </div>
+        <a href="/staff/stats" class="stat-link">Stats →</a>
+      </div>
+    </div>
+    
+    <div class="content-section">
+      <h2>Quick Actions</h2>
+      <div class="quick-actions-grid">
+        <a href="/staff/reports" class="action-card">
+          <span class="action-icon">📋</span>
+          <span>Review Reports</span>
+        </a>
+        <a href="/staff/reports/ban-requests" class="action-card">
+          <span class="action-icon">⚠️</span>
+          <span>Approve Ban Requests</span>
+        </a>
+        <a href="/staff/bans" class="action-card">
+          <span class="action-icon">🔨</span>
+          <span>Search Bans</span>
+        </a>
+        <a href="/staff/ban-templates/create" class="action-card">
+          <span class="action-icon">📝</span>
+          <span>New Ban Template</span>
+        </a>
+        <a href="/staff/ip-lookup" class="action-card">
+          <span class="action-icon">🔍</span>
+          <span>IP Lookup</span>
+        </a>
+        <a href="/staff/check-md5" class="action-card">
+          <span class="action-icon">💾</span>
+          <span>Check MD5</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="content-section">
+      <h2>Reports by Board</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Board</th>
+            <th>Reports</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="3" class="no-data">No pending reports</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="content-section">
+      <h2>Recent Staff Actions</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Staff</th>
+            <th>Action</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="4" class="no-data">No recent actions</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script type="text/javascript" src="/staff/js/admincore.js"></script>
+<script type="text/javascript" src="/staff/js/staff.js"></script>
+<script>
+document.getElementById('dark-theme-toggle')?.addEventListener('click', function() {
+  document.body.classList.toggle('dark-theme');
+  localStorage.setItem('dark-theme', document.body.classList.contains('dark-theme') ? '1' : '0');
+});
+if (localStorage.getItem('dark-theme') === '1') {
+  document.body.classList.add('dark-theme');
+}
+</script>
+</body>
+</html>

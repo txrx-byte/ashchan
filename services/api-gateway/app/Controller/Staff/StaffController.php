@@ -14,7 +14,7 @@ use Hyperf\HttpMessage\Cookie\Cookie;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * StaffController - Main staff portal controller
+ * StaffController - Main staff portal controller with comprehensive admin features
  */
 #[Controller(prefix: '/staff')]
 final class StaffController
@@ -26,22 +26,16 @@ final class StaffController
         private ViewService $viewService,
     ) {}
 
-    /**
-     * GET /staff - Redirect to dashboard or login
-     */
     #[GetMapping(path: '')]
     public function index(): ResponseInterface
     {
         $cookies = $this->request->getCookieParams();
         if (isset($cookies['staff_user'])) {
-            return $this->response->redirect('/staff/dashboard');
+            return $this->response->redirect('/staff/admin');
         }
         return $this->response->redirect('/staff/login');
     }
 
-    /**
-     * GET /staff/login - Staff login page
-     */
     #[GetMapping(path: 'login')]
     public function login(): ResponseInterface
     {
@@ -49,9 +43,6 @@ final class StaffController
         return $this->response->html($html);
     }
 
-    /**
-     * POST /staff/login - Process staff login
-     */
     #[PostMapping(path: 'login')]
     public function loginPost(RequestInterface $request): ResponseInterface
     {
@@ -68,9 +59,7 @@ final class StaffController
             return $this->response->html($html);
         }
 
-        $response = $this->response->redirect('/staff/dashboard');
-        
-        // Use Hyperf Cookie objects
+        $response = $this->response->redirect('/staff/admin');
         $response = $response->withCookie(new Cookie('staff_user', $username, time() + 86400 * 30));
         $response = $response->withCookie(new Cookie('staff_token', hash('sha256', $username . time()), time() + 86400 * 30));
         $response = $response->withCookie(new Cookie('staff_level', 'janitor', time() + 86400 * 30));
@@ -78,9 +67,6 @@ final class StaffController
         return $response;
     }
 
-    /**
-     * GET /staff/logout - Logout
-     */
     #[GetMapping(path: 'logout')]
     public function logout(): ResponseInterface
     {
@@ -92,8 +78,28 @@ final class StaffController
     }
 
     /**
-     * GET /staff/dashboard - Staff dashboard
+     * Main Admin Dashboard - Centralized admin panel
      */
+    #[GetMapping(path: 'admin')]
+    public function admin(): ResponseInterface
+    {
+        $staffInfo = $this->getStaffInfo();
+        $reportCounts = $this->modService->countReportsByBoard();
+        $totalReports = array_sum($reportCounts);
+        $banRequests = $this->modService->getBanRequests();
+
+        $html = $this->viewService->render('staff/admin', [
+            'username' => $staffInfo['username'],
+            'level' => $staffInfo['level'],
+            'isMod' => $staffInfo['is_mod'],
+            'isManager' => $staffInfo['is_manager'],
+            'isAdmin' => $staffInfo['is_admin'],
+            'totalReports' => $totalReports,
+            'banRequestCount' => $banRequests['count'],
+        ]);
+        return $this->response->html($html);
+    }
+
     #[GetMapping(path: 'dashboard')]
     public function dashboard(): ResponseInterface
     {
@@ -115,16 +121,50 @@ final class StaffController
         return $this->response->html($html);
     }
 
-    /**
-     * GET /staff/bans - Bans management page
-     */
     #[GetMapping(path: 'bans')]
-    public function bans(): ResponseInterface
+    public function bans(RequestInterface $request): ResponseInterface
     {
         $staffInfo = $this->getStaffInfo();
+        $search = $request->query('q', '');
+        
         $html = $this->viewService->render('staff/bans/index', [
             'isMod' => $staffInfo['is_mod'],
             'isManager' => $staffInfo['is_manager'],
+            'searchQuery' => $search,
+        ]);
+        return $this->response->html($html);
+    }
+
+    #[GetMapping(path: 'reports')]
+    public function reports(): ResponseInterface
+    {
+        $staffInfo = $this->getStaffInfo();
+        
+        $html = $this->viewService->render('staff/reports/index', [
+            'boardlist' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'access' => ['board' => []],
+            'isMod' => $staffInfo['is_mod'],
+            'isManager' => $staffInfo['is_manager'],
+            'isAdmin' => $staffInfo['is_admin'],
+            'currentBoard' => '',
+            'cleared_only' => false,
+            'username' => $staffInfo['username'],
+        ]);
+        return $this->response->html($html);
+    }
+
+    #[GetMapping(path: 'reports/ban-requests')]
+    public function banRequests(RequestInterface $request): ResponseInterface
+    {
+        $staffInfo = $this->getStaffInfo();
+        $board = $request->query('board');
+        $data = $this->modService->getBanRequests(is_string($board) && $board !== '' ? $board : null);
+
+        $html = $this->viewService->render('staff/reports/ban-requests', [
+            'requests' => $data['requests'],
+            'count' => $data['count'],
+            'boardlist' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'isMod' => $staffInfo['is_mod'],
         ]);
         return $this->response->html($html);
     }
