@@ -1,5 +1,9 @@
 version: '2.4'
 
+networks:
+  ashchan:
+    driver: bridge
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -11,8 +15,10 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ashchan
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ashchan"]
+      test: "pg_isready -U ashchan"
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,8 +29,10 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - ashchan
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: "redis-cli ping"
       interval: 5s
       timeout: 3s
       retries: 5
@@ -40,8 +48,10 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+    networks:
+      - ashchan
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: "curl -f http://localhost:9000/minio/health/live"
       interval: 10s
       timeout: 5s
       retries: 3
@@ -61,6 +71,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - ashchan
     restart: unless-stopped
 
   auth-accounts:
@@ -76,6 +88,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - ashchan
     restart: unless-stopped
 
   boards-threads-posts:
@@ -91,6 +105,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - ashchan
     restart: unless-stopped
 
   media-uploads:
@@ -108,6 +124,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    networks:
+      - ashchan
     restart: unless-stopped
 
   search-indexing:
@@ -123,6 +141,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - ashchan
     restart: unless-stopped
 
   moderation-anti-spam:
@@ -138,6 +158,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - ashchan
     restart: unless-stopped
 
 volumes:
