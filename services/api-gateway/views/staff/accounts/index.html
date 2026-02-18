@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Account Management - Ashchan Staff</title>
+  <link rel="stylesheet" href="/staff/css/admincore.css">
+  <link rel="stylesheet" href="/staff/css/admin.css">
+</head>
+<body>
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section"><li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+  </ul>
+  <ul class="nav-section"><li class="nav-header">Management</li>
+    <li><a href="/staff/accounts" class="active">Accounts</a></li>
+    <li><a href="/staff/capcodes">Capcodes</a></li>
+    <li><a href="/staff/iprangebans">IP Range Bans</a></li>
+    <li><a href="/staff/autopurge">Autopurge</a></li>
+  </ul>
+  <ul class="nav-section"><li class="nav-header">Content</li>
+    <li><a href="/staff/dmca">DMCA</a></li>
+    <li><a href="/staff/blotter">Blotter</a></li>
+    <li><a href="/staff/site-messages">Site Messages</a></li>
+  </ul>
+  <ul class="nav-section nav-footer"><li><a href="/staff/logout" class="logout">Logout</a></li></ul>
+</nav>
+
+<main id="admin-content">
+<header class="content-header">
+  <h1>Staff Account Management</h1>
+  <div class="header-actions">
+    <a href="/staff/accounts/create" class="button button-primary">+ Add Account</a>
+  </div>
+</header>
+
+<?php if (isset($error)): ?>
+<div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
+<?php endif ?>
+
+<table class="items-table">
+<thead>
+  <tr>
+    <th>Username</th>
+    <th>Email</th>
+    <th>Level</th>
+    <th>Capcode</th>
+    <th>Status</th>
+    <th>Last Login</th>
+    <th>Actions</th>
+  </tr>
+</thead>
+<tbody>
+<?php foreach ($staff as $user): ?>
+<tr>
+  <td><strong><?= htmlspecialchars($user->username) ?></strong></td>
+  <td><?= htmlspecialchars($user->email) ?></td>
+  <td><span class="badge badge-<?= $user->access_level ?>"><?= ucfirst($user->access_level) ?></span></td>
+  <td><?= $user->capcode ? htmlspecialchars($user->capcode) : '<span style="color:#999">None</span>' ?></td>
+  <td>
+    <?php if (!$user->is_active): ?>
+      <span style="color:#999">Inactive</span>
+    <?php elseif ($user->is_locked): ?>
+      <span style="color:#e74c3c">🔒 Locked</span>
+    <?php else: ?>
+      <span style="color:#27ae60">✓ Active</span>
+    <?php endif ?>
+  </td>
+  <td><?= $user->last_login_at ? date('m/d/y H:i', strtotime($user->last_login_at)) : '<span style="color:#999">Never</span>' ?></td>
+  <td>
+    <a href="/staff/accounts/<?= $user->id ?>/edit" class="button button-light button-small">Edit</a>
+    <?php if ($user->is_locked): ?>
+      <button class="button button-approve button-small" onclick="unlockAccount(<?= $user->id ?>)">Unlock</button>
+    <?php endif ?>
+    <button class="button button-light button-small" onclick="resetPassword(<?= $user->id ?>)">Reset PW</button>
+  </td>
+</tr>
+<?php endforeach ?>
+</tbody>
+</table>
+</main>
+
+<script>
+async function resetPassword(userId) {
+  if (!confirm('Reset password for this user? A temporary password will be generated.')) return;
+  
+  const response = await fetch(`/staff/accounts/${userId}/reset-password`, {method: 'POST'});
+  const data = await response.json();
+  
+  if (data.success) {
+    alert(`Password reset!\n\nTemporary password: ${data.temp_password}\n\nUser should change this immediately.`);
+  } else {
+    alert('Error: ' + (data.error || 'Unknown error'));
+  }
+}
+
+async function unlockAccount(userId) {
+  const response = await fetch(`/staff/accounts/${userId}/unlock`, {method: 'POST'});
+  const data = await response.json();
+  
+  if (data.success) {
+    alert('Account unlocked');
+    location.reload();
+  } else {
+    alert('Error: ' + (data.error || 'Unknown error'));
+  }
+}
+</script>
+</body>
+</html>

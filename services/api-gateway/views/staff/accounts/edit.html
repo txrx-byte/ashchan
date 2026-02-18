@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Edit Account - Ashchan</title>
+  <link rel="stylesheet" href="/staff/css/admincore.css">
+  <link rel="stylesheet" href="/staff/css/admin.css">
+</head>
+<body>
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section"><li class="nav-header"><a href="/staff/accounts">← Back to Accounts</a></li></ul>
+  <ul class="nav-section nav-footer"><li><a href="/staff/logout" class="logout">Logout</a></li></ul>
+</nav>
+
+<main id="admin-content">
+<header class="content-header"><h1>Edit Account: <?= htmlspecialchars($user->username) ?></h1></header>
+
+<form method="POST" action="/staff/accounts/<?= $user->id ?>/update">
+  <div class="form-section">
+    <h3>Account Details</h3>
+    
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" value="<?= htmlspecialchars($user->username) ?>" disabled>
+      <small>Username cannot be changed</small>
+    </div>
+    
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" value="<?= htmlspecialchars($user->email) ?>" disabled>
+      <small>Email cannot be changed</small>
+    </div>
+    
+    <div class="form-group">
+      <label>Access Level</label>
+      <select name="access_level" required>
+        <option value="janitor" <?= $user->access_level === 'janitor' ? 'selected' : '' ?>>Janitor</option>
+        <option value="mod" <?= $user->access_level === 'mod' ? 'selected' : '' ?>>Moderator</option>
+        <option value="manager" <?= $user->access_level === 'manager' ? 'selected' : '' ?>>Manager</option>
+        <option value="admin" <?= $user->access_level === 'admin' ? 'selected' : '' ?>>Admin</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label>New Password (leave empty to keep current)</label>
+      <input type="password" name="new_password" minlength="8" placeholder="Minimum 8 characters">
+    </div>
+  </div>
+  
+  <div class="form-section">
+    <h3>Permissions</h3>
+    
+    <div class="form-group">
+      <label>Board Access</label>
+      <div class="board-checkboxes">
+        <?php foreach ($boards as $board): ?>
+        <?php $userBoards = is_array($user->board_access) ? $user->board_access : []; ?>
+        <label><input type="checkbox" name="boards[]" value="<?= $board ?>" <?= in_array($board, $userBoards) ? 'checked' : '' ?>> /<?= $board ?>/</label>
+        <?php endforeach ?>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label>Capcode</label>
+      <input type="text" name="capcode" value="<?= htmlspecialchars($user->capcode ?? '') ?>" placeholder="e.g., Administrator">
+    </div>
+    
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea name="notes" rows="3"><?= htmlspecialchars($user->notes ?? '') ?></textarea>
+    </div>
+    
+    <div class="form-group">
+      <label>
+        <input type="checkbox" name="is_active" value="1" <?= $user->is_active ? 'checked' : '' ?>>
+        Account Active
+      </label>
+    </div>
+  </div>
+  
+  <div class="form-actions">
+    <button type="submit" class="button button-primary">Save Changes</button>
+    <a href="/staff/accounts" class="button button-light">Cancel</a>
+    <button type="button" class="button button-deny" onclick="deleteAccount()" style="float:right">Delete Account</button>
+  </div>
+</form>
+</main>
+
+<script>
+async function deleteAccount() {
+  if (!confirm('Are you sure you want to delete this account? This cannot be undone.')) return;
+  
+  const response = await fetch('/staff/accounts/<?= $user->id ?>/delete', {method: 'POST'});
+  const data = await response.json();
+  
+  if (data.success) {
+    window.location.href = '/staff/accounts';
+  } else {
+    alert('Error: ' + (data.error || 'Unknown error'));
+  }
+}
+</script>
+
+<style>
+.form-section {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+.form-section h3 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 10px;
+}
+.form-group {
+  margin-bottom: 15px;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.form-group small {
+  display: block;
+  color: #666;
+  margin-top: 5px;
+}
+.board-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 5px;
+}
+.board-checkboxes label {
+  font-weight: normal;
+  font-size: 13px;
+}
+.form-actions {
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+}
+.form-actions button, .form-actions a {
+  margin-right: 10px;
+}
+</style>
+</body>
+</html>

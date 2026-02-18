@@ -64,6 +64,16 @@ Router::get('/staff/report-categories/{id:\d+}/edit', [\App\Controller\Staff\Sta
 Router::post('/staff/report-categories/{id:\d+}', [\App\Controller\Staff\StaffReportCategoryController::class, 'update']);
 Router::post('/staff/report-categories/{id:\d+}/delete', [\App\Controller\Staff\StaffReportCategoryController::class, 'delete']);
 
+// Staff Account Management (Manager+)
+Router::get('/staff/accounts', [\App\Controller\Staff\AccountManagementController::class, 'index']);
+Router::get('/staff/accounts/create', [\App\Controller\Staff\AccountManagementController::class, 'create']);
+Router::post('/staff/accounts/store', [\App\Controller\Staff\AccountManagementController::class, 'store']);
+Router::get('/staff/accounts/{id:\d+}/edit', [\App\Controller\Staff\AccountManagementController::class, 'edit']);
+Router::post('/staff/accounts/{id:\d+}/update', [\App\Controller\Staff\AccountManagementController::class, 'update']);
+Router::post('/staff/accounts/{id:\d+}/delete', [\App\Controller\Staff\AccountManagementController::class, 'delete']);
+Router::post('/staff/accounts/{id:\d+}/reset-password', [\App\Controller\Staff\AccountManagementController::class, 'resetPassword']);
+Router::post('/staff/accounts/{id:\d+}/unlock', [\App\Controller\Staff\AccountManagementController::class, 'unlock']);
+
 // ============== Moderation API Routes ==============
 
 // Public report submission
