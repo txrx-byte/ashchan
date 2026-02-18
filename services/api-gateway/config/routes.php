@@ -9,6 +9,7 @@ use App\Controller\Staff\StaffController;
 use App\Controller\Staff\StaffReportController;
 use App\Controller\Staff\StaffBanTemplateController;
 use App\Controller\Staff\StaffReportCategoryController;
+use App\Controller\Staff\StaffToolsController;
 
 // Health check
 Router::get('/health', [HealthController::class, 'check']);
@@ -25,43 +26,43 @@ Router::get('/media/{path:.*}', [GatewayController::class, 'proxyMedia']);
 // ============== Staff Interface Routes ==============
 
 // Staff login/logout
-Router::get('/staff/login', [StaffController::class, 'login']);
-Router::post('/staff/login', [StaffController::class, 'loginPost']);
-Router::get('/staff/logout', [StaffController::class, 'logout']);
+Router::get('/staff/login', [\App\Controller\Staff\StaffController::class, 'login']);
+Router::post('/staff/login', [\App\Controller\Staff\StaffController::class, 'loginPost']);
+Router::get('/staff/logout', [\App\Controller\Staff\StaffController::class, 'logout']);
 
 // Staff admin dashboard (main admin panel)
-Router::get('/staff', [StaffController::class, 'index']);
-Router::get('/staff/admin', [StaffController::class, 'admin']);
-Router::get('/staff/dashboard', [StaffController::class, 'dashboard']);
-Router::get('/staff/bans', [StaffController::class, 'bans']);
-Router::get('/staff/reports', [StaffController::class, 'reports']);
-Router::get('/staff/reports/ban-requests', [StaffController::class, 'banRequests']);
+Router::get('/staff', [\App\Controller\Staff\StaffController::class, 'index']);
+Router::get('/staff/admin', [\App\Controller\Staff\StaffController::class, 'admin']);
+Router::get('/staff/dashboard', [\App\Controller\Staff\StaffController::class, 'dashboard']);
+Router::get('/staff/bans', [\App\Controller\Staff\StaffController::class, 'bans']);
+Router::get('/staff/reports', [\App\Controller\Staff\StaffController::class, 'reports']);
+Router::get('/staff/reports/ban-requests', [\App\Controller\Staff\StaffController::class, 'banRequests']);
 
 // Staff Tools
-Router::get('/staff/search', [StaffToolsController::class, 'search']);
-Router::get('/staff/ip-lookup', [StaffToolsController::class, 'ipLookup']);
-Router::get('/staff/check-md5', [StaffToolsController::class, 'checkMd5']);
-Router::get('/staff/check-filter', [StaffToolsController::class, 'checkFilter']);
-Router::get('/staff/staff-roster', [StaffToolsController::class, 'staffRoster']);
-Router::get('/staff/floodlog', [StaffToolsController::class, 'floodLog']);
-Router::get('/staff/stafflog', [StaffToolsController::class, 'staffLog']);
-Router::get('/staff/userdellog', [StaffToolsController::class, 'userDelLog']);
+Router::get('/staff/search', [\App\Controller\Staff\StaffToolsController::class, 'search']);
+Router::get('/staff/ip-lookup', [\App\Controller\Staff\StaffToolsController::class, 'ipLookup']);
+Router::get('/staff/check-md5', [\App\Controller\Staff\StaffToolsController::class, 'checkMd5']);
+Router::get('/staff/check-filter', [\App\Controller\Staff\StaffToolsController::class, 'checkFilter']);
+Router::get('/staff/staff-roster', [\App\Controller\Staff\StaffToolsController::class, 'staffRoster']);
+Router::get('/staff/floodlog', [\App\Controller\Staff\StaffToolsController::class, 'floodLog']);
+Router::get('/staff/stafflog', [\App\Controller\Staff\StaffToolsController::class, 'staffLog']);
+Router::get('/staff/userdellog', [\App\Controller\Staff\StaffToolsController::class, 'userDelLog']);
 
 // Staff ban templates (Manager+)
-Router::get('/staff/ban-templates', [StaffBanTemplateController::class, 'index']);
-Router::get('/staff/ban-templates/create', [StaffBanTemplateController::class, 'create']);
-Router::post('/staff/ban-templates', [StaffBanTemplateController::class, 'store']);
-Router::get('/staff/ban-templates/{id:\d+}/edit', [StaffBanTemplateController::class, 'edit']);
-Router::post('/staff/ban-templates/{id:\d+}', [StaffBanTemplateController::class, 'update']);
-Router::post('/staff/ban-templates/{id:\d+}/delete', [StaffBanTemplateController::class, 'delete']);
+Router::get('/staff/ban-templates', [\App\Controller\Staff\StaffBanTemplateController::class, 'index']);
+Router::get('/staff/ban-templates/create', [\App\Controller\Staff\StaffBanTemplateController::class, 'create']);
+Router::post('/staff/ban-templates', [\App\Controller\Staff\StaffBanTemplateController::class, 'store']);
+Router::get('/staff/ban-templates/{id:\d+}/edit', [\App\Controller\Staff\StaffBanTemplateController::class, 'edit']);
+Router::post('/staff/ban-templates/{id:\d+}', [\App\Controller\Staff\StaffBanTemplateController::class, 'update']);
+Router::post('/staff/ban-templates/{id:\d+}/delete', [\App\Controller\Staff\StaffBanTemplateController::class, 'delete']);
 
 // Staff report categories (Manager+)
-Router::get('/staff/report-categories', [StaffReportCategoryController::class, 'index']);
-Router::get('/staff/report-categories/create', [StaffReportCategoryController::class, 'create']);
-Router::post('/staff/report-categories', [StaffReportCategoryController::class, 'store']);
-Router::get('/staff/report-categories/{id:\d+}/edit', [StaffReportCategoryController::class, 'edit']);
-Router::post('/staff/report-categories/{id:\d+}', [StaffReportCategoryController::class, 'update']);
-Router::post('/staff/report-categories/{id:\d+}/delete', [StaffReportCategoryController::class, 'delete']);
+Router::get('/staff/report-categories', [\App\Controller\Staff\StaffReportCategoryController::class, 'index']);
+Router::get('/staff/report-categories/create', [\App\Controller\Staff\StaffReportCategoryController::class, 'create']);
+Router::post('/staff/report-categories', [\App\Controller\Staff\StaffReportCategoryController::class, 'store']);
+Router::get('/staff/report-categories/{id:\d+}/edit', [\App\Controller\Staff\StaffReportCategoryController::class, 'edit']);
+Router::post('/staff/report-categories/{id:\d+}', [\App\Controller\Staff\StaffReportCategoryController::class, 'update']);
+Router::post('/staff/report-categories/{id:\d+}/delete', [\App\Controller\Staff\StaffReportCategoryController::class, 'delete']);
 
 // ============== Moderation API Routes ==============
 

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Staff;
 
-use App\Controller\AbstractController;
+
 use App\Model\ReportCategory;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -18,7 +18,7 @@ use Psr\Http\Message\ResponseInterface;
  * Ported from OpenYotsuba/admin/manager/report_categories.php
  */
 #[Controller(prefix: '/staff/report-categories')]
-class StaffReportCategoryController extends AbstractController
+class StaffReportCategoryController
 {
     public function __construct(
         private HttpResponse $response,

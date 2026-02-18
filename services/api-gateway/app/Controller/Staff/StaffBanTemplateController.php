@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Staff;
 
-use App\Controller\AbstractController;
+
 use App\Model\BanTemplate;
 use App\Service\ModerationService;
 use Hyperf\HttpServer\Annotation\Controller;
@@ -19,7 +19,7 @@ use Psr\Http\Message\ResponseInterface;
  * Ported from OpenYotsuba/admin/manager/ban_templates.php
  */
 #[Controller(prefix: '/staff/ban-templates')]
-class StaffBanTemplateController extends AbstractController
+class StaffBanTemplateController
 {
     public function __construct(
         private ModerationService $modService,
