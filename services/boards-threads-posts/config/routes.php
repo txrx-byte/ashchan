@@ -11,6 +11,7 @@ Router::get('/health', [HealthController::class, 'check']);
 // Boards
 Router::get('/api/v1/boards', [BoardController::class, 'list']);
 Router::get('/api/v1/boards/{slug}', [BoardController::class, 'show']);
+Router::get('/api/v1/blotter', [BoardController::class, 'blotter']);
 
 // Threads
 Router::get('/api/v1/boards/{slug}/threads', [ThreadController::class, 'index']);

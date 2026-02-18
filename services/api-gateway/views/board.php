@@ -8,7 +8,7 @@ declare(strict_types=1);
 <!-- Mobile nav links -->
 <div class="navLinks mobile">
   <span class="mobileib button"><a href="#bottom">Bottom</a></span>
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a></span>
   <span class="mobileib button"><a href="#" id="refresh_top">Refresh</a></span>
 </div>
 
@@ -18,7 +18,7 @@ declare(strict_types=1);
 </div>
 
 <!-- Post Form -->
-<form name="post" action="/api/v1/boards/<?= htmlspecialchars($board_slug) ?>/threads" method="post" enctype="multipart/form-data">
+<form name="post" action="/<?= htmlspecialchars((string) $board_slug) ?>/threads" method="post" enctype="multipart/form-data">
   <input type="hidden" name="MAX_FILE_SIZE" value="4194304">
   <input type="hidden" name="mode" value="regist">
   <table class="postForm hideMobile" id="postForm" style="display:none;">
@@ -64,8 +64,8 @@ declare(strict_types=1);
 <div id="ctrl-top" class="desktop">
   <hr>
   <input type="text" id="search-box" placeholder="Search OPs&hellip;">
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/archive">Archive</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/archive">Archive</a>]
 </div>
 
 <hr>
@@ -80,51 +80,51 @@ declare(strict_types=1);
     <?php endif; ?>
 
     <?php foreach (($threads ?? []) as $thread): ?>
-    <div class="thread" id="t<?= htmlspecialchars($thread['id']) ?>">
+    <div class="thread" id="t<?= htmlspecialchars((string) $thread['id']) ?>">
       <?php $op = $thread['op'] ?? []; ?>
       <?php if (!empty($op)): ?>
-      <div class="postContainer opContainer" id="pc<?= htmlspecialchars($op['id'] ?? '') ?>">
-        <div id="p<?= htmlspecialchars($op['id'] ?? '') ?>" class="post op">
+      <div class="postContainer opContainer" id="pc<?= htmlspecialchars((string) $op['id'] ?? '') ?>">
+        <div id="p<?= htmlspecialchars((string) $op['id'] ?? '') ?>" class="post op">
 
           <?php if (!empty($op['media_url'])): ?>
-          <div class="file" id="f<?= htmlspecialchars($op['id'] ?? '') ?>">
-            <div class="fileText" id="fT<?= htmlspecialchars($op['id'] ?? '') ?>">
-              File: <a href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank"><?= htmlspecialchars($op['media_filename'] ?? 'image') ?></a>
-              (<?= htmlspecialchars($op['media_size_human'] ?? '') ?><?php if (!empty($op['media_dimensions'])): ?>, <?= htmlspecialchars($op['media_dimensions']) ?><?php endif; ?>)
+          <div class="file" id="f<?= htmlspecialchars((string) $op['id'] ?? '') ?>">
+            <div class="fileText" id="fT<?= htmlspecialchars((string) $op['id'] ?? '') ?>">
+              File: <a href="<?= htmlspecialchars((string) $op['media_url']) ?>" target="_blank"><?= htmlspecialchars((string) $op['media_filename'] ?? 'image') ?></a>
+              (<?= htmlspecialchars((string) $op['media_size_human'] ?? '') ?><?php if (!empty($op['media_dimensions'])): ?>, <?= htmlspecialchars((string) $op['media_dimensions']) ?><?php endif; ?>)
             </div>
-            <a class="fileThumb" href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank">
-              <img src="<?= htmlspecialchars($op['thumb_url'] ?? $op['media_url']) ?>" alt="<?= htmlspecialchars($op['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:250px;max-height:250px;">
+            <a class="fileThumb" href="<?= htmlspecialchars((string) $op['media_url']) ?>" target="_blank">
+              <img src="<?= htmlspecialchars((string) $op['thumb_url'] ?? $op['media_url']) ?>" alt="<?= htmlspecialchars((string) $op['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:250px;max-height:250px;">
             </a>
           </div>
           <?php endif; ?>
 
-          <div class="postInfo desktop" id="pi<?= htmlspecialchars($op['id'] ?? '') ?>">
-            <input type="checkbox" name="<?= htmlspecialchars($op['id'] ?? '') ?>" value="delete">
+          <div class="postInfo desktop" id="pi<?= htmlspecialchars((string) $op['id'] ?? '') ?>">
+            <input type="checkbox" name="<?= htmlspecialchars((string) $op['id'] ?? '') ?>" value="delete">
             <?php if (!empty($op['subject'])): ?>
-            <span class="subject"><?= htmlspecialchars($op['subject']) ?></span>
+            <span class="subject"><?= htmlspecialchars((string) $op['subject']) ?></span>
             <?php endif; ?>
             <span class="nameBlock">
-              <span class="name"><?= htmlspecialchars($op['author_name'] ?? 'Anonymous') ?></span>
-              <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($op['tripcode']) ?></span><?php endif; ?>
+              <span class="name"><?= htmlspecialchars((string) $op['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $op['tripcode']) ?></span><?php endif; ?>
             </span>
-            <span class="dateTime" data-utc="<?= htmlspecialchars($op['created_at'] ?? '') ?>"><?= htmlspecialchars($op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
+            <span class="dateTime" data-utc="<?= htmlspecialchars((string) $op['created_at'] ?? '') ?>"><?= htmlspecialchars((string) $op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
             <span class="postNum desktop">
-              <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>#p<?= htmlspecialchars($op['id'] ?? '') ?>" title="Link to this post">No.</a><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>#q<?= htmlspecialchars($op['id'] ?? '') ?>" title="Reply to this post"><?= htmlspecialchars($op['id'] ?? '') ?></a>
+              <a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>#p<?= htmlspecialchars((string) $op['id'] ?? '') ?>" title="Link to this post">No.</a><a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>#q<?= htmlspecialchars((string) $op['id'] ?? '') ?>" title="Reply to this post"><?= htmlspecialchars((string) $op['id'] ?? '') ?></a>
               <?php if (!empty($thread['sticky'])): ?><img src="/static/img/sticky.gif" alt="Sticky" title="Sticky" class="stickyIcon"><?php endif; ?>
               <?php if (!empty($thread['locked'])): ?><img src="/static/img/closed.gif" alt="Closed" title="Closed" class="closedIcon"><?php endif; ?>
-              &nbsp; <span>[<a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>" class="replylink">Reply</a>]</span>
+              &nbsp; <span>[<a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>" class="replylink">Reply</a>]</span>
             </span>
           </div>
 
-          <blockquote class="postMessage" id="m<?= htmlspecialchars($op['id'] ?? '') ?>">
-            <?= $op['content_html'] ?? htmlspecialchars($op['content'] ?? '') ?>
+          <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $op['id'] ?? '') ?>">
+            <?= $op['content_html'] ?? htmlspecialchars((string) $op['content'] ?? '') ?>
           </blockquote>
         </div>
 
         <!-- Mobile post link -->
         <div class="postLink mobile">
           <span class="info"><?= (int)($thread['reply_count'] ?? 0) ?> Replies / <?= (int)($thread['image_count'] ?? 0) ?> Images</span>
-          <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>" class="button">View Thread</a>
+          <a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>" class="button">View Thread</a>
         </div>
       </div>
       <?php endif; ?>
@@ -133,40 +133,40 @@ declare(strict_types=1);
       <span class="summary desktop">
         <?= (int)$thread['omitted_posts'] ?> repl<?= $thread['omitted_posts'] > 1 ? 'ies' : 'y' ?>
         <?php if (($thread['omitted_images'] ?? 0) > 0): ?>and <?= (int)$thread['omitted_images'] ?> image<?= $thread['omitted_images'] > 1 ? 's' : '' ?><?php endif; ?>
-        omitted. <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>" class="replylink">Click here</a> to view.
+        omitted. <a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>" class="replylink">Click here</a> to view.
       </span>
       <?php endif; ?>
 
       <?php foreach (($thread['latest_replies'] ?? []) as $reply): ?>
-      <div class="postContainer replyContainer" id="pc<?= htmlspecialchars($reply['id']) ?>">
-        <div class="sideArrows" id="sa<?= htmlspecialchars($reply['id']) ?>">&gt;&gt;</div>
-        <div id="p<?= htmlspecialchars($reply['id']) ?>" class="post reply">
-          <div class="postInfo desktop" id="pi<?= htmlspecialchars($reply['id']) ?>">
-            <input type="checkbox" name="<?= htmlspecialchars($reply['id']) ?>" value="delete">
+      <div class="postContainer replyContainer" id="pc<?= htmlspecialchars((string) $reply['id']) ?>">
+        <div class="sideArrows" id="sa<?= htmlspecialchars((string) $reply['id']) ?>">&gt;&gt;</div>
+        <div id="p<?= htmlspecialchars((string) $reply['id']) ?>" class="post reply">
+          <div class="postInfo desktop" id="pi<?= htmlspecialchars((string) $reply['id']) ?>">
+            <input type="checkbox" name="<?= htmlspecialchars((string) $reply['id']) ?>" value="delete">
             <span class="nameBlock">
-              <span class="name"><?= htmlspecialchars($reply['author_name'] ?? 'Anonymous') ?></span>
-              <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($reply['tripcode']) ?></span><?php endif; ?>
+              <span class="name"><?= htmlspecialchars((string) $reply['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $reply['tripcode']) ?></span><?php endif; ?>
             </span>
-            <span class="dateTime" data-utc="<?= htmlspecialchars($reply['created_at'] ?? '') ?>"><?= htmlspecialchars($reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
+            <span class="dateTime" data-utc="<?= htmlspecialchars((string) $reply['created_at'] ?? '') ?>"><?= htmlspecialchars((string) $reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
             <span class="postNum desktop">
-              <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>#p<?= htmlspecialchars($reply['id']) ?>" title="Link to this post">No.</a><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>#q<?= htmlspecialchars($reply['id']) ?>" title="Reply to this post"><?= htmlspecialchars($reply['id']) ?></a>
+              <a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>#p<?= htmlspecialchars((string) $reply['id']) ?>" title="Link to this post">No.</a><a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>#q<?= htmlspecialchars((string) $reply['id']) ?>" title="Reply to this post"><?= htmlspecialchars((string) $reply['id']) ?></a>
             </span>
           </div>
 
           <?php if (!empty($reply['media_url'])): ?>
-          <div class="file" id="f<?= htmlspecialchars($reply['id']) ?>">
-            <div class="fileText" id="fT<?= htmlspecialchars($reply['id']) ?>">
-              File: <a href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank"><?= htmlspecialchars($reply['media_filename'] ?? 'image') ?></a>
-              (<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>)
+          <div class="file" id="f<?= htmlspecialchars((string) $reply['id']) ?>">
+            <div class="fileText" id="fT<?= htmlspecialchars((string) $reply['id']) ?>">
+              File: <a href="<?= htmlspecialchars((string) $reply['media_url']) ?>" target="_blank"><?= htmlspecialchars((string) $reply['media_filename'] ?? 'image') ?></a>
+              (<?= htmlspecialchars((string) $reply['media_size_human'] ?? '') ?>)
             </div>
-            <a class="fileThumb" href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank">
-              <img src="<?= htmlspecialchars($reply['thumb_url'] ?? $reply['media_url']) ?>" alt="<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:125px;max-height:125px;">
+            <a class="fileThumb" href="<?= htmlspecialchars((string) $reply['media_url']) ?>" target="_blank">
+              <img src="<?= htmlspecialchars((string) $reply['thumb_url'] ?? $reply['media_url']) ?>" alt="<?= htmlspecialchars((string) $reply['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:125px;max-height:125px;">
             </a>
           </div>
           <?php endif; ?>
 
-          <blockquote class="postMessage" id="m<?= htmlspecialchars($reply['id']) ?>">
-            <?= $reply['content_html'] ?? htmlspecialchars($reply['content'] ?? '') ?>
+          <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $reply['id']) ?>">
+            <?= $reply['content_html'] ?? htmlspecialchars((string) $reply['content'] ?? '') ?>
           </blockquote>
         </div>
       </div>
@@ -203,7 +203,7 @@ declare(strict_types=1);
   <?php $total_pages = $total_pages ?? 1; ?>
   <div class="prev">
     <?php if ($page_num > 1): ?>
-    <form class="pageSwitcherForm" action="/<?= htmlspecialchars($board_slug) ?>/?page=<?= $page_num - 1 ?>">
+    <form class="pageSwitcherForm" action="/<?= htmlspecialchars((string) $board_slug) ?>/?page=<?= $page_num - 1 ?>">
       <input type="submit" value="Previous">
     </form>
     <?php else: ?>
@@ -212,32 +212,32 @@ declare(strict_types=1);
   </div>
   <div class="pages">
     <?php for ($p = 1; $p <= $total_pages; $p++): ?>
-    [<?php if ($p === $page_num): ?><strong><a href="/<?= htmlspecialchars($board_slug) ?>/?page=<?= $p ?>"><?= $p ?></a></strong><?php else: ?><a href="/<?= htmlspecialchars($board_slug) ?>/?page=<?= $p ?>"><?= $p ?></a><?php endif; ?>]
+    [<?php if ($p === $page_num): ?><strong><a href="/<?= htmlspecialchars((string) $board_slug) ?>/?page=<?= $p ?>"><?= $p ?></a></strong><?php else: ?><a href="/<?= htmlspecialchars((string) $board_slug) ?>/?page=<?= $p ?>"><?= $p ?></a><?php endif; ?>]
     <?php endfor; ?>
   </div>
   <div class="next">
     <?php if ($page_num < $total_pages): ?>
-    <form class="pageSwitcherForm" action="/<?= htmlspecialchars($board_slug) ?>/?page=<?= $page_num + 1 ?>">
+    <form class="pageSwitcherForm" action="/<?= htmlspecialchars((string) $board_slug) ?>/?page=<?= $page_num + 1 ?>">
       <input type="submit" value="Next" accesskey="x">
     </form>
     <?php else: ?>
     <span>Next</span>
     <?php endif; ?>
   </div>
-  <div class="pages cataloglink"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></div>
-  <div class="pages cataloglink"><a href="/<?= htmlspecialchars($board_slug) ?>/archive">Archive</a></div>
+  <div class="pages cataloglink"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a></div>
+  <div class="pages cataloglink"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/archive">Archive</a></div>
 </div>
 
 <!-- Mobile Pagination -->
 <div class="mPagelist mobile">
   <div class="pages">
     <?php for ($p = 1; $p <= $total_pages; $p++): ?>
-    <span>[<?php if ($p === $page_num): ?><strong><a href="/<?= htmlspecialchars($board_slug) ?>/?page=<?= $p ?>"><?= $p ?></a></strong><?php else: ?><a href="/<?= htmlspecialchars($board_slug) ?>/?page=<?= $p ?>"><?= $p ?></a><?php endif; ?>]</span>
+    <span>[<?php if ($p === $page_num): ?><strong><a href="/<?= htmlspecialchars((string) $board_slug) ?>/?page=<?= $p ?>"><?= $p ?></a></strong><?php else: ?><a href="/<?= htmlspecialchars((string) $board_slug) ?>/?page=<?= $p ?>"><?= $p ?></a><?php endif; ?>]</span>
     <?php endfor; ?>
-    <div class="mobileCatalogLink">[<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]</div>
+    <div class="mobileCatalogLink">[<a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a>]</div>
   </div>
   <?php if ($page_num < $total_pages): ?>
-  <div class="next"><a href="/<?= htmlspecialchars($board_slug) ?>/?page=<?= $page_num + 1 ?>" class="button">Next</a></div>
+  <div class="next"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/?page=<?= $page_num + 1 ?>" class="button">Next</a></div>
   <?php endif; ?>
 </div>
 

@@ -94,6 +94,25 @@ final class BoardService
         return $board;
     }
 
+    /**
+     * Get recent blotter entries.
+     * @return array<int, array<string, mixed>>
+     */
+    public function getBlotter(): array
+    {
+        return \App\Model\Blotter::query()
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get()
+            ->map(fn($b) => [
+                'id' => $b->id,
+                'content' => $b->content,
+                'is_important' => $b->is_important,
+                'created_at' => $this->toTimestamp($b->created_at),
+            ])
+            ->toArray();
+    }
+
     /* ──────────────────────────────────────────────
      * Threads – Index
      * ────────────────────────────────────────────── */

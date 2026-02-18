@@ -7,13 +7,13 @@ declare(strict_types=1);
 
 <!-- Mobile nav links -->
 <div class="navLinks mobile">
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a></span>
   <span class="mobileib button"><a href="#bottom">Bottom</a></span>
 </div>
 
 <!-- Desktop nav links -->
 <div class="navLinks desktop">
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a>]
   [<a href="#bottom">Bottom</a>]
 </div>
 
@@ -48,14 +48,14 @@ declare(strict_types=1);
 
   <?php foreach (($threads ?? []) as $thread): ?>
   <?php $top = $thread['op'] ?? $thread; ?>
-  <div class="thread" id="thread-<?= htmlspecialchars($thread['id']) ?>"
+  <div class="thread" id="thread-<?= htmlspecialchars((string) $thread['id']) ?>"
        data-replies="<?= (int)($thread['reply_count'] ?? 0) ?>"
        data-images="<?= (int)($thread['image_count'] ?? 0) ?>"
-       data-bumped="<?= htmlspecialchars($thread['bumped_at'] ?? '') ?>"
-       data-created="<?= htmlspecialchars($thread['created_at'] ?? '') ?>">
-    <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>">
+       data-bumped="<?= htmlspecialchars((string) $thread['bumped_at'] ?? '') ?>"
+       data-created="<?= htmlspecialchars((string) $thread['created_at'] ?? '') ?>">
+    <a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>">
       <?php if (!empty($top['thumb_url'])): ?>
-      <img class="thumb" src="<?= htmlspecialchars($top['thumb_url']) ?>" alt="" loading="lazy">
+      <img class="thumb" src="<?= htmlspecialchars((string) $top['thumb_url']) ?>" alt="" loading="lazy">
       <?php else: ?>
       <img class="thumb" src="/static/img/no-image.png" alt="No image" loading="lazy">
       <?php endif; ?>
@@ -66,8 +66,8 @@ declare(strict_types=1);
       <?php if (!empty($thread['locked'])): ?> <img src="/static/img/closed.gif" alt="Closed" title="Closed" class="closedIcon"><?php endif; ?>
     </div>
     <div class="teaser">
-      <?php if (!empty($top['subject'])): ?><b><?= htmlspecialchars($top['subject']) ?></b>: <?php endif; ?>
-      <?= htmlspecialchars($top['content_preview'] ?? substr(strip_tags($top['content'] ?? ''), 0, 150)) ?>
+      <?php if (!empty($top['subject'])): ?><b><?= htmlspecialchars((string) $top['subject']) ?></b>: <?php endif; ?>
+      <?= htmlspecialchars((string) $top['content_preview'] ?? substr(strip_tags($top['content'] ?? ''), 0, 150)) ?>
     </div>
   </div>
   <?php endforeach; ?>
@@ -79,12 +79,12 @@ declare(strict_types=1);
 
 <!-- Bottom nav links -->
 <div class="navLinks navLinksBot desktop">
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a>]
   [<a href="#top">Top</a>]
 </div>
 
 <div class="navLinks navLinksBot mobile">
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a></span>
   <span class="mobileib button"><a href="#top">Top</a></span>
 </div>
 

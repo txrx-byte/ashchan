@@ -7,15 +7,15 @@ declare(strict_types=1);
 
 <!-- Mobile nav links -->
 <div class="navLinks mobile">
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a></span>
   <span class="mobileib button"><a href="#bottom">Bottom</a></span>
 </div>
 
 <!-- Reply Mode Banner -->
 <div class="navLinks desktop">
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a>]
   [<a href="#bottom">Bottom</a>]
 </div>
 
@@ -24,10 +24,10 @@ declare(strict_types=1);
 </div>
 
 <!-- Post Form -->
-<form name="post" action="/api/v1/boards/<?= htmlspecialchars($board_slug) ?>/threads/<?= htmlspecialchars($thread_id) ?>/posts" method="post" enctype="multipart/form-data">
+<form name="post" action="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread_id) ?>/posts" method="post" enctype="multipart/form-data">
   <input type="hidden" name="MAX_FILE_SIZE" value="4194304">
   <input type="hidden" name="mode" value="regist">
-  <input type="hidden" name="resto" value="<?= htmlspecialchars($thread_id) ?>">
+  <input type="hidden" name="resto" value="<?= htmlspecialchars((string) $thread_id) ?>">
   <table class="postForm" id="postForm">
     <tbody>
       <tr data-type="Name">
@@ -69,62 +69,62 @@ declare(strict_types=1);
 <!-- Thread Container -->
 <form name="delform" id="delform" action="/api/v1/delete" method="post">
   <div class="board">
-    <div class="thread" id="t<?= htmlspecialchars($thread_id) ?>">
+    <div class="thread" id="t<?= htmlspecialchars((string) $thread_id) ?>">
 
       <!-- OP Post -->
       <?php if (!empty($op)): ?>
-      <div class="postContainer opContainer" id="pc<?= htmlspecialchars($op['id']) ?>">
-        <div id="p<?= htmlspecialchars($op['id']) ?>" class="post op">
+      <div class="postContainer opContainer" id="pc<?= htmlspecialchars((string) $op['id']) ?>">
+        <div id="p<?= htmlspecialchars((string) $op['id']) ?>" class="post op">
 
           <!-- Mobile Post Info -->
-          <div class="postInfoM mobile" id="pim<?= htmlspecialchars($op['id']) ?>">
+          <div class="postInfoM mobile" id="pim<?= htmlspecialchars((string) $op['id']) ?>">
             <span class="nameBlock">
-              <span class="name"><?= htmlspecialchars($op['author_name'] ?? 'Anonymous') ?></span>
-              <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($op['tripcode']) ?></span><?php endif; ?>
-              <?php if (!empty($op['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars($op['capcode']) ?></strong><?php endif; ?>
+              <span class="name"><?= htmlspecialchars((string) $op['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $op['tripcode']) ?></span><?php endif; ?>
+              <?php if (!empty($op['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars((string) $op['capcode']) ?></strong><?php endif; ?>
               <?php if (!empty($thread_sticky)): ?><img src="/static/img/sticky.gif" alt="Sticky" title="Sticky" class="stickyIcon"><?php endif; ?>
               <?php if (!empty($thread_locked)): ?><img src="/static/img/closed.gif" alt="Closed" title="Closed" class="closedIcon"><?php endif; ?>
               <br>
-              <?php if (!empty($op['subject'])): ?><span class="subject"><?= htmlspecialchars($op['subject']) ?></span><?php endif; ?>
+              <?php if (!empty($op['subject'])): ?><span class="subject"><?= htmlspecialchars((string) $op['subject']) ?></span><?php endif; ?>
             </span>
-            <span class="dateTime postNum" data-utc="<?= htmlspecialchars($op['created_at'] ?? '') ?>">
-              <?= htmlspecialchars($op['formatted_time'] ?? $op['created_at'] ?? '') ?>
-              <a href="#p<?= htmlspecialchars($op['id']) ?>" title="Link to this post">No.</a><a href="#q<?= htmlspecialchars($op['id']) ?>" title="Reply to this post"><?= htmlspecialchars($op['id']) ?></a>
+            <span class="dateTime postNum" data-utc="<?= htmlspecialchars((string) $op['created_at'] ?? '') ?>">
+              <?= htmlspecialchars((string) $op['formatted_time'] ?? $op['created_at'] ?? '') ?>
+              <a href="#p<?= htmlspecialchars((string) $op['id']) ?>" title="Link to this post">No.</a><a href="#q<?= htmlspecialchars((string) $op['id']) ?>" title="Reply to this post"><?= htmlspecialchars((string) $op['id']) ?></a>
             </span>
           </div>
 
           <?php if (!empty($op['media_url'])): ?>
-          <div class="file" id="f<?= htmlspecialchars($op['id']) ?>">
-            <div class="fileText" id="fT<?= htmlspecialchars($op['id']) ?>">
-              File: <a href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank"><?= htmlspecialchars($op['media_filename'] ?? 'image') ?></a>
-              (<?= htmlspecialchars($op['media_size_human'] ?? '') ?><?php if (!empty($op['media_dimensions'])): ?>, <?= htmlspecialchars($op['media_dimensions']) ?><?php endif; ?>)
+          <div class="file" id="f<?= htmlspecialchars((string) $op['id']) ?>">
+            <div class="fileText" id="fT<?= htmlspecialchars((string) $op['id']) ?>">
+              File: <a href="<?= htmlspecialchars((string) $op['media_url']) ?>" target="_blank"><?= htmlspecialchars((string) $op['media_filename'] ?? 'image') ?></a>
+              (<?= htmlspecialchars((string) $op['media_size_human'] ?? '') ?><?php if (!empty($op['media_dimensions'])): ?>, <?= htmlspecialchars((string) $op['media_dimensions']) ?><?php endif; ?>)
             </div>
-            <a class="fileThumb" href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank">
-              <img src="<?= htmlspecialchars($op['thumb_url'] ?? $op['media_url']) ?>" alt="<?= htmlspecialchars($op['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:250px;max-height:250px;">
-              <div data-tip data-tip-cb="mShowFull" class="mFileInfo mobile"><?= htmlspecialchars($op['media_size_human'] ?? '') ?></div>
+            <a class="fileThumb" href="<?= htmlspecialchars((string) $op['media_url']) ?>" target="_blank">
+              <img src="<?= htmlspecialchars((string) $op['thumb_url'] ?? $op['media_url']) ?>" alt="<?= htmlspecialchars((string) $op['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:250px;max-height:250px;">
+              <div data-tip data-tip-cb="mShowFull" class="mFileInfo mobile"><?= htmlspecialchars((string) $op['media_size_human'] ?? '') ?></div>
             </a>
           </div>
           <?php endif; ?>
 
           <!-- Desktop Post Info -->
-          <div class="postInfo desktop" id="pi<?= htmlspecialchars($op['id']) ?>">
-            <input type="checkbox" name="<?= htmlspecialchars($op['id']) ?>" value="delete">
-            <?php if (!empty($op['subject'])): ?><span class="subject"><?= htmlspecialchars($op['subject']) ?></span><?php endif; ?>
+          <div class="postInfo desktop" id="pi<?= htmlspecialchars((string) $op['id']) ?>">
+            <input type="checkbox" name="<?= htmlspecialchars((string) $op['id']) ?>" value="delete">
+            <?php if (!empty($op['subject'])): ?><span class="subject"><?= htmlspecialchars((string) $op['subject']) ?></span><?php endif; ?>
             <span class="nameBlock">
-              <span class="name"><?= htmlspecialchars($op['author_name'] ?? 'Anonymous') ?></span>
-              <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($op['tripcode']) ?></span><?php endif; ?>
-              <?php if (!empty($op['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars($op['capcode']) ?></strong><?php endif; ?>
+              <span class="name"><?= htmlspecialchars((string) $op['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $op['tripcode']) ?></span><?php endif; ?>
+              <?php if (!empty($op['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars((string) $op['capcode']) ?></strong><?php endif; ?>
             </span>
-            <span class="dateTime" data-utc="<?= htmlspecialchars($op['created_at'] ?? '') ?>"><?= htmlspecialchars($op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
+            <span class="dateTime" data-utc="<?= htmlspecialchars((string) $op['created_at'] ?? '') ?>"><?= htmlspecialchars((string) $op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
             <span class="postNum desktop">
-              <a href="#p<?= htmlspecialchars($op['id']) ?>" title="Link to this post">No.</a><a href="#q<?= htmlspecialchars($op['id']) ?>" title="Reply to this post"><?= htmlspecialchars($op['id']) ?></a>
+              <a href="#p<?= htmlspecialchars((string) $op['id']) ?>" title="Link to this post">No.</a><a href="#q<?= htmlspecialchars((string) $op['id']) ?>" title="Reply to this post"><?= htmlspecialchars((string) $op['id']) ?></a>
               <?php if (!empty($thread_sticky)): ?><img src="/static/img/sticky.gif" alt="Sticky" title="Sticky" class="stickyIcon"><?php endif; ?>
               <?php if (!empty($thread_locked)): ?><img src="/static/img/closed.gif" alt="Closed" title="Closed" class="closedIcon"><?php endif; ?>
             </span>
           </div>
 
-          <blockquote class="postMessage" id="m<?= htmlspecialchars($op['id']) ?>">
-            <?= $op['content_html'] ?? htmlspecialchars($op['content'] ?? '') ?>
+          <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $op['id']) ?>">
+            <?= $op['content_html'] ?? htmlspecialchars((string) $op['content'] ?? '') ?>
           </blockquote>
         </div>
       </div>
@@ -132,53 +132,53 @@ declare(strict_types=1);
 
       <!-- Replies -->
       <?php foreach (($replies ?? []) as $reply): ?>
-      <div class="postContainer replyContainer" id="pc<?= htmlspecialchars($reply['id']) ?>">
-        <div class="sideArrows" id="sa<?= htmlspecialchars($reply['id']) ?>">&gt;&gt;</div>
-        <div id="p<?= htmlspecialchars($reply['id']) ?>" class="post reply">
+      <div class="postContainer replyContainer" id="pc<?= htmlspecialchars((string) $reply['id']) ?>">
+        <div class="sideArrows" id="sa<?= htmlspecialchars((string) $reply['id']) ?>">&gt;&gt;</div>
+        <div id="p<?= htmlspecialchars((string) $reply['id']) ?>" class="post reply">
 
           <!-- Mobile Post Info -->
-          <div class="postInfoM mobile" id="pim<?= htmlspecialchars($reply['id']) ?>">
+          <div class="postInfoM mobile" id="pim<?= htmlspecialchars((string) $reply['id']) ?>">
             <span class="nameBlock">
-              <span class="name"><?= htmlspecialchars($reply['author_name'] ?? 'Anonymous') ?></span>
-              <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($reply['tripcode']) ?></span><?php endif; ?>
-              <?php if (!empty($reply['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars($reply['capcode']) ?></strong><?php endif; ?>
+              <span class="name"><?= htmlspecialchars((string) $reply['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $reply['tripcode']) ?></span><?php endif; ?>
+              <?php if (!empty($reply['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars((string) $reply['capcode']) ?></strong><?php endif; ?>
               <br>
             </span>
-            <span class="dateTime postNum" data-utc="<?= htmlspecialchars($reply['created_at'] ?? '') ?>">
-              <?= htmlspecialchars($reply['formatted_time'] ?? $reply['created_at'] ?? '') ?>
-              <a href="#p<?= htmlspecialchars($reply['id']) ?>" title="Link to this post">No.</a><a href="#q<?= htmlspecialchars($reply['id']) ?>" title="Reply to this post"><?= htmlspecialchars($reply['id']) ?></a>
+            <span class="dateTime postNum" data-utc="<?= htmlspecialchars((string) $reply['created_at'] ?? '') ?>">
+              <?= htmlspecialchars((string) $reply['formatted_time'] ?? $reply['created_at'] ?? '') ?>
+              <a href="#p<?= htmlspecialchars((string) $reply['id']) ?>" title="Link to this post">No.</a><a href="#q<?= htmlspecialchars((string) $reply['id']) ?>" title="Reply to this post"><?= htmlspecialchars((string) $reply['id']) ?></a>
             </span>
           </div>
 
           <!-- Desktop Post Info -->
-          <div class="postInfo desktop" id="pi<?= htmlspecialchars($reply['id']) ?>">
-            <input type="checkbox" name="<?= htmlspecialchars($reply['id']) ?>" value="delete">
+          <div class="postInfo desktop" id="pi<?= htmlspecialchars((string) $reply['id']) ?>">
+            <input type="checkbox" name="<?= htmlspecialchars((string) $reply['id']) ?>" value="delete">
             <span class="nameBlock">
-              <span class="name"><?= htmlspecialchars($reply['author_name'] ?? 'Anonymous') ?></span>
-              <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($reply['tripcode']) ?></span><?php endif; ?>
-              <?php if (!empty($reply['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars($reply['capcode']) ?></strong><?php endif; ?>
+              <span class="name"><?= htmlspecialchars((string) $reply['author_name'] ?? 'Anonymous') ?></span>
+              <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $reply['tripcode']) ?></span><?php endif; ?>
+              <?php if (!empty($reply['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars((string) $reply['capcode']) ?></strong><?php endif; ?>
             </span>
-            <span class="dateTime" data-utc="<?= htmlspecialchars($reply['created_at'] ?? '') ?>"><?= htmlspecialchars($reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
+            <span class="dateTime" data-utc="<?= htmlspecialchars((string) $reply['created_at'] ?? '') ?>"><?= htmlspecialchars((string) $reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
             <span class="postNum desktop">
-              <a href="#p<?= htmlspecialchars($reply['id']) ?>" title="Link to this post">No.</a><a href="#q<?= htmlspecialchars($reply['id']) ?>" title="Reply to this post"><?= htmlspecialchars($reply['id']) ?></a>
+              <a href="#p<?= htmlspecialchars((string) $reply['id']) ?>" title="Link to this post">No.</a><a href="#q<?= htmlspecialchars((string) $reply['id']) ?>" title="Reply to this post"><?= htmlspecialchars((string) $reply['id']) ?></a>
             </span>
           </div>
 
           <?php if (!empty($reply['media_url'])): ?>
-          <div class="file" id="f<?= htmlspecialchars($reply['id']) ?>">
-            <div class="fileText" id="fT<?= htmlspecialchars($reply['id']) ?>">
-              File: <a href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank"><?= htmlspecialchars($reply['media_filename'] ?? 'image') ?></a>
-              (<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>)
+          <div class="file" id="f<?= htmlspecialchars((string) $reply['id']) ?>">
+            <div class="fileText" id="fT<?= htmlspecialchars((string) $reply['id']) ?>">
+              File: <a href="<?= htmlspecialchars((string) $reply['media_url']) ?>" target="_blank"><?= htmlspecialchars((string) $reply['media_filename'] ?? 'image') ?></a>
+              (<?= htmlspecialchars((string) $reply['media_size_human'] ?? '') ?>)
             </div>
-            <a class="fileThumb" href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank">
-              <img src="<?= htmlspecialchars($reply['thumb_url'] ?? $reply['media_url']) ?>" alt="<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:125px;max-height:125px;">
-              <div data-tip data-tip-cb="mShowFull" class="mFileInfo mobile"><?= htmlspecialchars($reply['media_size_human'] ?? '') ?></div>
+            <a class="fileThumb" href="<?= htmlspecialchars((string) $reply['media_url']) ?>" target="_blank">
+              <img src="<?= htmlspecialchars((string) $reply['thumb_url'] ?? $reply['media_url']) ?>" alt="<?= htmlspecialchars((string) $reply['media_size_human'] ?? '') ?>" loading="lazy" style="height:auto;width:auto;max-width:125px;max-height:125px;">
+              <div data-tip data-tip-cb="mShowFull" class="mFileInfo mobile"><?= htmlspecialchars((string) $reply['media_size_human'] ?? '') ?></div>
             </a>
           </div>
           <?php endif; ?>
 
-          <blockquote class="postMessage" id="m<?= htmlspecialchars($reply['id']) ?>">
-            <?= $reply['content_html'] ?? htmlspecialchars($reply['content'] ?? '') ?>
+          <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $reply['id']) ?>">
+            <?= $reply['content_html'] ?? htmlspecialchars((string) $reply['content'] ?? '') ?>
           </blockquote>
         </div>
       </div>
@@ -229,14 +229,14 @@ declare(strict_types=1);
 
 <!-- Bottom nav links -->
 <div class="navLinks navLinksBot desktop">
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a>]
   [<a href="#top">Top</a>]
 </div>
 
 <div class="navLinks navLinksBot mobile">
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a></span>
   <span class="mobileib button"><a href="#top">Top</a></span>
 </div>
 

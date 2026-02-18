@@ -25,7 +25,7 @@ final class GatewayController
 {
     private const ROUTE_MAP = [
         'auth'       => ['auth', 'consent'],
-        'boards'     => ['boards', 'posts'],
+        'boards'     => ['boards', 'posts', 'blotter'],
         'media'      => ['media'],
         'search'     => ['search'],
         'moderation' => ['reports', 'spam', 'captcha'],

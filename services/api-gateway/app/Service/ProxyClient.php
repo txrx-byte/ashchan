@@ -24,18 +24,29 @@ final class ProxyClient
         ];
     }
 
-    /**
-     * Forward a request to a backend service.
-     *
-     * @param string $service  Name of the target service
-     * @param string $method   HTTP method
-     * @param string $path     Request path
-     * @param array<string, mixed>  $headers  Headers to forward
-     * @param string $body     Request body
-     * @return array{status: int, headers: array<string, string>, body: string|false}
-     */
-    public function forward(string $service, string $method, string $path, array $headers = [], string $body = ''): array
-    {
+        /**
+
+         * Forward a request to a backend service.
+
+         *
+
+         * @param string $service  Name of the target service
+
+         * @param string $method   HTTP method
+
+         * @param string $path     Request path
+
+         * @param array<string, mixed>  $headers  Headers to forward
+
+         * @param string|array<string, mixed> $body Request body (string or array for multipart)
+
+         * @return array{status: int, headers: array<string, string>, body: string|false}
+
+         */
+
+        public function forward(string $service, string $method, string $path, array $headers = [], string|array $body = ''): array
+
+        {
         $baseUrl = $this->services[$service] ?? null;
         if (!$baseUrl) {
             return ['status' => 502, 'headers' => [], 'body' => json_encode(['error' => 'Unknown service'])];

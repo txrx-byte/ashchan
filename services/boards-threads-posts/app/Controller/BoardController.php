@@ -31,4 +31,11 @@ final class BoardController
         }
         return $this->response->json(['board' => $board->toArray()]);
     }
+
+    /** GET /api/v1/blotter */
+    public function blotter(): ResponseInterface
+    {
+        $blotter = $this->boardService->getBlotter();
+        return $this->response->json(['blotter' => $blotter]);
+    }
 }

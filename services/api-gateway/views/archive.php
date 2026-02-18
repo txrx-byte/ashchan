@@ -7,15 +7,15 @@ declare(strict_types=1);
 
 <!-- Mobile nav links -->
 <div class="navLinks mobile">
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a></span>
   <span class="mobileib button"><a href="#bottom">Bottom</a></span>
 </div>
 
 <!-- Desktop nav links -->
 <div class="navLinks desktop">
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a>]
   [<a href="#bottom">Bottom</a>]
 </div>
 
@@ -45,8 +45,8 @@ declare(strict_types=1);
       <?php if (!empty($archived_threads)): ?>
       <?php foreach ($archived_threads as $thread): ?>
       <tr>
-        <td><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>"><?= htmlspecialchars($thread['id']) ?></a></td>
-        <td><?= htmlspecialchars($thread['excerpt'] ?? 'No excerpt') ?></td>
+        <td><a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>"><?= htmlspecialchars((string) $thread['id']) ?></a></td>
+        <td><?= htmlspecialchars((string) $thread['excerpt'] ?? 'No excerpt') ?></td>
       </tr>
       <?php endforeach; ?>
       <?php else: ?>
@@ -60,14 +60,14 @@ declare(strict_types=1);
 
 <!-- Bottom nav links -->
 <div class="navLinks navLinksBot desktop">
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a>]
-  [<a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a>]
+  [<a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a>]
   [<a href="#top">Top</a>]
 </div>
 
 <div class="navLinks navLinksBot mobile">
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/">Return</a></span>
-  <span class="mobileib button"><a href="/<?= htmlspecialchars($board_slug) ?>/catalog">Catalog</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/">Return</a></span>
+  <span class="mobileib button"><a href="/<?= htmlspecialchars((string) $board_slug) ?>/catalog">Catalog</a></span>
   <span class="mobileib button"><a href="#top">Top</a></span>
 </div>
 

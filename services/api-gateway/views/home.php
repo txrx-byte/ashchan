@@ -40,7 +40,7 @@
 
 <!-- Top board nav -->
 <div class="top-nav">
-  [<?php foreach (($boards ?? []) as $i => $b): ?><a href="/<?= htmlspecialchars($b['slug']) ?>/" title="<?= htmlspecialchars($b['title']) ?>"><?= htmlspecialchars($b['slug']) ?></a><?php if ($i < count($boards ?? []) - 1): ?> / <?php endif; ?><?php endforeach; ?>]
+  [<?php foreach (($boards ?? []) as $i => $b): ?><a href="/<?= htmlspecialchars((string) $b['slug']) ?>/" title="<?= htmlspecialchars((string) $b['title']) ?>"><?= htmlspecialchars((string) $b['slug']) ?></a><?php if ($i < count($boards ?? []) - 1): ?> / <?php endif; ?><?php endforeach; ?>]
 </div>
 
 <!-- Logo -->
@@ -53,12 +53,12 @@
 <div class="home-content">
   <?php foreach (($categories ?? []) as $category): ?>
   <div class="boards-box">
-    <div class="box-title"><?= htmlspecialchars($category['name']) ?></div>
+    <div class="box-title"><?= htmlspecialchars((string) $category['name']) ?></div>
     <div class="box-content">
       <?php foreach ($category['boards'] as $b): ?>
       <div class="board-row">
-        <a href="/<?= htmlspecialchars($b['slug']) ?>/">/<?= htmlspecialchars($b['slug']) ?>/</a>
-        <span class="board-title">- <?= htmlspecialchars($b['title']) ?></span>
+        <a href="/<?= htmlspecialchars((string) $b['slug']) ?>/">/<?= htmlspecialchars((string) $b['slug']) ?>/</a>
+        <span class="board-title">- <?= htmlspecialchars((string) $b['title']) ?></span>
       </div>
       <?php endforeach; ?>
     </div>

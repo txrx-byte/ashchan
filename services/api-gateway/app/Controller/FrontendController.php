@@ -24,10 +24,10 @@ final class FrontendController
     /** GET / – Homepage with board listing */
     public function home(): ResponseInterface
     {
-        $boardsData = $this->fetchJson('boards', '/api/v1/boards');
-        $boards = $boardsData['boards'] ?? [];
+        $common = $this->getCommonData();
+        $boards = $common['boards'] ?? [];
 
-        // Group boards by category
+        // Group boards by category for the home page display
         $grouped = [];
         foreach ($boards as $b) {
             $cat = $b['category'];
@@ -35,7 +35,7 @@ final class FrontendController
         }
 
         $categories = [];
-        $order = ['Japanese Culture', 'Interests', 'Creative', 'Other'];
+        $order = ['Japanese Culture', 'Video Games', 'Interests', 'Creative', 'Other', 'Misc. (NSFW)', 'Adult (NSFW)'];
         foreach ($order as $catName) {
             if (isset($grouped[$catName])) {
                 $categories[] = ['name' => $catName, 'boards' => $grouped[$catName]];
@@ -46,13 +46,12 @@ final class FrontendController
             $categories[] = ['name' => $catName, 'boards' => $catBoards];
         }
 
-        $html = $this->renderer->render('home', [
-            'boards'         => $boards,
+        $html = $this->renderer->render('home', array_merge($common, [
             'categories'     => $categories,
             'total_posts'    => 0,
             'active_threads' => 0,
             'active_users'   => 0,
-        ]);
+        ]));
 
         return $this->html($html);
     }
@@ -62,9 +61,8 @@ final class FrontendController
     {
         $pageRaw = $request->getQueryParams()['page'] ?? '1';
         $page = is_numeric($pageRaw) ? max(1, (int) $pageRaw) : 1;
-        $boardsData = $this->fetchJson('boards', '/api/v1/boards');
-        $boards = $boardsData['boards'] ?? [];
-
+        
+        $common = $this->getCommonData();
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
         $board = $boardData['board'] ?? null;
         if (!$board) {
@@ -75,8 +73,7 @@ final class FrontendController
         $threads = $threadsData['threads'] ?? [];
         $totalPages = max(1, (int) ($threadsData['total_pages'] ?? 1));
 
-        $html = $this->renderer->render('board', [
-            'boards'         => $boards,
+        $html = $this->renderer->render('board', array_merge($common, [
             'board_slug'     => $slug,
             'board_title'    => $board['title'],
             'board_subtitle' => $board['subtitle'],
@@ -85,7 +82,7 @@ final class FrontendController
             'total_pages'    => $totalPages,
             'threads'        => $threads,
             'thread_id'      => '',
-        ]);
+        ]));
 
         return $this->html($html);
     }
@@ -93,9 +90,7 @@ final class FrontendController
     /** GET /{slug}/catalog – Board catalog view */
     public function catalog(string $slug): ResponseInterface
     {
-        $boardsData = $this->fetchJson('boards', '/api/v1/boards');
-        $boards = $boardsData['boards'] ?? [];
-
+        $common = $this->getCommonData();
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
         $board = $boardData['board'] ?? null;
         if (!$board) {
@@ -105,15 +100,14 @@ final class FrontendController
         $catalogData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/catalog');
         $threads = $catalogData['threads'] ?? [];
 
-        $html = $this->renderer->render('catalog', [
-            'boards'      => $boards,
+        $html = $this->renderer->render('catalog', array_merge($common, [
             'board_slug'  => $slug,
             'board_title' => $board['title'],
             'page_title'  => '/' . $slug . '/ - Catalog',
             'threads'     => $threads,
             'thread_id'   => '',
             'page_num'    => 1,
-        ]);
+        ]));
 
         return $this->html($html);
     }
@@ -121,9 +115,7 @@ final class FrontendController
     /** GET /{slug}/archive – Board archive */
     public function archive(string $slug): ResponseInterface
     {
-        $boardsData = $this->fetchJson('boards', '/api/v1/boards');
-        $boards = $boardsData['boards'] ?? [];
-
+        $common = $this->getCommonData();
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
         $board = $boardData['board'] ?? null;
         if (!$board) {
@@ -133,15 +125,14 @@ final class FrontendController
         $archiveData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/archive');
         $archived = $archiveData['archived_threads'] ?? $archiveData['threads'] ?? [];
 
-        $html = $this->renderer->render('archive', [
-            'boards'           => $boards,
+        $html = $this->renderer->render('archive', array_merge($common, [
             'board_slug'       => $slug,
             'board_title'      => $board['title'],
             'page_title'       => '/' . $slug . '/ - Archive',
             'archived_threads' => $archived,
             'thread_id'        => '',
             'page_num'         => 1,
-        ]);
+        ]));
 
         return $this->html($html);
     }
@@ -149,9 +140,7 @@ final class FrontendController
     /** GET /{slug}/thread/{id} – Thread view */
     public function thread(string $slug, int $id): ResponseInterface
     {
-        $boardsData = $this->fetchJson('boards', '/api/v1/boards');
-        $boards = $boardsData['boards'] ?? [];
-
+        $common = $this->getCommonData();
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
         $board = $boardData['board'] ?? null;
         if (!$board) {
@@ -166,8 +155,7 @@ final class FrontendController
         $op = $threadData['op'] ?? null;
         $replies = $threadData['replies'] ?? [];
 
-        $html = $this->renderer->render('thread', [
-            'boards'        => $boards,
+        $html = $this->renderer->render('thread', array_merge($common, [
             'board_slug'    => $slug,
             'board_title'   => $board['title'],
             'page_title'    => '/' . $slug . '/ - Thread No.' . $id,
@@ -178,9 +166,106 @@ final class FrontendController
             'image_count'   => $threadData['image_count'] ?? 0,
             'thread_locked' => $threadData['locked'] ?? false,
             'thread_sticky' => $threadData['sticky'] ?? false,
-        ]);
+        ]));
 
         return $this->html($html);
+    }
+
+    /** POST /{slug}/threads – Create new thread (from form) */
+    public function createThread(RequestInterface $request, string $slug): ResponseInterface
+    {
+        $input = $request->all();
+        $mediaMetadata = $this->handleMediaUpload($request);
+
+        if ($mediaMetadata) {
+            $input = array_merge($input, $mediaMetadata);
+        }
+
+        $headers = [
+            'Content-Type'    => 'application/json',
+            'X-Forwarded-For' => $request->getHeaderLine('X-Forwarded-For') ?: $request->server('remote_addr', ''),
+            'User-Agent'      => $request->getHeaderLine('User-Agent'),
+        ];
+
+        $result = $this->proxyClient->forward('boards', 'POST', "/api/v1/boards/{$slug}/threads", $headers, json_encode($input));
+
+        if ($result['status'] >= 400) {
+            return $this->html('<h1>Post Error</h1><p>' . htmlspecialchars($result['body']) . '</p>', $result['status']);
+        }
+
+        $data = json_decode($result['body'], true);
+        $threadId = $data['thread_id'] ?? null;
+
+        if ($threadId) {
+            return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/thread/{$threadId}");
+        }
+
+        return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/");
+    }
+
+    /** POST /{slug}/thread/{id}/posts – Create new reply (from form) */
+    public function createPost(RequestInterface $request, string $slug, int $id): ResponseInterface
+    {
+        $input = $request->all();
+        $mediaMetadata = $this->handleMediaUpload($request);
+
+        if ($mediaMetadata) {
+            $input = array_merge($input, $mediaMetadata);
+        }
+
+        $headers = [
+            'Content-Type'    => 'application/json',
+            'X-Forwarded-For' => $request->getHeaderLine('X-Forwarded-For') ?: $request->server('remote_addr', ''),
+            'User-Agent'      => $request->getHeaderLine('User-Agent'),
+        ];
+
+        $result = $this->proxyClient->forward('boards', 'POST', "/api/v1/boards/{$slug}/threads/{$id}/posts", $headers, json_encode($input));
+
+        if ($result['status'] >= 400) {
+            return $this->html('<h1>Post Error</h1><p>' . htmlspecialchars($result['body']) . '</p>', $result['status']);
+        }
+
+        $data = json_decode($result['body'], true);
+        $postId = $data['post_id'] ?? null;
+
+        if ($postId) {
+            return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/thread/{$id}#p{$postId}");
+        }
+
+        return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/thread/{$id}");
+    }
+
+    /**
+     * Handle media upload if present in the request.
+     * @return array<string, mixed>|null Media metadata or null
+     */
+    private function handleMediaUpload(RequestInterface $request): ?array
+    {
+        $file = $request->file('upfile');
+        if (!$file || is_array($file) || !$file->isValid()) {
+            return null;
+        }
+
+        $tmpPath = $file->getRealPath();
+        if (!$tmpPath) {
+            return null;
+        }
+
+        $body = [
+            'upfile' => new \CURLFile(
+                $tmpPath,
+                (string) $file->getClientMediaType(),
+                (string) $file->getClientFilename()
+            ),
+        ];
+
+        $result = $this->proxyClient->forward('media', 'POST', '/api/v1/media/upload', [], $body);
+
+        if ($result['status'] === 200) {
+            return json_decode($result['body'], true);
+        }
+
+        return null;
     }
 
     /** Serve static files (development only). */
@@ -291,5 +376,42 @@ final class FrontendController
         return $this->response->raw($body)
             ->withStatus($status)
             ->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /**
+     * Fetch common data (boards, blotter) used on all pages.
+     * @return array<string, mixed>
+     */
+    private function getCommonData(): array
+    {
+        $boardsData = $this->fetchJson('boards', '/api/v1/boards');
+        $blotterData = $this->fetchJson('boards', '/api/v1/blotter');
+
+        $boards = $boardsData['boards'] ?? [];
+        
+        // Group boards for the navbar
+        $grouped = [];
+        foreach ($boards as $b) {
+            $cat = $b['category'] ?? 'Other';
+            $grouped[$cat][] = $b;
+        }
+
+        $nav_groups = [];
+        $order = ['Japanese Culture', 'Video Games', 'Interests', 'Creative', 'Other', 'Misc. (NSFW)', 'Adult (NSFW)'];
+        foreach ($order as $catName) {
+            if (isset($grouped[$catName])) {
+                $nav_groups[] = ['name' => $catName, 'boards' => $grouped[$catName]];
+                unset($grouped[$catName]);
+            }
+        }
+        foreach ($grouped as $catName => $catBoards) {
+            $nav_groups[] = ['name' => $catName, 'boards' => $catBoards];
+        }
+
+        return [
+            'boards'     => $boards,
+            'nav_groups' => $nav_groups,
+            'blotter'    => $blotterData['blotter'] ?? [],
+        ];
     }
 }

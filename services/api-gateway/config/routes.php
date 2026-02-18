@@ -21,6 +21,10 @@ Router::get('/{slug}/thread/{id:\d+}', [FrontendController::class, 'thread']);
 Router::get('/{slug}/', [FrontendController::class, 'board']);
 Router::get('/{slug}', [FrontendController::class, 'board']);
 
+// Frontend form submissions (redirect handlers)
+Router::post('/{slug}/threads', [FrontendController::class, 'createThread']);
+Router::post('/{slug}/thread/{id:\d+}/posts', [FrontendController::class, 'createPost']);
+
 // API proxy – catch-all
 Router::addRoute(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     '/api/v1/{path:.*}', [GatewayController::class, 'proxy']);

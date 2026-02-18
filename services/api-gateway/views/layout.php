@@ -6,7 +6,7 @@
   <meta http-equiv="pragma" content="no-cache">
   <meta http-equiv="expires" content="-1">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?= htmlspecialchars($page_title ?? 'ashchan') ?></title>
+  <title><?= htmlspecialchars((string) $page_title ?? 'ashchan') ?></title>
   <link rel="shortcut icon" href="/static/img/favicon.ico">
   <link rel="stylesheet" title="switch" href="/static/css/yotsuba-b.css">
   <link rel="alternate stylesheet" href="/static/css/yotsuba.css" title="Yotsuba">
@@ -21,8 +21,8 @@
   <script src="/static/js/core.js" defer></script>
   <script src="/static/js/extension.js" defer></script>
 </head>
-<body class="<?= !empty($is_index) ? 'is_index' : 'is_thread' ?> board_<?= htmlspecialchars($board_slug ?? '') ?>"
-      data-board-slug="<?= htmlspecialchars($board_slug ?? '') ?>"
+<body class="<?= !empty($is_index) ? 'is_index' : 'is_thread' ?> board_<?= htmlspecialchars((string) $board_slug ?? '') ?>"
+      data-board-slug="<?= htmlspecialchars((string) $board_slug ?? '') ?>"
       data-thread-id="<?= htmlspecialchars((string)($thread_id ?? '')) ?>"
       data-page="<?= (int)($page_num ?? 1) ?>">
 
@@ -30,7 +30,17 @@
 
 <!-- Desktop Board Navigation -->
 <div id="boardNavDesktop" class="desktop">
-  <span class="boardList">[<?php foreach (($boards ?? []) as $i => $b): ?><a href="/<?= htmlspecialchars($b['slug']) ?>/" title="<?= htmlspecialchars($b['title']) ?>"><?= htmlspecialchars($b['slug']) ?></a><?php if ($i < count($boards ?? []) - 1): ?> / <?php endif; ?><?php endforeach; ?>]</span>
+  <span class="boardList">
+    [
+    <?php foreach (($nav_groups ?? []) as $gi => $group): ?>
+      <?php foreach ($group['boards'] as $bi => $b): ?>
+        <a href="/<?= htmlspecialchars((string) $b['slug']) ?>/" title="<?= htmlspecialchars((string) $b['title']) ?>"><?= htmlspecialchars((string) $b['slug']) ?></a>
+        <?php if ($bi < count($group['boards']) - 1): ?> / <?php endif; ?>
+      <?php endforeach; ?>
+      <?php if ($gi < count($nav_groups) - 1): ?> ] [ <?php endif; ?>
+    <?php endforeach; ?>
+    ]
+  </span>
   <span id="navtopright">[<a href="javascript:void(0);" id="settingsWindowLink">Settings</a>] [<a href="/" target="_top">Home</a>]</span>
 </div>
 
@@ -39,8 +49,13 @@
   <div class="boardSelect">
     <strong>Board</strong>
     <select id="boardSelectMobile">
-      <?php foreach (($boards ?? []) as $b): ?>
-      <option value="/<?= htmlspecialchars($b['slug']) ?>/"<?php if (($b['slug'] ?? '') === ($board_slug ?? '')): ?> selected<?php endif; ?>>/<?= htmlspecialchars($b['slug']) ?>/ - <?= htmlspecialchars($b['title']) ?></option>
+      <option value="/">Home</option>
+      <?php foreach (($nav_groups ?? []) as $group): ?>
+        <optgroup label="<?= htmlspecialchars((string) $group['name']) ?>">
+          <?php foreach ($group['boards'] as $b): ?>
+            <option value="/<?= htmlspecialchars((string) $b['slug']) ?>/"<?php if (($b['slug'] ?? '') === ($board_slug ?? '')): ?> selected<?php endif; ?>>/<?= htmlspecialchars((string) $b['slug']) ?>/ - <?= htmlspecialchars((string) $b['title']) ?></option>
+          <?php endforeach; ?>
+        </optgroup>
       <?php endforeach; ?>
     </select>
   </div>
@@ -55,7 +70,32 @@
 <!-- Board Banner -->
 <div class="boardBanner">
   <img id="bannerImg" src="/static/img/banner.png" alt="ashchan" width="300" height="100">
-  <div class="boardTitle">/<?= htmlspecialchars($board_slug) ?>/ - <?= htmlspecialchars($board_title ?? '') ?></div>
+  <div class="boardTitle">/<?= htmlspecialchars((string) $board_slug) ?>/ - <?= htmlspecialchars((string) $board_title ?? '') ?></div>
+</div>
+<?php endif; ?>
+
+<!-- Blotter -->
+<?php if (!empty($blotter)): ?>
+<div id="blotter" class="desktop" style="margin: 10px auto; width: 80%; max-width: 800px;">
+  <table class="blotterTable" style="width: 100%; border-collapse: collapse; font-size: 9pt;">
+    <thead>
+      <tr>
+        <th colspan="2" style="background: #e0e0e0; padding: 2px;">Blotter</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($blotter as $entry): ?>
+        <tr>
+          <td style="padding: 2px; text-align: right; width: 80px; vertical-align: top; color: #666;">
+            <?= date('m/d/y', $entry['created_at']) ?>
+          </td>
+          <td style="padding: 2px; <?= $entry['is_important'] ? 'color: red; font-weight: bold;' : '' ?>">
+            <?= htmlspecialchars((string) $entry['content']) ?>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
 </div>
 <?php endif; ?>
 
