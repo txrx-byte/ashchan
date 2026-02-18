@@ -81,5 +81,18 @@
   <small>All trademarks and copyrights on this page are owned by their respective parties.</small>
 </div>
 
+<!-- Style Selector (Bottom Right) -->
+<div id="styleChanger" class="stylechanger">
+  Style:
+  <select id="styleSelector" data-cmd="style">
+    <option value="Yotsuba">Yotsuba</option>
+    <option value="Yotsuba B" selected>Yotsuba B</option>
+    <option value="Futaba">Futaba</option>
+    <option value="Burichan">Burichan</option>
+    <option value="Photon">Photon</option>
+    <option value="Tomorrow">Tomorrow</option>
+  </select>
+</div>
+
 </body>
 </html>
