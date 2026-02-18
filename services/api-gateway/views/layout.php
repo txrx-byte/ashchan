@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="/static/css/common.css">
   <?= $extra_css ?? '' ?>
   <script src="/static/js/core.js" defer></script>
+  <script src="/static/js/extension.js" defer></script>
 </head>
 <body class="<?= !empty($is_index) ? 'is_index' : 'is_thread' ?> board_<?= htmlspecialchars($board_slug ?? '') ?>"
       data-board-slug="<?= htmlspecialchars($board_slug ?? '') ?>"

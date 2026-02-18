@@ -1,5 +1,9 @@
 {% extends "layout.html" %}
 
+{% block extra_scripts %}
+<script src="/static/js/catalog.js" defer></script>
+{% endblock %}
+
 {% block content %}
 
 <div class="board-controls">
@@ -11,10 +15,10 @@
 
 <hr>
 
-<!-- Catalog Controls -->
 <div id="catalog-controls">
   <div class="catalog-search">
     <input type="text" id="catalog-search-input" placeholder="Search threads..." autocomplete="off">
+    <span id="search-label" style="display:none">Showing: "<span id="search-term"></span>"</span>
   </div>
   <div class="catalog-sort">
     Sort by:
@@ -32,6 +36,9 @@
       <option value="large" selected>Large</option>
     </select>
   </div>
+  <div class="catalog-hidden">
+    <span id="hidden-label" style="display:none">Hidden: <span id="hidden-count">0</span> [<a href="#" id="clear-hidden">Clear</a>]</span>
+  </div>
 </div>
 
 <hr>
@@ -44,6 +51,11 @@
        data-images="{{ thread.image_count }}"
        data-bumped="{{ thread.bumped_at }}"
        data-created="{{ thread.created_at }}">
+
+    <span class="thread-icons">
+      <span class="watch-icon" data-watch="{{ thread.id }}" title="Watch thread">&#9733;</span>
+      <span class="menu-icon" data-menu="{{ thread.id }}" title="Thread menu">&#9660;</span>
+    </span>
 
     <a href="/{{ board_slug }}/thread/{{ thread.id }}">
       {% if thread.op.thumb_url %}
@@ -81,31 +93,5 @@
 </div>
 
 <a id="bottom"></a>
-
-<script>
-(function() {
-  var sortSelect = document.getElementById('catalog-sort-select');
-  if (!sortSelect) return;
-  sortSelect.addEventListener('change', function() {
-    var threads = Array.from(document.querySelectorAll('.catalog-thread'));
-    var container = document.getElementById('threads');
-    var key = sortSelect.value;
-    threads.sort(function(a, b) {
-      if (key === 'replies') return parseInt(b.dataset.replies) - parseInt(a.dataset.replies);
-      if (key === 'images') return parseInt(b.dataset.images) - parseInt(a.dataset.images);
-      if (key === 'time') return parseInt(b.dataset.created) - parseInt(a.dataset.created);
-      return parseInt(b.dataset.bumped) - parseInt(a.dataset.bumped);
-    });
-    threads.forEach(function(t) { container.appendChild(t); });
-  });
-
-  var sizeSelect = document.getElementById('catalog-size-select');
-  if (sizeSelect) {
-    sizeSelect.addEventListener('change', function() {
-      document.getElementById('threads').className = 'catalog-board catalog-' + sizeSelect.value;
-    });
-  }
-})();
-</script>
 
 {% endblock %}
