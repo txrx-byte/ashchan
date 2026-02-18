@@ -10,6 +10,7 @@ use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
+use Hyperf\HttpMessage\Cookie\Cookie;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -68,9 +69,11 @@ final class StaffController
         }
 
         $response = $this->response->redirect('/staff/dashboard');
-        $response = $response->withCookie('staff_user', $username, time() + 86400 * 30);
-        $response = $response->withCookie('staff_token', hash('sha256', $username . time()), time() + 86400 * 30);
-        $response = $response->withCookie('staff_level', 'janitor', time() + 86400 * 30);
+        
+        // Use Hyperf Cookie objects
+        $response = $response->withCookie(new Cookie('staff_user', $username, time() + 86400 * 30));
+        $response = $response->withCookie(new Cookie('staff_token', hash('sha256', $username . time()), time() + 86400 * 30));
+        $response = $response->withCookie(new Cookie('staff_level', 'janitor', time() + 86400 * 30));
 
         return $response;
     }
@@ -82,9 +85,9 @@ final class StaffController
     public function logout(): ResponseInterface
     {
         $response = $this->response->redirect('/staff/login');
-        $response = $response->withCookie('staff_user', '', time() - 3600);
-        $response = $response->withCookie('staff_token', '', time() - 3600);
-        $response = $response->withCookie('staff_level', '', time() - 3600);
+        $response = $response->withCookie(new Cookie('staff_user', '', time() - 3600));
+        $response = $response->withCookie(new Cookie('staff_token', '', time() - 3600));
+        $response = $response->withCookie(new Cookie('staff_level', '', time() - 3600));
         return $response;
     }
 

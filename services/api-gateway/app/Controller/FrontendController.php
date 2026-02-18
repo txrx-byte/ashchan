@@ -485,4 +485,46 @@ final class FrontendController
         }
         return $post;
     }
+
+    /** GET /staff/css/{path} - Serve staff CSS files */
+    public function staffCss(RequestInterface $request): ResponseInterface
+    {
+        $path = $request->getAttribute('path');
+        $filePath = __DIR__ . '/../../public/staff/css/' . basename($path);
+        
+        if (!file_exists($filePath)) {
+            return $this->response->json(['error' => 'File not found'], 404);
+        }
+        
+        $content = file_get_contents($filePath);
+        return $this->response->raw($content)->withHeader('Content-Type', 'text/css');
+    }
+
+    /** GET /staff/js/{path} - Serve staff JS files */
+    public function staffJs(RequestInterface $request): ResponseInterface
+    {
+        $path = $request->getAttribute('path');
+        $filePath = __DIR__ . '/../../public/staff/js/' . basename($path);
+        
+        if (!file_exists($filePath)) {
+            return $this->response->json(['error' => 'File not found'], 404);
+        }
+        
+        $content = file_get_contents($filePath);
+        return $this->response->raw($content)->withHeader('Content-Type', 'application/javascript');
+    }
+
+    /** GET /staff/favicon.ico - Serve staff favicon */
+    public function staffFavicon(): ResponseInterface
+    {
+        $filePath = __DIR__ . '/../../public/staff/favicon.ico';
+        
+        if (!file_exists($filePath)) {
+            // Return empty ico
+            return $this->response->raw('')->withHeader('Content-Type', 'image/x-icon');
+        }
+        
+        $content = file_get_contents($filePath);
+        return $this->response->raw($content)->withHeader('Content-Type', 'image/x-icon');
+    }
 }

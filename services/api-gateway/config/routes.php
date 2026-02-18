@@ -15,6 +15,9 @@ Router::get('/health', [HealthController::class, 'check']);
 
 // Static files (dev mode)
 Router::get('/static/{path:.*}', [FrontendController::class, 'staticFile']);
+Router::get('/staff/css/{path:.*}', [FrontendController::class, 'staffCss']);
+Router::get('/staff/js/{path:.*}', [FrontendController::class, 'staffJs']);
+Router::get('/staff/favicon.ico', [FrontendController::class, 'staffFavicon']);
 
 // Media proxy
 Router::get('/media/{path:.*}', [GatewayController::class, 'proxyMedia']);
