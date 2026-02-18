@@ -1,12 +1,39 @@
 version: '2.4'
 
+# Ashchan mTLS ServiceMesh Network Configuration
+# All services communicate via mutual TLS on the ashchan-mesh network
+# DNS-based service discovery: <service>.ashchan.local
+
 networks:
-  ashchan:
+  # Primary service mesh network with mTLS
+  ashchan-mesh:
     driver: bridge
+    ipam:
+      driver: host-local
+      config:
+        - subnet: 10.90.0.0/24
+          gateway: 10.90.0.1
+    options:
+      com.docker.network.bridge.name: ashchan-mesh
+
+  # Public-facing network (API Gateway only)
+  ashchan-public:
+    driver: bridge
+    ipam:
+      driver: host-local
+      config:
+        - subnet: 10.90.1.0/24
+          gateway: 10.90.1.1
 
 services:
+  # ─────────────────────────────────────────────────────────────
+  # Infrastructure Services
+  # ─────────────────────────────────────────────────────────────
+
   postgres:
     image: postgres:16-alpine
+    container_name: ashchan-postgres-1
+    hostname: postgres.ashchan.local
     environment:
       POSTGRES_USER: ashchan
       POSTGRES_PASSWORD: ashchan
@@ -15,30 +42,39 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
     networks:
-      - ashchan
+      ashchan-mesh:
+        ipv4_address: 10.90.0.10
     healthcheck:
-      test: "pg_isready -U ashchan"
+      test: ["CMD-SHELL", "pg_isready -U ashchan"]
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
+    container_name: ashchan-redis-1
+    hostname: redis.ashchan.local
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - ashchan
+      ashchan-mesh:
+        ipv4_address: 10.90.0.11
     healthcheck:
-      test: "redis-cli ping"
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
 
   minio:
     image: minio/minio:latest
+    container_name: ashchan-minio-1
+    hostname: minio.ashchan.local
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ashchan
@@ -49,74 +85,124 @@ services:
     volumes:
       - minio_data:/data
     networks:
-      - ashchan
+      ashchan-mesh:
+        ipv4_address: 10.90.0.12
     healthcheck:
-      test: "curl -f http://localhost:9000/minio/health/live"
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────
+  # Application Services (mTLS enabled)
+  # ─────────────────────────────────────────────────────────────
 
   api-gateway:
     build:
       context: ./services/api-gateway
       dockerfile: Dockerfile
+    container_name: ashchan-gateway-1
+    hostname: gateway.ashchan.local
     ports:
-      - "9501:9501"
+      - "9501:9501"   # Public HTTP
+      - "9443:9443"   # Public HTTPS (optional)
+      - "8443:8443"   # Internal mTLS
     env_file:
       - ./services/api-gateway/.env
     volumes:
       - ./frontend/static:/app/frontend/static:ro
+      - ./certs/services/gateway:/etc/mtls/gateway:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ashchan
+      ashchan-public:
+        ipv4_address: 10.90.1.10
+      ashchan-mesh:
+        ipv4_address: 10.90.0.20
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9501/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   auth-accounts:
     build:
       context: ./services/auth-accounts
       dockerfile: Dockerfile
+    container_name: ashchan-auth-1
+    hostname: auth.ashchan.local
     ports:
-      - "9502:9502"
+      - "9502:9502"   # HTTP (development only)
+      - "8443:8443"   # Internal mTLS (different host port to avoid conflict)
     env_file:
       - ./services/auth-accounts/.env
+    volumes:
+      - ./certs/services/auth:/etc/mtls/auth:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ashchan
+      ashchan-mesh:
+        ipv4_address: 10.90.0.21
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9502/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   boards-threads-posts:
     build:
       context: ./services/boards-threads-posts
       dockerfile: Dockerfile
+    container_name: ashchan-boards-1
+    hostname: boards.ashchan.local
     ports:
-      - "9503:9503"
+      - "9503:9503"   # HTTP (development only)
+      - "8503:8443"   # Internal mTLS
     env_file:
       - ./services/boards-threads-posts/.env
+    volumes:
+      - ./certs/services/boards:/etc/mtls/boards:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ashchan
+      ashchan-mesh:
+        ipv4_address: 10.90.0.22
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9503/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   media-uploads:
     build:
       context: ./services/media-uploads
       dockerfile: Dockerfile
+    container_name: ashchan-media-1
+    hostname: media.ashchan.local
     ports:
-      - "9504:9504"
+      - "9504:9504"   # HTTP (development only)
+      - "8504:8443"   # Internal mTLS
     env_file:
       - ./services/media-uploads/.env
+    volumes:
+      - ./certs/services/media:/etc/mtls/media:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,41 +211,71 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - ashchan
+      ashchan-mesh:
+        ipv4_address: 10.90.0.23
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9504/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   search-indexing:
     build:
       context: ./services/search-indexing
       dockerfile: Dockerfile
+    container_name: ashchan-search-1
+    hostname: search.ashchan.local
     ports:
-      - "9505:9505"
+      - "9505:9505"   # HTTP (development only)
+      - "8505:8443"   # Internal mTLS
     env_file:
       - ./services/search-indexing/.env
+    volumes:
+      - ./certs/services/search:/etc/mtls/search:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ashchan
+      ashchan-mesh:
+        ipv4_address: 10.90.0.24
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9505/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   moderation-anti-spam:
     build:
       context: ./services/moderation-anti-spam
       dockerfile: Dockerfile
+    container_name: ashchan-moderation-1
+    hostname: moderation.ashchan.local
     ports:
-      - "9506:9506"
+      - "9506:9506"   # HTTP (development only)
+      - "8506:8443"   # Internal mTLS
     env_file:
       - ./services/moderation-anti-spam/.env
+    volumes:
+      - ./certs/services/moderation:/etc/mtls/moderation:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     networks:
-      - ashchan
+      ashchan-mesh:
+        ipv4_address: 10.90.0.25
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9506/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
 volumes:

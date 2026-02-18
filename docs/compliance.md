@@ -1,18 +1,12 @@
 # Compliance Playbook
 
-This document outlines operational and technical controls for COPPA, CCPA, and GDPR readiness. It is a baseline and must be reviewed with legal counsel before production use.
+This document outlines operational and technical controls for CCPA and GDPR readiness. It is a baseline and must be reviewed with legal counsel before production use.
 
 ## Common Principles
 - Data minimization and purpose limitation.
 - Clear consent records with policy versions.
 - Short retention for IP and device signals.
 - Audit trail for all privacy-related actions.
-
-## COPPA
-- Age gate at account creation and before collecting personal data.
-- Parental consent workflow for under-13 accounts.
-- Default to anonymous usage when possible.
-- Retain age verification only as a token, not full details.
 
 ## CCPA
 - Do not sell or share personal data for advertising.
