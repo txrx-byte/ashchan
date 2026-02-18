@@ -231,10 +231,9 @@ final class ModerationController
         }
 
         // Get post data
-        $postData = $request->input('post_data', []);
-        if (!is_array($postData)) {
-            $postData = [];
-        }
+        $rawPostData = $request->input('post_data', []);
+        /** @var array<string, mixed> $postData */
+        $postData = is_array($rawPostData) ? $rawPostData : [];
 
         try {
             $banRequest = $this->modService->createBanRequest(
@@ -335,7 +334,7 @@ final class ModerationController
         }
 
         if (is_string($board) && $board !== '') {
-            $query->where(function ($q) use ($board) {
+            $query->where(function (\Hyperf\Database\Model\Builder $q) use ($board): void {
                 $q->where('boards', '')
                   ->orWhere('boards', 'like', "%{$board}%");
             });
@@ -365,7 +364,9 @@ final class ModerationController
         }
 
         try {
-            $template = BanTemplate::create($data);
+            /** @var array<string, mixed> $typedData */
+            $typedData = $data;
+            $template = BanTemplate::create($typedData);
             return $this->response->json([
                 'status' => 'created',
                 'template' => $template->toArray(),
@@ -390,9 +391,10 @@ final class ModerationController
 
         try {
             $template->update($data);
+            $fresh = $template->fresh();
             return $this->response->json([
                 'status' => 'updated',
-                'template' => $template->fresh()->toArray(),
+                'template' => $fresh instanceof BanTemplate ? $fresh->toArray() : $template->toArray(),
             ]);
         } catch (\Throwable $e) {
             return $this->response->json(['error' => 'Failed to update template'], 500);
@@ -491,6 +493,6 @@ final class ModerationController
             'accept-language' => $request->getHeaderLine('Accept-Language'),
         ];
 
-        return hash('sha256', json_encode($headers));
+        return hash('sha256', (string) json_encode($headers));
     }
 }

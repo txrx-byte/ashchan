@@ -21,7 +21,7 @@ use Psr\Http\Message\ResponseInterface;
  * Handles report submission, queue management, ban requests, and moderation actions.
  */
 #[Controller(prefix: '/api/v1')]
-final class ModerationController
+final class ModerationController extends AbstractController
 {
     public function __construct(
         private ModerationService $modService,

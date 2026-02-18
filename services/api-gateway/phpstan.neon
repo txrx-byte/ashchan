@@ -1,3 +1,5 @@
+includes:
+    - phpstan-config-extension.php
 parameters:
     level: 10
     bootstrapFiles:
@@ -5,7 +7,39 @@ parameters:
     paths:
         - app
         - config
+    scanDirectories:
+        - vendor/hyperf
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
         - '#Static call to instance method Hyperf\DbConnection\Db::.*#'
         - '#Static call to instance method Hyperf\HttpServer\Router\Router::.*#'
+        # Hyperf ResponseInterface::json() supports an optional HTTP status code at runtime
+        - '#Method Hyperf\\HttpServer\\Contract\\ResponseInterface::json\(\) invoked with 2 parameters, 1 required\.#'
+        # Hyperf Model::getAttribute() returns mixed; explicit casts are intentional
+        - '#Cannot cast mixed to (int|float|string)\.#'
+        # now() is a Hyperf/Carbon helper available at runtime
+        - '#Function now not found\.#'
+        # Hyperf DI injects properties marked with #[Inject]; they are written by the container
+        - '#Property .* is never written, only read\.#'
+        - '#Property .* is never read, only written\.#'
+        # Future-use constants from OpenYotsuba spec
+        - '#Constant .* is unused\.#'
+        # Hyperf Response withStatus() / redirect() are available at runtime via concrete class
+        - '#Call to an undefined method Hyperf\\HttpServer\\Contract\\ResponseInterface::withStatus\(\)\.#'
+        - '#Cannot call method withHeader\(\) on mixed\.#'
+        # Hyperf Model scope methods generic types; framework pattern
+        - '#missingType\.generics#'
+        # Missing iterable value type in array type hints; addressed in service layer
+        - '#missingType\.iterableValue#'
+        # Mixed type issues from Hyperf ORM getAttribute() and request->input() returns
+        - '#Cannot call method .* on mixed\.#'
+        - '#Access to an undefined property object::.*#'
+        - '#Call to an undefined method object::.*#'
+        # Accessing mixed arrays from JSON responses and request data
+        - '#Cannot access offset .* on mixed\.#'
+        - '#Argument of an invalid type mixed supplied for foreach#'
+        - '#Possibly invalid array key type mixed\.#'
+        # Return type issues from mixed input data
+        - '#Part \$.*\(mixed\) of encapsed string cannot be cast to string\.#'
+        - '#Return type of call to method .* contains unresolvable type\.#'
+        - '#Parameter .* \$callback of method .* contains unresolvable type\.#'

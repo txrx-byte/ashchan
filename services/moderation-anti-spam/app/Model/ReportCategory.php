@@ -67,12 +67,14 @@ class ReportCategory extends Model
 
     /**
      * Get categories for a specific board
+     * @param \Hyperf\Database\Model\Builder<ReportCategory> $query
+     * @return \Hyperf\Database\Model\Builder<ReportCategory>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
         string $board
     ): \Hyperf\Database\Model\Builder {
-        return $query->where(function ($q) use ($board) {
+        return $query->where(function (\Hyperf\Database\Model\Builder $q) use ($board): void {
             $q->where('board', '')
               ->orWhere('board', $board)
               ->orWhere('board', self::ALL_BOARDS);
@@ -81,10 +83,12 @@ class ReportCategory extends Model
 
     /**
      * Get worksafe categories only
+     * @param \Hyperf\Database\Model\Builder<ReportCategory> $query
+     * @return \Hyperf\Database\Model\Builder<ReportCategory>
      */
     public function scopeWorksafe(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
-        return $query->where(function ($q) {
+        return $query->where(function (\Hyperf\Database\Model\Builder $q): void {
             $q->where('board', '')
               ->orWhere('board', self::WS_BOARD);
         });
@@ -92,10 +96,12 @@ class ReportCategory extends Model
 
     /**
      * Get not-worksafe categories only
+     * @param \Hyperf\Database\Model\Builder<ReportCategory> $query
+     * @return \Hyperf\Database\Model\Builder<ReportCategory>
      */
     public function scopeNotWorksafe(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
-        return $query->where(function ($q) {
+        return $query->where(function (\Hyperf\Database\Model\Builder $q): void {
             $q->where('board', '')
               ->orWhere('board', self::NWS_BOARD);
         });
@@ -136,13 +142,19 @@ class ReportCategory extends Model
         }
 
         // Check post type restrictions
-        if ((int) $this->getAttribute('op_only') === 1 && !$isOp) {
+        /** @var mixed $opOnly */
+        $opOnly = $this->getAttribute('op_only');
+        /** @var mixed $replyOnly */
+        $replyOnly = $this->getAttribute('reply_only');
+        /** @var mixed $imageOnly */
+        $imageOnly = $this->getAttribute('image_only');
+        if ((int) $opOnly === 1 && !$isOp) {
             return false;
         }
-        if ((int) $this->getAttribute('reply_only') === 1 && $isOp) {
+        if ((int) $replyOnly === 1 && $isOp) {
             return false;
         }
-        if ((int) $this->getAttribute('image_only') === 1 && !$hasImage) {
+        if ((int) $imageOnly === 1 && !$hasImage) {
             return false;
         }
 
@@ -177,15 +189,20 @@ class ReportCategory extends Model
         ];
 
         foreach ($categories as $cat) {
+            /** @var ReportCategory $cat */
+            /** @var array<string, mixed> $catArray */
             $catArray = $cat->toArray();
 
             // Illegal category (ID 31 is traditional)
-            if ($cat->getAttribute('id') === 31) {
+            /** @var mixed $catId */
+            $catId = $cat->getAttribute('id');
+            if ((int) $catId === 31) {
                 $result['illegal'] = $catArray;
                 continue;
             }
 
             // Check if category applies
+            /** @var mixed $catBoard */
             $catBoard = $cat->getAttribute('board');
             if ($catBoard === self::WS_BOARD && !$isWorksafe) {
                 continue;
@@ -197,6 +214,7 @@ class ReportCategory extends Model
             $result['rule'][] = $catArray;
         }
 
+        /** @var array{rule: array<int, array<string, mixed>>, illegal: array<string, mixed>|null} $result */
         return $result;
     }
 }

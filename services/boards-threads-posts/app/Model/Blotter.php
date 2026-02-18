@@ -17,8 +17,10 @@ class Blotter extends Model
 
     public bool $timestamps = false;
 
+    /** @var array<string> */
     protected array $fillable = ['content', 'is_important'];
 
+    /** @var array<string, string> */
     protected array $casts = [
         'id'           => 'integer',
         'is_important' => 'boolean',

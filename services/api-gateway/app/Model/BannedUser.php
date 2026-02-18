@@ -184,7 +184,7 @@ class BannedUser extends Model
         }
 
         $remaining = $length->diffInSeconds(now(), false);
-        return max(0, $remaining);
+        return (int) max(0, $remaining);
     }
 
     /**

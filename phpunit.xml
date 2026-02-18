@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="services/boards-threads-posts/vendor/autoload.php"
+         colors="true"
+         verbose="true">
+
+    <testsuites>
+        <testsuite name="Feature">
+            <directory suffix="Test.php">./services/boards-threads-posts/tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+
+    <php>
+        <!-- Environment variables for testing -->
+        <env name="APP_ENV" value="testing"/>
+        <env name="SYMFONY_PHPUNIT_VERSION" value="10.0"/> <!-- Specify PHPUnit version if needed -->
+        <!-- Add any other necessary environment variables here -->
+        <!-- Example for Hyperf testing package if used -->
+        <!-- <env name="APP_SERVER_PORT" value="9501"/> -->
+    </php>
+
+    <!-- Optional: Configure coverage reports if needed -->
+    <!--
+    <coverage>
+        <report>
+            <html outputDirectory="./storage/logs/coverage"/>
+        </report>
+    </coverage>
+    -->
+
+</phpunit>

@@ -77,7 +77,7 @@ final class BoardService
             // Redis unavailable, fall through to DB
         }
         
-        $board = Board::query()->where('slug', $slug)->where(function ($query) { $query->where('nsfw', false)->orWhere('nsfw', true); })->first();
+        $board = Board::query()->where('slug', $slug)->where(function (\Hyperf\Database\Model\Builder $query): void { $query->where('nsfw', false)->orWhere('nsfw', true); })->first();
         
         try {
             if (env('APP_ENV', 'production') !== 'local') {
@@ -100,17 +100,20 @@ final class BoardService
      */
     public function getBlotter(): array
     {
-        return \App\Model\Blotter::query()
+        /** @var \Hyperf\Database\Model\Collection<int, \App\Model\Blotter> $rows */
+        $rows = \App\Model\Blotter::query()
             ->orderByDesc('id')
             ->limit(5)
-            ->get()
-            ->map(fn($b) => [
-                'id' => $b->id,
-                'content' => $b->content,
-                'is_important' => $b->is_important,
-                'created_at' => $this->toTimestamp($b->created_at),
-            ])
-            ->toArray();
+            ->get();
+
+        /** @var array<int, array<string, mixed>> $result */
+        $result = $rows->map(fn(\App\Model\Blotter $b): array => [
+            'id'           => $b->id,
+            'content'      => $b->content,
+            'is_important' => $b->is_important,
+            'created_at'   => $this->toTimestamp($b->created_at),
+        ])->toArray();
+        return $result;
     }
 
     /* ──────────────────────────────────────────────

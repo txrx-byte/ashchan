@@ -5,6 +5,7 @@ namespace App\Controller\Staff;
 
 use App\Controller\AbstractController;
 use App\Service\ModerationService;
+use App\Service\ViewService;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -24,6 +25,7 @@ class StaffReportController extends AbstractController
     public function __construct(
         private ModerationService $modService,
         private HttpResponse $response,
+        private ViewService $viewService,
     ) {}
 
     /**
@@ -38,20 +40,19 @@ class StaffReportController extends AbstractController
         // Get query parameters
         $board = $request->query('board', '');
         $cleared = (bool) $request->query('cleared', false);
-        $page = max(1, (int) $request->query('page', 1));
         
         // Get board list
         $boardlist = $this->getBoardList();
         
         // Determine access level
-        $isMod = $staffInfo['is_mod'];
-        $isManager = $staffInfo['is_manager'];
-        $isAdmin = $staffInfo['is_admin'];
+        $isMod = (bool) ($staffInfo['is_mod'] ?? false);
+        $isManager = (bool) ($staffInfo['is_manager'] ?? false);
+        $isAdmin = (bool) ($staffInfo['is_admin'] ?? false);
         
-        return $this->response->view('staff/reports/index', [
+        $html = $this->viewService->render('staff/reports/index', [
             'boardlist' => $boardlist,
             'access' => [
-                'board' => $staffInfo['boards'],
+                'board' => $staffInfo['boards'] ?? [],
                 'is_mod' => $isMod,
                 'is_manager' => $isManager,
                 'is_admin' => $isAdmin,
@@ -61,8 +62,10 @@ class StaffReportController extends AbstractController
             'isAdmin' => $isAdmin,
             'currentBoard' => $board,
             'cleared_only' => $cleared,
-            'username' => $staffInfo['username'],
+            'username' => $staffInfo['username'] ?? 'system',
         ]);
+
+        return $this->html($this->response, $html);
     }
 
     /**
@@ -126,12 +129,14 @@ class StaffReportController extends AbstractController
             is_string($board) && $board !== '' ? $board : null
         );
         
-        return $this->response->view('staff/reports/ban-requests', [
+        $html = $this->viewService->render('staff/reports/ban-requests', [
             'requests' => $data['requests'],
             'count' => $data['count'],
             'boardlist' => $this->getBoardList(),
-            'isMod' => $this->getStaffInfo()['is_mod'],
+            'isMod' => (bool) ($this->getStaffInfo()['is_mod'] ?? false),
         ]);
+
+        return $this->html($this->response, $html);
     }
 
     /**
@@ -175,31 +180,5 @@ class StaffReportController extends AbstractController
         } catch (\Throwable $e) {
             return $this->response->json(['error' => $e->getMessage()], 500);
         }
-    }
-
-    /**
-     * Get staff info from context
-     * @return array{username: string, level: string, boards: array, is_mod: bool, is_manager: bool, is_admin: bool}
-     */
-    private function getStaffInfo(): array
-    {
-        return \Hyperf\Context\Context::get('staff_info', [
-            'username' => 'system',
-            'level' => 'janitor',
-            'boards' => [],
-            'is_mod' => false,
-            'is_manager' => false,
-            'is_admin' => false,
-        ]);
-    }
-
-    /**
-     * Get board list
-     * @return array<string>
-     */
-    private function getBoardList(): array
-    {
-        // In production, fetch from boards service
-        return ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'];
     }
 }

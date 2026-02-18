@@ -100,6 +100,8 @@ class BanTemplate extends Model
 
     /**
      * Get active templates
+     * @param \Hyperf\Database\Model\Builder<BanTemplate> $query
+     * @return \Hyperf\Database\Model\Builder<BanTemplate>
      */
     public function scopeActive(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -108,12 +110,14 @@ class BanTemplate extends Model
 
     /**
      * Get templates for a specific board
+     * @param \Hyperf\Database\Model\Builder<BanTemplate> $query
+     * @return \Hyperf\Database\Model\Builder<BanTemplate>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
         string $board
     ): \Hyperf\Database\Model\Builder {
-        return $query->where(function ($q) use ($board) {
+        return $query->where(function (\Hyperf\Database\Model\Builder $q) use ($board): void {
             $q->where('boards', '')
               ->orWhere('boards', 'like', "%{$board}%");
         });
@@ -121,11 +125,14 @@ class BanTemplate extends Model
 
     /**
      * Get templates by access level
+     * @param \Hyperf\Database\Model\Builder<BanTemplate> $query
+     * @return \Hyperf\Database\Model\Builder<BanTemplate>
      */
     public function scopeForAccess(
         \Hyperf\Database\Model\Builder $query,
         string $access
     ): \Hyperf\Database\Model\Builder {
+        /** @var array<string, int> $accessLevels */
         $accessLevels = [
             self::ACCESS_JANITOR => 1,
             self::ACCESS_MOD => 2,
@@ -135,11 +142,11 @@ class BanTemplate extends Model
 
         $requiredLevel = $accessLevels[$access] ?? 1;
 
-        return $query->where(function ($q) use ($access, $requiredLevel) {
+        return $query->where(function (\Hyperf\Database\Model\Builder $q) use ($access, $accessLevels, $requiredLevel): void {
             $q->where('access', $access)
               ->orWhereIn('access', array_keys(array_filter(
                   $accessLevels,
-                  fn($level) => $level >= $requiredLevel
+                  fn(int $level): bool => $level >= $requiredLevel
               )));
         });
     }
@@ -149,8 +156,9 @@ class BanTemplate extends Model
      */
     public function isWarning(): bool
     {
-        $banDays = (int) $this->getAttribute('ban_days');
-        return $banDays === 0;
+        /** @var int $banDays */
+        $banDays = $this->getAttribute('ban_days');
+        return (int) $banDays === 0;
     }
 
     /**
@@ -158,8 +166,9 @@ class BanTemplate extends Model
      */
     public function isPermanent(): bool
     {
-        $banDays = (int) $this->getAttribute('ban_days');
-        return $banDays === -1;
+        /** @var int $banDays */
+        $banDays = $this->getAttribute('ban_days');
+        return (int) $banDays === -1;
     }
 
     /**
@@ -167,7 +176,9 @@ class BanTemplate extends Model
      */
     public function getBanLengthSeconds(): int
     {
-        $banDays = (int) $this->getAttribute('ban_days');
+        /** @var int $banDays */
+        $banDays = $this->getAttribute('ban_days');
+        $banDays = (int) $banDays;
 
         if ($banDays <= 0) {
             return 0; // Warning or permanent
@@ -195,12 +206,16 @@ class BanTemplate extends Model
         ];
 
         foreach ($templates as $tpl) {
-            $type = $tpl->getAttribute('ban_type');
+            /** @var BanTemplate $tpl */
+            $type = (string) $tpl->getAttribute('ban_type');
             if (isset($grouped[$type])) {
-                $grouped[$type][] = $tpl->toArray();
+                /** @var array<string, mixed> $tplArray */
+                $tplArray = $tpl->toArray();
+                $grouped[$type][] = $tplArray;
             }
         }
 
+        /** @var array<string, array<int, array<string, mixed>>> $grouped */
         return $grouped;
     }
 }

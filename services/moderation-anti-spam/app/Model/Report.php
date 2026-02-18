@@ -91,6 +91,8 @@ class Report extends Model
 
     /**
      * Get reports for a specific board
+     * @param \Hyperf\Database\Model\Builder<Report> $query
+     * @return \Hyperf\Database\Model\Builder<Report>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
@@ -101,6 +103,8 @@ class Report extends Model
 
     /**
      * Get only cleared reports
+     * @param \Hyperf\Database\Model\Builder<Report> $query
+     * @return \Hyperf\Database\Model\Builder<Report>
      */
     public function scopeCleared(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -109,6 +113,8 @@ class Report extends Model
 
     /**
      * Get only pending reports
+     * @param \Hyperf\Database\Model\Builder<Report> $query
+     * @return \Hyperf\Database\Model\Builder<Report>
      */
     public function scopePending(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -117,12 +123,14 @@ class Report extends Model
 
     /**
      * Get reports grouped by post with aggregated weight
+     * @param \Hyperf\Database\Model\Builder<Report> $query
+     * @return \Hyperf\Database\Query\Builder
      */
     public function scopeGroupedByPost(
         \Hyperf\Database\Model\Builder $query,
         ?string $board = null
-    ): \Hyperf\Database\Model\Builder {
-        $query = $query->selectRaw('
+    ): \Hyperf\Database\Query\Builder {
+        $raw = $query->selectRaw('
             no,
             board,
             SUM(weight) as total_weight,
@@ -139,10 +147,10 @@ class Report extends Model
         ->groupBy('no', 'board');
 
         if ($board !== null) {
-            $query->where('board', $board);
+            $raw->where('board', $board);
         }
 
-        return $query;
+        return $raw->toBase();
     }
 
     /**
@@ -150,7 +158,9 @@ class Report extends Model
      */
     public function isUnlocked(): bool
     {
-        return (float) $this->getAttribute('total_weight') >= self::GLOBAL_THRES;
+        /** @var mixed $weight */
+        $weight = $this->getAttribute('total_weight');
+        return (float) $weight >= self::GLOBAL_THRES;
     }
 
     /**
@@ -162,6 +172,7 @@ class Report extends Model
         $json = $this->getAttribute('post_json');
         if (is_string($json)) {
             $decoded = json_decode($json, true);
+            /** @var array<string, mixed>|null $decoded */
             return is_array($decoded) ? $decoded : [];
         }
         return [];
@@ -173,7 +184,8 @@ class Report extends Model
     public function getReporterIp(): string
     {
         // In production, this should decrypt the IP
-        return $this->getAttribute('ip') ?? '';
+        $ip = $this->getAttribute('ip');
+        return is_string($ip) ? $ip : '';
     }
 
     /**
@@ -181,8 +193,14 @@ class Report extends Model
      */
     public function getCategoryName(): string
     {
-        $categoryId = (int) $this->getAttribute('report_category');
+        /** @var mixed $rawId */
+        $rawId = $this->getAttribute('report_category');
+        $categoryId = (int) $rawId;
         $category = ReportCategory::find($categoryId);
-        return $category ? $category->getAttribute('title') : 'Unknown';
+        if (!$category instanceof ReportCategory) {
+            return 'Unknown';
+        }
+        $title = $category->getAttribute('title');
+        return is_string($title) ? $title : 'Unknown';
     }
 }

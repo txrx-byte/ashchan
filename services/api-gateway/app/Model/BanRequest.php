@@ -78,7 +78,7 @@ class BanRequest extends Model
         $json = $this->getAttribute('post_json');
         if (is_string($json)) {
             $decoded = json_decode($json, true);
-            return is_array($decoded) ? $decoded : [];
+            return is_array($decoded) ? (array) $decoded : [];
         }
         return [];
     }

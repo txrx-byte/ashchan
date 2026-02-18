@@ -24,6 +24,7 @@ use Hyperf\DbConnection\Model\Model;
  * 
  * @method static \Hyperf\Database\Model\Builder<BanRequest> query()
  * @method static BanRequest|null find(mixed $id)
+ * @method static BanRequest findOrFail(mixed $id)
  * @method static BanRequest create(array<string, mixed> $attributes)
  */
 class BanRequest extends Model
@@ -51,6 +52,8 @@ class BanRequest extends Model
 
     /**
      * Get requests for a specific board
+     * @param \Hyperf\Database\Model\Builder<BanRequest> $query
+     * @return \Hyperf\Database\Model\Builder<BanRequest>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
@@ -61,6 +64,8 @@ class BanRequest extends Model
 
     /**
      * Get requests by janitor
+     * @param \Hyperf\Database\Model\Builder<BanRequest> $query
+     * @return \Hyperf\Database\Model\Builder<BanRequest>
      */
     public function scopeByJanitor(
         \Hyperf\Database\Model\Builder $query,
@@ -78,6 +83,7 @@ class BanRequest extends Model
         $json = $this->getAttribute('post_json');
         if (is_string($json)) {
             $decoded = json_decode($json, true);
+            /** @var array<string, mixed>|null $decoded */
             return is_array($decoded) ? $decoded : [];
         }
         return [];
@@ -86,6 +92,7 @@ class BanRequest extends Model
     /**
      * Get associated ban template
      */
+    /** @return \Hyperf\Database\Model\Relations\BelongsTo<BanTemplate, $this> */
     public function template(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(BanTemplate::class, 'ban_template');

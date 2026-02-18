@@ -60,7 +60,9 @@ final class ModerationService
         $catType = $categoryId === 31 ? Report::CAT_ILLEGAL : Report::CAT_RULE;
 
         // Calculate weight (may be reduced for abusive reporters)
-        $weight = (float) $category->getAttribute('weight');
+        /** @var mixed $rawWeight */
+        $rawWeight = $category->getAttribute('weight');
+        $weight = (float) $rawWeight;
 
         // Check if reporter should be filtered (reduced weight)
         $ignoreReason = $this->checkReportFilter($categoryId, $reporterIp, $passId, $reporterPwd);
@@ -76,7 +78,9 @@ final class ModerationService
             ->first();
 
         $isCleared = $existingReport ? 1 : 0;
-        $clearedBy = $existingReport ? $existingReport->getAttribute('cleared_by') : '';
+        /** @var mixed $clearedByRaw */
+        $clearedByRaw = $existingReport ? $existingReport->getAttribute('cleared_by') : '';
+        $clearedBy = is_string($clearedByRaw) ? $clearedByRaw : '';
 
         // Log cleared reporter if re-reporting
         if ($isCleared) {
@@ -99,11 +103,11 @@ final class ModerationService
             'weight' => $weight,
             'report_category' => $categoryId,
             'post_ip' => $postData['host'] ?? '',
-            'post_json' => json_encode($postData),
+            'post_json' => (string) json_encode($postData),
             'cleared' => $isCleared,
             'cleared_by' => $clearedBy,
             'ws' => $isWorksafe,
-            'ts' => now(),
+            'ts' => \Carbon\Carbon::now(),
         ]);
 
         // Log action
@@ -166,7 +170,9 @@ final class ModerationService
         // Format reports
         $formatted = [];
         foreach ($reports as $report) {
-            $formatted[] = $this->formatReport($report);
+            /** @var array<string, mixed> $reportArr */
+            $reportArr = (array) $report;
+            $formatted[] = $this->formatReport($reportArr);
         }
 
         return [
@@ -274,19 +280,34 @@ final class ModerationService
     public function approveBanRequest(int $requestId, string $approverUsername): BannedUser
     {
         $request = BanRequest::findOrFail($requestId);
-        $template = BanTemplate::find($request->getAttribute('ban_template'));
+        /** @var mixed $banTemplateId */
+        $banTemplateId = $request->getAttribute('ban_template');
+        $template = BanTemplate::find($banTemplateId);
 
-        if (!$template) {
+        if (!$template instanceof BanTemplate) {
             throw new \RuntimeException('Ban template not found');
         }
+
+        /** @var mixed $reqBoard */
+        $reqBoard = $request->getAttribute('board');
+        /** @var mixed $reqPostNo */
+        $reqPostNo = $request->getAttribute('post_no');
+        /** @var mixed $reqReason */
+        $reqReason = $request->getAttribute('reason');
+        /** @var mixed $reqJanitor */
+        $reqJanitor = $request->getAttribute('janitor');
+        /** @var mixed $reqBanTemplate */
+        $reqBanTemplate = $request->getAttribute('ban_template');
+        /** @var mixed $tplId */
+        $tplId = $template->getAttribute('id');
 
         // Create ban
         $ban = $this->createBanFromTemplate(
             $template,
-            $request->getAttribute('board'),
-            $request->getAttribute('post_no'),
+            is_string($reqBoard) ? $reqBoard : '',
+            (int) $reqPostNo,
             $approverUsername,
-            $request->getAttribute('reason')
+            is_string($reqReason) ? $reqReason : ''
         );
 
         // Delete request
@@ -294,12 +315,12 @@ final class ModerationService
 
         // Update janitor stats
         $this->updateJanitorStats(
-            $request->getAttribute('janitor'),
+            is_string($reqJanitor) ? $reqJanitor : '',
             1, // accepted
-            $request->getAttribute('board'),
-            $request->getAttribute('post_no'),
-            $request->getAttribute('ban_template'),
-            $template->getAttribute('id'),
+            is_string($reqBoard) ? $reqBoard : '',
+            (int) $reqPostNo,
+            (int) $reqBanTemplate,
+            (int) $tplId,
             $approverUsername
         );
 
@@ -313,13 +334,22 @@ final class ModerationService
     {
         $request = BanRequest::findOrFail($requestId);
 
+        /** @var mixed $reqJanitor */
+        $reqJanitor = $request->getAttribute('janitor');
+        /** @var mixed $reqBoard */
+        $reqBoard = $request->getAttribute('board');
+        /** @var mixed $reqPostNo */
+        $reqPostNo = $request->getAttribute('post_no');
+        /** @var mixed $reqBanTemplate */
+        $reqBanTemplate = $request->getAttribute('ban_template');
+
         // Update janitor stats
         $this->updateJanitorStats(
-            $request->getAttribute('janitor'),
+            is_string($reqJanitor) ? $reqJanitor : '',
             0, // denied
-            $request->getAttribute('board'),
-            $request->getAttribute('post_no'),
-            $request->getAttribute('ban_template'),
+            is_string($reqBoard) ? $reqBoard : '',
+            (int) $reqPostNo,
+            (int) $reqBanTemplate,
             0,
             $denierUsername
         );
@@ -344,16 +374,20 @@ final class ModerationService
         ?string $targetIp = null,
         ?string $passId = null
     ): BannedUser {
-        $banType = $template->getAttribute('ban_type');
-        $banDays = (int) $template->getAttribute('ban_days');
+        /** @var mixed $banTypeRaw */
+        $banTypeRaw = $template->getAttribute('ban_type');
+        $banType = is_string($banTypeRaw) ? $banTypeRaw : 'local';
+        /** @var mixed $banDaysRaw */
+        $banDaysRaw = $template->getAttribute('ban_days');
+        $banDays = (int) $banDaysRaw;
 
         // Calculate ban length
         if ($banDays === -1) {
             $length = null; // Permanent
         } elseif ($banDays === 0) {
-            $length = now()->addSeconds(10); // Warning
+            $length = \Carbon\Carbon::now()->addSeconds(10); // Warning
         } else {
-            $length = now()->addDays($banDays);
+            $length = \Carbon\Carbon::now()->addDays($banDays);
         }
 
         $ban = BannedUser::create([
@@ -364,13 +398,13 @@ final class ModerationService
             'host' => $targetIp ?? '',
             'reason' => $customReason ?: $template->getAttribute('public_reason'),
             'length' => $length,
-            'now' => now(),
+            'now' => \Carbon\Carbon::now(),
             'admin' => $adminUsername,
             'post_num' => $postNo,
             'rule' => $template->getAttribute('rule'),
             'template_id' => $template->getAttribute('id'),
             'pass_id' => $passId ?? '',
-            'post_json' => $postData ? json_encode($postData) : '',
+            'post_json' => $postData ? (string) json_encode($postData) : '',
             'appealable' => $template->getAttribute('appealable'),
             'active' => 1,
         ]);
@@ -393,29 +427,33 @@ final class ModerationService
     {
         $query = BannedUser::query()
             ->where('active', 1)
-            ->where(function ($q) use ($board) {
+            ->where(function (\Hyperf\Database\Model\Builder $q) use ($board): void {
                 $q->where('global', 1)
                   ->orWhere('board', $board);
             })
-            ->where(function ($q) use ($ip, $passId) {
+            ->where(function (\Hyperf\Database\Model\Builder $q) use ($ip, $passId): void {
                 $q->where('host', $ip);
                 if ($passId !== null) {
                     $q->orWhere('pass_id', $passId);
                 }
             })
-            ->where(function ($q) {
-                $q->where('length', '>', now())
+            ->where(function (\Hyperf\Database\Model\Builder $q): void {
+                $q->where('length', '>', \Carbon\Carbon::now())
                   ->orWhereNull('length'); // Permanent bans
             });
 
         $ban = $query->first();
 
-        if ($ban) {
+        if ($ban instanceof BannedUser) {
+            /** @var mixed $banReason */
+            $banReason = $ban->getAttribute('reason');
+            /** @var \Carbon\Carbon|null $banLength */
+            $banLength = $ban->getAttribute('length');
             return [
                 'banned' => true,
-                'reason' => $ban->getAttribute('reason'),
-                'expires_at' => $ban->getAttribute('length')?->toIso8601String(),
-                'is_permanent' => $ban->getAttribute('length') === null,
+                'reason' => is_string($banReason) ? $banReason : '',
+                'expires_at' => $banLength instanceof \Carbon\Carbon ? $banLength->toIso8601String() : null,
+                'is_permanent' => $banLength === null,
             ];
         }
 
@@ -435,10 +473,16 @@ final class ModerationService
             ->groupBy('board')
             ->get();
 
+        /** @var array<string, int> $counts */
         $counts = [];
         foreach ($results as $row) {
-            $board = $row->getAttribute('board');
-            $weight = (float) $row->getAttribute('total_weight');
+            /** @var Report $row */
+            /** @var mixed $rawBoard */
+            $rawBoard = $row->getAttribute('board');
+            /** @var mixed $rawWeight */
+            $rawWeight = $row->getAttribute('total_weight');
+            $board = is_string($rawBoard) ? $rawBoard : '';
+            $weight = (float) $rawWeight;
 
             // Apply thread weight boost if needed
             if ($weight < self::GLOBAL_THRES) {
@@ -465,14 +509,16 @@ final class ModerationService
             return 0;
         }
 
-        $filterThreshold = (int) $category->getAttribute('filtered');
+        /** @var mixed $rawFiltered */
+        $rawFiltered = $category->getAttribute('filtered');
+        $filterThreshold = (int) $rawFiltered;
         if ($filterThreshold < 1) {
             return 0;
         }
 
         // Check cleared reports in past X days
         $clearCount = ReportClearLog::query()
-            ->where(function ($q) use ($ip, $passId, $pwd) {
+            ->where(function (\Hyperf\Database\Model\Builder $q) use ($ip, $passId, $pwd): void {
                 $q->where('ip', $ip);
                 if ($passId !== null) {
                     $q->orWhere('pass_id', $passId);
@@ -481,7 +527,7 @@ final class ModerationService
                     $q->orWhere('pwd', $pwd);
                 }
             })
-            ->where('created_at', '>', now()->subDays(2))
+            ->where('created_at', '>', \Carbon\Carbon::now()->subDays(2))
             ->count();
 
         if ($clearCount >= $filterThreshold) {
@@ -541,18 +587,27 @@ final class ModerationService
      */
     private function formatReport(array $report): array
     {
+        $id = (int) ($report['id'] ?? 0);
+        $board = is_string($report['board'] ?? null) ? (string) $report['board'] : '';
+        $no = (int) ($report['no'] ?? 0);
+        $cnt = (int) ($report['cnt'] ?? 0);
+        $totalWeight = (float) ($report['total_weight'] ?? 0);
+        $time = is_string($report['time'] ?? null) ? strtotime((string) $report['time']) : 0;
+        $postJson = is_string($report['post_json'] ?? null) ? (string) $report['post_json'] : '{}';
+        $resto = (int) ($report['resto'] ?? 0);
+
         return [
-            'id' => (int) $report['id'],
-            'board' => $report['board'],
-            'no' => (int) $report['no'],
-            'count' => (int) $report['cnt'],
-            'weight' => (float) $report['total_weight'],
-            'ts' => isset($report['time']) ? strtotime($report['time']) : 0,
-            'post' => json_decode($report['post_json'] ?? '{}', true),
-            'resto' => (int) $report['resto'],
-            'is_thread' => (int) $report['resto'] === 0,
-            'is_highlighted' => (float) $report['total_weight'] >= self::HIGHLIGHT_THRES,
-            'is_unlocked' => (float) $report['total_weight'] >= self::GLOBAL_THRES,
+            'id'            => $id,
+            'board'         => $board,
+            'no'            => $no,
+            'count'         => $cnt,
+            'weight'        => $totalWeight,
+            'ts'            => $time,
+            'post'          => json_decode($postJson, true),
+            'resto'         => $resto,
+            'is_thread'     => $resto === 0,
+            'is_highlighted' => $totalWeight >= self::HIGHLIGHT_THRES,
+            'is_unlocked'   => $totalWeight >= self::GLOBAL_THRES,
         ];
     }
 

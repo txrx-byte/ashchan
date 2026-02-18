@@ -135,12 +135,16 @@ class BanTemplate extends Model
 
         $requiredLevel = $accessLevels[$access] ?? 1;
 
-        return $query->where(function ($q) use ($access, $requiredLevel) {
+        $allowedAccessLevels = [];
+        foreach ($accessLevels as $levelName => $levelValue) {
+            if ($levelValue >= $requiredLevel) {
+                $allowedAccessLevels[] = $levelName;
+            }
+        }
+
+        return $query->where(function ($q) use ($access, $allowedAccessLevels) {
             $q->where('access', $access)
-              ->orWhereIn('access', array_keys(array_filter(
-                  $accessLevels,
-                  fn($level) => $level >= $requiredLevel
-              )));
+              ->orWhereIn('access', $allowedAccessLevels);
         });
     }
 

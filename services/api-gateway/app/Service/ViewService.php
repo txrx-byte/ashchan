@@ -18,6 +18,7 @@ final class ViewService
     /**
      * Render a template with variables
      */
+    /** @param array<string, mixed> $vars */
     public function render(string $template, array $vars = []): string
     {
         $file = $this->basePath . $template . '.html';
@@ -30,6 +31,6 @@ final class ViewService
         
         ob_start();
         include $file;
-        return ob_get_clean();
+        return (string) ob_get_clean();
     }
 }

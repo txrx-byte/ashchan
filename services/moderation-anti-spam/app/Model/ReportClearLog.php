@@ -45,6 +45,8 @@ class ReportClearLog extends Model
 
     /**
      * Get clear logs for an IP within a time range
+     * @param \Hyperf\Database\Model\Builder<ReportClearLog> $query
+     * @return \Hyperf\Database\Model\Builder<ReportClearLog>
      */
     public function scopeForIpInRange(
         \Hyperf\Database\Model\Builder $query,
@@ -52,11 +54,13 @@ class ReportClearLog extends Model
         int $days
     ): \Hyperf\Database\Model\Builder {
         return $query->where('ip', $ip)
-                     ->where('created_at', '>', now()->subDays($days));
+                     ->where('created_at', '>', \Carbon\Carbon::now()->subDays($days));
     }
 
     /**
      * Count clears for abuse detection
+     * @param \Hyperf\Database\Model\Builder<ReportClearLog> $query
+     * @return \Hyperf\Database\Model\Builder<ReportClearLog>
      */
     public function scopeCountForAbuseCheck(
         \Hyperf\Database\Model\Builder $query,
@@ -65,17 +69,17 @@ class ReportClearLog extends Model
         ?string $passId = null,
         int $days = 2
     ): \Hyperf\Database\Model\Builder {
-        return $query->where(function ($q) use ($ip, $pwd, $passId) {
+        return $query->where(function (\Hyperf\Database\Model\Builder $q) use ($ip, $pwd, $passId): void {
             $q->where('ip', $ip);
-            
+
             if ($pwd !== null) {
                 $q->orWhere('pwd', $pwd);
             }
-            
+
             if ($passId !== null) {
                 $q->orWhere('pass_id', $passId);
             }
         })
-        ->where('created_at', '>', now()->subDays($days));
+        ->where('created_at', '>', \Carbon\Carbon::now()->subDays($days));
     }
 }

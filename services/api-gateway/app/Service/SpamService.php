@@ -11,6 +11,7 @@ final class SpamService
     /**
      * Check content for spam
      */
+    /** @return array{is_spam: bool, score: float, message: string} */
     public function check(string $ipHash, string $content, bool $isThread = false, ?string $imageHash = null): array
     {
         return [
@@ -23,6 +24,7 @@ final class SpamService
     /**
      * Generate captcha
      */
+    /** @return array{token: string, answer: int} */
     public function generateCaptcha(): array
     {
         return [

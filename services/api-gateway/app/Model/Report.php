@@ -102,16 +102,18 @@ class Report extends Model
     /**
      * Get only cleared reports
      */
-    public function scopeCleared(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
-    {
+    public function scopeCleared(
+        \Hyperf\Database\Model\Builder $query
+    ): \Hyperf\Database\Model\Builder {
         return $query->where('cleared', 1);
     }
 
     /**
      * Get only pending reports
      */
-    public function scopePending(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
-    {
+    public function scopePending(
+        \Hyperf\Database\Model\Builder $query
+    ): \Hyperf\Database\Model\Builder {
         return $query->where('cleared', 0);
     }
 
@@ -162,7 +164,7 @@ class Report extends Model
         $json = $this->getAttribute('post_json');
         if (is_string($json)) {
             $decoded = json_decode($json, true);
-            return is_array($decoded) ? $decoded : [];
+            return is_array($decoded) ? (array) $decoded : [];
         }
         return [];
     }
@@ -173,7 +175,7 @@ class Report extends Model
     public function getReporterIp(): string
     {
         // In production, this should decrypt the IP
-        return $this->getAttribute('ip') ?? '';
+        return (string) ($this->getAttribute('ip') ?? '');
     }
 
     /**
@@ -183,6 +185,6 @@ class Report extends Model
     {
         $categoryId = (int) $this->getAttribute('report_category');
         $category = ReportCategory::find($categoryId);
-        return $category ? $category->getAttribute('title') : 'Unknown';
+        return (string) ($category ? $category->getAttribute('title') : 'Unknown');
     }
 }

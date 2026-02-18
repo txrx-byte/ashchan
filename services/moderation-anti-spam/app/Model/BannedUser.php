@@ -97,21 +97,25 @@ class BannedUser extends Model
 
     /**
      * Get active bans only
+     * @param \Hyperf\Database\Model\Builder<BannedUser> $query
+     * @return \Hyperf\Database\Model\Builder<BannedUser>
      */
     public function scopeActive(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
         return $query->where('active', 1)
-                     ->where('length', '>', now());
+                     ->where('length', '>', \Carbon\Carbon::now());
     }
 
     /**
      * Get bans for a specific board
+     * @param \Hyperf\Database\Model\Builder<BannedUser> $query
+     * @return \Hyperf\Database\Model\Builder<BannedUser>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
         string $board
     ): \Hyperf\Database\Model\Builder {
-        return $query->where(function ($q) use ($board) {
+        return $query->where(function (\Hyperf\Database\Model\Builder $q) use ($board): void {
             $q->where('global', 1)
               ->orWhere('board', $board);
         });
@@ -119,6 +123,8 @@ class BannedUser extends Model
 
     /**
      * Get global bans only
+     * @param \Hyperf\Database\Model\Builder<BannedUser> $query
+     * @return \Hyperf\Database\Model\Builder<BannedUser>
      */
     public function scopeGlobal(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -127,6 +133,8 @@ class BannedUser extends Model
 
     /**
      * Get bans by IP
+     * @param \Hyperf\Database\Model\Builder<BannedUser> $query
+     * @return \Hyperf\Database\Model\Builder<BannedUser>
      */
     public function scopeByIp(
         \Hyperf\Database\Model\Builder $query,
@@ -137,6 +145,8 @@ class BannedUser extends Model
 
     /**
      * Get bans by 4chan Pass ID
+     * @param \Hyperf\Database\Model\Builder<BannedUser> $query
+     * @return \Hyperf\Database\Model\Builder<BannedUser>
      */
     public function scopeByPassId(
         \Hyperf\Database\Model\Builder $query,
@@ -162,14 +172,16 @@ class BannedUser extends Model
      */
     public function isWarning(): bool
     {
-        $now = $this->getAttribute('now');
+        /** @var \Carbon\Carbon|null $banNow */
+        $banNow = $this->getAttribute('now');
+        /** @var \Carbon\Carbon|null $length */
         $length = $this->getAttribute('length');
 
-        if (!$now || !$length) {
+        if (!$banNow instanceof \Carbon\Carbon || !$length instanceof \Carbon\Carbon) {
             return false;
         }
 
-        $duration = $length->diffInSeconds($now);
+        $duration = $length->diffInSeconds($banNow);
         return $duration <= 10; // 10 seconds or less = warning
     }
 
@@ -178,13 +190,14 @@ class BannedUser extends Model
      */
     public function getRemainingSeconds(): int
     {
+        /** @var \Carbon\Carbon|null $length */
         $length = $this->getAttribute('length');
-        if (!$length) {
+        if (!$length instanceof \Carbon\Carbon) {
             return 0;
         }
 
-        $remaining = $length->diffInSeconds(now(), false);
-        return max(0, $remaining);
+        $remaining = $length->diffInSeconds(\Carbon\Carbon::now(), false);
+        return max(0, (int) $remaining);
     }
 
     /**
@@ -193,15 +206,20 @@ class BannedUser extends Model
      */
     public function getSummary(): array
     {
+        /** @var \Carbon\Carbon|null $banNow */
+        $banNow = $this->getAttribute('now');
+        /** @var \Carbon\Carbon|null $length */
+        $length = $this->getAttribute('length');
+
         return [
             'id' => $this->getAttribute('id'),
             'board' => $this->getAttribute('board'),
             'global' => (bool) $this->getAttribute('global'),
             'reason' => $this->getAttribute('reason'),
-            'created_at' => $this->getAttribute('now')?->toIso8601String(),
-            'expires_at' => $this->getAttribute('length')?->toIso8601String(),
+            'created_at' => $banNow instanceof \Carbon\Carbon ? $banNow->toIso8601String() : null,
+            'expires_at' => $length instanceof \Carbon\Carbon ? $length->toIso8601String() : null,
             'is_warning' => $this->isWarning(),
-            'is_permanent' => $this->getAttribute('length') === null,
+            'is_permanent' => $length === null,
             'remaining_seconds' => $this->getRemainingSeconds(),
         ];
     }

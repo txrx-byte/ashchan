@@ -9,3 +9,14 @@ parameters:
     ignoreErrors:
         - '#Static call to instance method Hyperf\DbConnection\Db::.*#'
         - '#Static call to instance method Hyperf\HttpServer\Router\Router::.*#'
+        # Hyperf ResponseInterface::json() supports an optional HTTP status code as second argument
+        # at runtime; the interface contract only declares one parameter.
+        - '#Method Hyperf\\HttpServer\\Contract\\ResponseInterface::json\(\) invoked with 2 parameters, 1 required\.#'
+        # SpamService is injected for future captcha use; suppress until actively used.
+        - '#Property App\\Controller\\ModerationController::\$spamService is never read, only written\.#'
+        # Constants defined per OpenYotsuba spec for future implementation
+        - '#Constant App\\Service\\ModerationService::(THREAD_WEIGHT_BOOST|ABUSE_CLEAR_DAYS|ABUSE_CLEAR_COUNT|ABUSE_CLEAR_BAN_INTERVAL|REP_ABUSE_TPL) is unused\.#'
+        # $logger is injected via DI annotation, not written in constructor
+        - '#Property App\\Service\\ModerationService::\$logger is never written, only read\.#'
+        # Hyperf Model::getAttribute() returns mixed; explicit casts are intentional
+        - '#Cannot cast mixed to (int|float|string)\.#'
