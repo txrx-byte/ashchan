@@ -71,6 +71,7 @@ final class FrontendController
 
         $threadsData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/threads?page=' . $page);
         $threads = $threadsData['threads'] ?? [];
+        $threads = $this->rewriteMediaUrls($threads);
         $totalPages = max(1, (int) ($threadsData['total_pages'] ?? 1));
 
         $html = $this->renderer->render('board', array_merge($common, [
@@ -99,6 +100,7 @@ final class FrontendController
 
         $catalogData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/catalog');
         $threads = $catalogData['threads'] ?? [];
+        $threads = $this->rewriteMediaUrls($threads);
 
         $html = $this->renderer->render('catalog', array_merge($common, [
             'board_slug'  => $slug,
@@ -153,7 +155,13 @@ final class FrontendController
         }
 
         $op = $threadData['op'] ?? null;
+        if ($op) {
+            $op = $this->rewritePostMedia($op);
+        }
         $replies = $threadData['replies'] ?? [];
+        foreach ($replies as &$reply) {
+            $reply = $this->rewritePostMedia($reply);
+        }
 
         $html = $this->renderer->render('thread', array_merge($common, [
             'board_slug'    => $slug,
@@ -175,10 +183,14 @@ final class FrontendController
     public function createThread(RequestInterface $request, string $slug): ResponseInterface
     {
         $input = $request->all();
-        $mediaMetadata = $this->handleMediaUpload($request);
+        $mediaResult = $this->handleMediaUpload($request);
 
-        if ($mediaMetadata) {
-            $input = array_merge($input, $mediaMetadata);
+        if ($mediaResult && isset($mediaResult['error'])) {
+            return $this->html('<h1>Upload Error</h1><p>' . htmlspecialchars($mediaResult['error']) . '</p>', 400);
+        }
+
+        if ($mediaResult) {
+            $input = array_merge($input, $mediaResult);
         }
 
         $headers = [
@@ -207,10 +219,14 @@ final class FrontendController
     public function createPost(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $input = $request->all();
-        $mediaMetadata = $this->handleMediaUpload($request);
+        $mediaResult = $this->handleMediaUpload($request);
 
-        if ($mediaMetadata) {
-            $input = array_merge($input, $mediaMetadata);
+        if ($mediaResult && isset($mediaResult['error'])) {
+            return $this->html('<h1>Upload Error</h1><p>' . htmlspecialchars($mediaResult['error']) . '</p>', 400);
+        }
+
+        if ($mediaResult) {
+            $input = array_merge($input, $mediaResult);
         }
 
         $headers = [
@@ -237,18 +253,30 @@ final class FrontendController
 
     /**
      * Handle media upload if present in the request.
-     * @return array<string, mixed>|null Media metadata or null
+     * @return array<string, mixed>|null Media metadata or ['error' => '...']
      */
     private function handleMediaUpload(RequestInterface $request): ?array
     {
         $file = $request->file('upfile');
-        if (!$file || is_array($file) || !$file->isValid()) {
+        if (!$file) {
             return null;
+        }
+        
+        if (is_array($file)) {
+            $file = $file[0];
+        }
+
+        if (!$file->isValid()) {
+            // UPLOAD_ERR_NO_FILE = 4
+            if ($file->getError() === 4) {
+                return null;
+            }
+            return ['error' => 'File upload failed (code ' . $file->getError() . ')'];
         }
 
         $tmpPath = $file->getRealPath();
         if (!$tmpPath) {
-            return null;
+            return ['error' => 'Could not process uploaded file'];
         }
 
         $body = [
@@ -261,11 +289,13 @@ final class FrontendController
 
         $result = $this->proxyClient->forward('media', 'POST', '/api/v1/media/upload', [], $body);
 
-        if ($result['status'] === 200) {
-            return json_decode($result['body'], true);
+        $data = json_decode($result['body'], true);
+        if ($result['status'] === 200 && $data && !isset($data['error'])) {
+            return $data;
         }
 
-        return null;
+        $errorMsg = $data['error'] ?? 'Media service error (' . $result['status'] . ')';
+        return ['error' => $errorMsg];
     }
 
     /** Serve static files (development only). */
@@ -413,5 +443,46 @@ final class FrontendController
             'nav_groups' => $nav_groups,
             'blotter'    => $blotterData['blotter'] ?? [],
         ];
+    }
+
+    /**
+     * Rewrite internal MinIO URLs to external gateway URLs.
+     * @param array<mixed> $threads
+     * @return array<mixed>
+     */
+    private function rewriteMediaUrls(array $threads): array
+    {
+        foreach ($threads as &$thread) {
+            if (isset($thread['op'])) {
+                $thread['op'] = $this->rewritePostMedia($thread['op']);
+            }
+            if (isset($thread['latest_replies'])) {
+                foreach ($thread['latest_replies'] as &$reply) {
+                    $reply = $this->rewritePostMedia($reply);
+                }
+            }
+        }
+        return $threads;
+    }
+
+    /**
+     * Rewrite media URLs in a single post.
+     * @param array<mixed> $post
+     * @return array<mixed>
+     */
+    private function rewritePostMedia(array $post): array
+    {
+        $bucket = getenv('OBJECT_STORAGE_BUCKET') ?: 'ashchan';
+        // Internal pattern: http://minio:9000/ashchan/...
+        $search = "http://minio:9000/{$bucket}/";
+        $replace = "/media/";
+
+        if (!empty($post['media_url'])) {
+            $post['media_url'] = str_replace($search, $replace, $post['media_url']);
+        }
+        if (!empty($post['thumb_url'])) {
+            $post['thumb_url'] = str_replace($search, $replace, $post['thumb_url']);
+        }
+        return $post;
     }
 }

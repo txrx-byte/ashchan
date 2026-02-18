@@ -29,7 +29,7 @@ final class MediaService
 
     public function __construct()
     {
-        $this->storageBucket   = getenv('OBJECT_STORAGE_BUCKET') ?: 'ashchan-media';
+        $this->storageBucket   = getenv('OBJECT_STORAGE_BUCKET') ?: 'ashchan';
         $this->storageEndpoint = getenv('OBJECT_STORAGE_ENDPOINT') ?: 'http://minio:9000';
         $this->maxFileSize     = (int) (getenv('MAX_FILE_SIZE') ?: 4194304); // 4MB
     }
@@ -211,6 +211,9 @@ final class MediaService
         $bucket    = $this->storageBucket;
         $endpoint  = $this->storageEndpoint;
 
+        // Try to create bucket first (idempotent PUT on bucket root)
+        $this->createBucket($endpoint, $bucket, $accessKey, $secretKey);
+
         $url = "{$endpoint}/{$bucket}/{$key}";
         $date = gmdate('D, d M Y H:i:s T');
         $contentType = $mime;
@@ -245,6 +248,31 @@ final class MediaService
         if ($httpCode >= 300) {
             throw new \RuntimeException("Failed to upload to storage: HTTP {$httpCode}");
         }
+    }
+
+    /**
+     * Ensure the bucket exists by attempting to create it.
+     */
+    private function createBucket(string $endpoint, string $bucket, string $accessKey, string $secretKey): void
+    {
+        $url = "{$endpoint}/{$bucket}/";
+        $date = gmdate('D, d M Y H:i:s T');
+        
+        $stringToSign = "PUT\n\n\n{$date}\n/{$bucket}/";
+        $signature = base64_encode(hash_hmac('sha1', $stringToSign, $secretKey, true));
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST  => 'PUT',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_HTTPHEADER     => [
+                "Date: {$date}",
+                "Authorization: AWS {$accessKey}:{$signature}",
+            ],
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
     }
 
     /**

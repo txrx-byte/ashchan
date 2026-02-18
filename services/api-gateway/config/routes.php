@@ -11,6 +11,9 @@ Router::get('/health', [HealthController::class, 'check']);
 // Static files (dev mode)
 Router::get('/static/{path:.*}', [FrontendController::class, 'staticFile']);
 
+// Media proxy
+Router::get('/media/{path:.*}', [GatewayController::class, 'proxyMedia']);
+
 // Homepage
 Router::get('/', [FrontendController::class, 'home']);
 

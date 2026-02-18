@@ -63,6 +63,12 @@ final class ProxyClient
             return ['status' => 502, 'headers' => [], 'body' => json_encode(['error' => 'Failed to initialize cURL'])];
         }
 
+        if (is_array($body)) {
+            // When body is an array, cURL handles multipart/form-data.
+            // We must NOT set Content-Type manually or it will lack the boundary.
+            unset($headers['Content-Type']);
+        }
+
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST  => strtoupper($method),
             CURLOPT_RETURNTRANSFER => true,

@@ -36,6 +36,50 @@ final class GatewayController
         private HttpResponse $response,
     ) {}
 
+    /** Proxy media requests directly to MinIO */
+    public function proxyMedia(RequestInterface $request, string $path): ResponseInterface
+    {
+        $minioUrl  = getenv('OBJECT_STORAGE_ENDPOINT') ?: 'http://minio:9000';
+        $bucket    = getenv('OBJECT_STORAGE_BUCKET')   ?: 'ashchan';
+        $accessKey = getenv('OBJECT_STORAGE_ACCESS_KEY') ?: 'ashchan';
+        $secretKey = getenv('OBJECT_STORAGE_SECRET_KEY') ?: 'ashchan123';
+        
+        $url = rtrim($minioUrl, '/') . '/' . $bucket . '/' . $path;
+        $date = gmdate('D, d M Y H:i:s T');
+        
+        // S3v2 signature for GET
+        $stringToSign = "GET\n\n\n{$date}\n/{$bucket}/{$path}";
+        $signature = base64_encode(hash_hmac('sha1', $stringToSign, $secretKey, true));
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER         => true,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_HTTPHEADER     => [
+                "Date: {$date}",
+                "Authorization: AWS {$accessKey}:{$signature}",
+            ],
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        curl_close($ch);
+
+        if ($response === false || $httpCode >= 400) {
+            return $this->response->raw('File not found')->withStatus(404);
+        }
+
+        $body = substr((string) $response, $headerSize);
+
+        return $this->response->raw($body)
+            ->withStatus($httpCode)
+            ->withHeader('Content-Type', $contentType ?: 'application/octet-stream')
+            ->withHeader('Cache-Control', 'public, max-age=86400');
+    }
+
     /** Catch-all proxy for /api/v1/* routes */
     public function proxy(RequestInterface $request, string $path): ResponseInterface
     {
