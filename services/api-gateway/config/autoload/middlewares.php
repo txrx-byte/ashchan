@@ -6,5 +6,6 @@ return [
         \App\Middleware\CorsMiddleware::class,
         \App\Middleware\RateLimitMiddleware::class,
         \App\Middleware\AuthMiddleware::class,
+        \App\Middleware\StaffAuthMiddleware::class,
     ],
 ];

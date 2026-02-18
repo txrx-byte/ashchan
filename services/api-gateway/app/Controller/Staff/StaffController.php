@@ -6,6 +6,7 @@ namespace App\Controller\Staff;
 use App\Service\AuthenticationService;
 use App\Service\ModerationService;
 use App\Service\ViewService;
+use Hyperf\HttpMessage\Cookie\Cookie;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -13,9 +14,6 @@ use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 
-/**
- * StaffController - Production staff portal with real authentication
- */
 #[Controller(prefix: '/staff')]
 final class StaffController
 {
@@ -40,28 +38,22 @@ final class StaffController
     #[GetMapping(path: 'login')]
     public function login(): ResponseInterface
     {
-        // If already logged in, redirect to admin
         if ($this->getUser()) {
             return $this->response->redirect('/staff/admin');
         }
-        
         $error = $this->request->query('error', '');
-        $html = $this->viewService->render('staff/login', [
-            'error' => $error,
-            'csrf_token' => '',
-        ]);
+        $html = $this->viewService->render('staff/login', ['error' => $error, 'csrf_token' => '']);
         return $this->response->html($html);
     }
 
     #[PostMapping(path: 'login')]
     public function loginPost(): ResponseInterface
     {
-        // If already logged in, redirect
         if ($this->getUser()) {
             return $this->response->redirect('/staff/admin');
         }
         
-        $body = $this->request->parsedBody();
+        $body = $this->request->getParsedBody();
         $username = $body['username'] ?? '';
         $password = $body['password'] ?? '';
         
@@ -73,33 +65,20 @@ final class StaffController
         $ipAddress = $serverParams['remote_addr'] ?? '0.0.0.0';
         $userAgent = $this->request->getHeaderLine('User-Agent');
         
-        // Authenticate
         $result = $this->authService->authenticate($username, $password, $ipAddress, $userAgent);
         
         if (!$result['success']) {
             $errorMsg = $result['error'] ?? 'Login failed';
             if (isset($result['lockout_remaining'])) {
-                $errorMsg .= ' (' . ceil($result['lockout_remaining'] / 60) . ' minutes remaining)';
+                $errorMsg .= ' (' . ceil($result['lockout_remaining'] / 60) . ' minutes)';
             }
             return $this->response->redirect('/staff/login?error=' . urlencode($errorMsg));
         }
         
-        // Set session cookie (secure, httponly, samesite)
         $response = $this->response->redirect('/staff/admin');
-        $response = $response->withCookie(
-            \Hyperf\HttpMessage\Cookie\Cookie::create(
-                'staff_session',
-                $result['session_token'],
-                time() + (8 * 3600), // 8 hours
-                '/',
-                null,
-                true, // secure - only over HTTPS in production
-                true, // httponly
-                false, // not raw
-                'Strict' // samesite
-            )
-        );
-        
+        $cookie = new Cookie('staff_session', $result['session_token'], time() + (8 * 3600), '/', '', true, true, false, 'Strict');
+        $response = $response->withCookie($cookie);
+
         return $response;
     }
 
@@ -109,25 +88,15 @@ final class StaffController
         $user = $this->getUser();
         $cookies = $this->request->getCookieParams();
         $sessionToken = $cookies['staff_session'] ?? null;
-        
+
         if ($user && $sessionToken) {
             $tokenHash = hash('sha256', $sessionToken);
             $this->authService->logout($tokenHash, $user['id']);
         }
-        
-        // Clear session cookie
+
         $response = $this->response->redirect('/staff/login');
-        $response = $response->withCookie(
-            \Hyperf\HttpMessage\Cookie\Cookie::create(
-                'staff_session',
-                '',
-                time() - 3600,
-                '/',
-                null,
-                true,
-                true
-            )
-        );
+        $cookie = new Cookie('staff_session', '', time() - 3600, '/', '', true, true);
+        $response = $response->withCookie($cookie);
         
         return $response;
     }
@@ -226,9 +195,6 @@ final class StaffController
         return $this->response->html($html);
     }
 
-    /**
-     * Get current user from context
-     */
     private function getUser(): ?array
     {
         return \Hyperf\Context\Context::get('staff_user');

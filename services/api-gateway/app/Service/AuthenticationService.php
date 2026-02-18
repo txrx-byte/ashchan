@@ -9,14 +9,6 @@ use Psr\Log\LoggerInterface;
 
 /**
  * AuthenticationService - Production-ready staff authentication
- * 
- * Features:
- * - Secure password hashing (bcrypt cost 12)
- * - Rate limiting on login attempts
- * - Session management with secure tokens
- * - Account lockout after failed attempts
- * - CSRF token generation/validation
- * - Comprehensive audit logging
  */
 final class AuthenticationService
 {
@@ -31,9 +23,9 @@ final class AuthenticationService
     private const CSRF_TOKEN_LENGTH = 32;
     private const CSRF_TOKEN_EXPIRY_HOURS = 24;
     
-    public function __construct()
+    public function __construct(LoggerFactory $loggerFactory)
     {
-        $this->logger = \Hyperf\Context\Context::get(LoggerFactory::class)->get('auth');
+        $this->logger = $loggerFactory->get('auth');
     }
     
     /**
