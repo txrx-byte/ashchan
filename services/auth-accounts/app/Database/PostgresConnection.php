@@ -14,6 +14,7 @@ class PostgresConnection extends Connection
 {
     /**
      * Bind values to their parameters in the given statement.
+     * @param array<string|int, mixed> $bindings
      */
     public function bindValues(PDOStatement $statement, array $bindings): void
     {
@@ -40,21 +41,7 @@ class PostgresConnection extends Connection
         return (bool) preg_match('#unique.*violation|duplicate\s+key#i', $exception->getMessage());
     }
 
-    /**
-     * Get the default query grammar instance.
-     */
-    protected function getDefaultQueryGrammar(): QueryGrammar
-    {
-        return $this->withTablePrefix(new QueryGrammar());
-    }
 
-    /**
-     * Get the default schema grammar instance.
-     */
-    protected function getDefaultSchemaGrammar(): SchemaGrammar
-    {
-        return $this->withTablePrefix(new SchemaGrammar());
-    }
 
     /**
      * Get the default post processor instance.

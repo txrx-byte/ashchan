@@ -6,7 +6,7 @@ namespace App\Model;
 use Hyperf\DbConnection\Model\Model;
 
 /**
- * @property int    $id
+ * @property string $id
  * @property string $slug
  * @property string $title
  * @property string $subtitle
@@ -27,12 +27,18 @@ class Board extends Model
 {
     protected ?string $table = 'boards';
 
+    /**
+     * @var array<string>
+     */
     protected array $fillable = [
         'slug', 'title', 'subtitle', 'category', 'nsfw',
         'max_threads', 'bump_limit', 'image_limit',
         'cooldown_seconds', 'text_only', 'require_subject', 'rules',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected array $casts = [
         'id'               => 'integer',
         'nsfw'             => 'boolean',
@@ -45,7 +51,8 @@ class Board extends Model
         'archived'         => 'boolean',
     ];
 
-    public function threads()
+    /** @return \Hyperf\Database\Model\Relations\HasMany<Thread, $this> */
+    public function threads(): \Hyperf\Database\Model\Relations\HasMany
     {
         return $this->hasMany(Thread::class, 'board_id');
     }

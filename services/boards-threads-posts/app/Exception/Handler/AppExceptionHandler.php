@@ -33,7 +33,7 @@ class AppExceptionHandler extends ExceptionHandler
                 'class' => get_class($throwable),
                 'file' => $throwable->getFile(),
                 'line' => $throwable->getLine(),
-            ])));
+            ]) ?: '{"error":"Unknown error (json_encode failed)"}'));
     }
 
     public function isValid(Throwable $throwable): bool

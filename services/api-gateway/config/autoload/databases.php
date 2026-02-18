@@ -7,9 +7,9 @@ return [
     'default' => [
         'driver' => env('DB_DRIVER', 'pgsql'),
         'host' => env('DB_HOST', 'postgres'),
-        'port' => (int) env('DB_PORT', 5432),
+        'port' => is_numeric(env('DB_PORT')) ? (int) env('DB_PORT') : 5432,
         'database' => env('DB_DATABASE', 'ashchan'),
-        'username' => env('DB_USER', 'ashchan'),
+        'username' => env('DB_USERNAME', 'ashchan'),
         'password' => env('DB_PASSWORD', 'ashchan'),
         'charset' => env('DB_CHARSET', 'utf8'),
         'pool' => [

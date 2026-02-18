@@ -8,10 +8,6 @@ use Psr\Container\ContainerInterface;
 
 $container = new Container((new DefinitionSourceFactory())());
 
-if (! $container instanceof ContainerInterface) {
-    throw new RuntimeException('The dependency injection container is invalid.');
-}
-
 ApplicationContext::setContainer($container);
 
 return $container;

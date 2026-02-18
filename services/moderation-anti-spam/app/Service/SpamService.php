@@ -21,7 +21,6 @@ final class SpamService
     private const THREAD_LIMIT  = 1;   // 1 thread per 5 min
     private const THREAD_WINDOW = 300;
 
-    private const RISK_THRESHOLD_LOW   = 3;
     private const RISK_THRESHOLD_HIGH  = 7;
     private const RISK_THRESHOLD_BLOCK = 10;
 
@@ -37,13 +36,14 @@ final class SpamService
     public function check(string $ipHash, string $content, bool $isThread, ?string $imageHash = null): array
     {
         $score   = 0;
+        /** @var string[] $reasons */
         $reasons = [];
 
         // Layer 1: Rate limiting
         [$rateLimited, $rateReason] = $this->checkRateLimit($ipHash, $isThread);
         if ($rateLimited) {
             $score += 10;
-            $reasons[] = $rateReason;
+            $reasons[] = (string) $rateReason;
         }
 
         // Layer 2: Duplicate content
@@ -90,6 +90,9 @@ final class SpamService
      * Layer 1: Rate Limiting
      * ────────────────────────────────────────────── */
 
+    /**
+     * @return array{0: bool, 1: string}
+     */
     private function checkRateLimit(string $ipHash, bool $isThread): array
     {
         $now = time();
@@ -132,7 +135,8 @@ final class SpamService
     {
         if (mb_strlen($content) < 10) return false;
 
-        $fingerprint = hash('sha256', mb_strtolower(preg_replace('/\s+/', ' ', trim($content))));
+        $sanitized = preg_replace('/\s+/', ' ', trim($content));
+        $fingerprint = hash('sha256', mb_strtolower(is_string($sanitized) ? $sanitized : ''));
         $key = "fingerprint:{$fingerprint}";
 
         if ($this->redis->exists($key)) {
@@ -158,9 +162,11 @@ final class SpamService
         elseif ($urlCount > 1) $score += 1;
 
         // Excessive caps
-        $alphaLen = mb_strlen(preg_replace('/[^a-zA-Z]/', '', $content));
+        $alphaOnly = preg_replace('/[^a-zA-Z]/', '', $content);
+        $alphaLen = mb_strlen(is_string($alphaOnly) ? $alphaOnly : '');
         if ($alphaLen > 20) {
-            $capsLen = mb_strlen(preg_replace('/[^A-Z]/', '', $content));
+            $capsOnly = preg_replace('/[^A-Z]/', '', $content);
+            $capsLen = mb_strlen(is_string($capsOnly) ? $capsOnly : '');
             if ($capsLen / $alphaLen > 0.7) $score += 2;
         }
 
@@ -196,7 +202,8 @@ final class SpamService
 
     private function getIpReputation(string $ipHash): int
     {
-        $score = (int) ($this->redis->get("ip_reputation:{$ipHash}") ?? 0);
+        $res = $this->redis->get("ip_reputation:{$ipHash}");
+        $score = is_numeric($res) ? (int) $res : 0;
         return $score;
     }
 
@@ -212,6 +219,9 @@ final class SpamService
      * Captcha Verification
      * ────────────────────────────────────────────── */
 
+    /**
+     * @return array{token: string, answer: string}
+     */
     public function generateCaptcha(): array
     {
         $chars  = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

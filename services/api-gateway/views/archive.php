@@ -1,4 +1,7 @@
-<?php ob_start(); ?>
+<?php
+
+declare(strict_types=1);
+ ob_start(); ?>
 
 <hr class="abovePostForm">
 
@@ -42,7 +45,7 @@
       <?php if (!empty($archived_threads)): ?>
       <?php foreach ($archived_threads as $thread): ?>
       <tr>
-        <td><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>"><?= (int)$thread['id'] ?></a></td>
+        <td><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>"><?= htmlspecialchars($thread['id']) ?></a></td>
         <td><?= htmlspecialchars($thread['excerpt'] ?? 'No excerpt') ?></td>
       </tr>
       <?php endforeach; ?>

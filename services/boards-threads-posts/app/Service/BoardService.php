@@ -8,6 +8,7 @@ use App\Model\Post;
 use App\Model\Thread;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
+use function Hyperf\Support\env;
 
 final class BoardService
 {
@@ -20,16 +21,23 @@ final class BoardService
      * Boards
      * ────────────────────────────────────────────── */
 
-    /** List all boards, cached. */
+    /**
+     * List all boards, cached.
+     * @return array<int, array<string, mixed>>
+     */
     public function listBoards(): array
     {
+        $key = 'boards:all';
         try {
-            $key = 'boards:all';
             // Disable cache in development mode
             if (env('APP_ENV', 'production') !== 'local') {
                 $cached = $this->redis->get($key);
-                if ($cached) {
-                    return json_decode($cached, true);
+                if (is_string($cached)) {
+                    $decoded = json_decode($cached, true);
+                    if (is_array($decoded)) {
+                        /** @var array<int, array<string, mixed>> $decoded */
+                        return $decoded;
+                    }
                 }
             }
         } catch (\Throwable $e) {
@@ -43,11 +51,12 @@ final class BoardService
             ->toArray();
         try {
             if (env('APP_ENV', 'production') !== 'local') {
-                $this->redis->setex($key ?? 'boards:all', 300, json_encode($boards));
+                $this->redis->setex($key, 300, json_encode($boards) ?: '');
             }
         } catch (\Throwable $e) {
             // Redis unavailable, skip caching
         }
+        /** @var array<int, array<string, mixed>> $boards */
         return $boards;
     }
 
@@ -92,6 +101,7 @@ final class BoardService
     /**
      * Board index: threads sorted by bump order, paginated.
      * Returns threads with OP + latest N replies.
+     * @return array{threads: array<int, array<string, mixed>>, page: int, total_pages: int, total: int}
      */
     public function getThreadIndex(Board $board, int $page = 1, int $perPage = 15): array
     {
@@ -111,12 +121,15 @@ final class BoardService
 
         $result = [];
         foreach ($threads as $thread) {
+            /** @var Thread $thread */
+            /** @var Post|null $op */
             $op = Post::query()
                 ->where('thread_id', $thread->id)
                 ->where('is_op', true)
                 ->where('deleted', false)
                 ->first();
 
+            /** @var \Hyperf\Database\Model\Collection<int, Post> $latestReplies */
             $latestReplies = Post::query()
                 ->where('thread_id', $thread->id)
                 ->where('is_op', false)
@@ -138,7 +151,7 @@ final class BoardService
                     ->where('deleted', false)
                     ->whereNotNull('media_url')
                     ->count();
-                $shownImages = $latestReplies->filter(fn($r) => $r->media_url)->count();
+                $shownImages = $latestReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
                 $omittedImages = max(0, $totalImages - $shownImages);
             }
 
@@ -151,7 +164,9 @@ final class BoardService
                 'bumped_at'       => $thread->bumped_at,
                 'created_at'      => $thread->created_at,
                 'op'              => $this->formatPostOutput($op),
-                'latest_replies'  => $latestReplies->map(fn($r) => $this->formatPostOutput($r))->toArray(),
+                'latest_replies'  => $latestReplies->map(function (Post $r) {
+                    return $this->formatPostOutput($r);
+                })->toArray(),
                 'omitted_posts'   => $omittedPosts,
                 'omitted_images'  => $omittedImages,
             ];
@@ -169,23 +184,30 @@ final class BoardService
      * Threads – Full View
      * ────────────────────────────────────────────── */
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getThread(int $threadId): ?array
     {
+        /** @var Thread|null $thread */
         $thread = Thread::find($threadId);
         if (!$thread) return null;
 
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */
         $posts = Post::query()
             ->where('thread_id', $threadId)
             ->where('deleted', false)
-            ->orderBy('id')
+            ->orderBy('created_at')
             ->get();
 
-        $op = $posts->first(fn($p) => $p->is_op);
-        $replies = $posts->filter(fn($p) => !$p->is_op)->values();
+        /** @var Post|null $op */
+        $op = $posts->first(fn(Post $p) => $p->is_op);
+        $replies = $posts->filter(fn(Post $p) => !$p->is_op)->values();
 
         // Build backlinks map
         $backlinks = [];
         foreach ($posts as $post) {
+            /** @var Post $post */
             $quoted = $this->formatter->extractQuotedIds($post->content ?? '');
             foreach ($quoted as $qid) {
                 $backlinks[$qid][] = $post->id;
@@ -200,8 +222,10 @@ final class BoardService
             'archived'      => $thread->archived,
             'reply_count'   => $thread->reply_count,
             'image_count'   => $thread->image_count,
-            'op'            => $this->formatPostOutput($op, $backlinks[$op->id] ?? []),
-            'replies'       => $replies->map(fn($r) => $this->formatPostOutput($r, $backlinks[$r->id] ?? []))->toArray(),
+            'op'            => $this->formatPostOutput($op, ($op ? ($backlinks[(string)$op->id] ?? []) : [])),
+            'replies'       => $replies->map(function (Post $r) use ($backlinks) {
+                return $this->formatPostOutput($r, $backlinks[(string)$r->id] ?? []);
+            })->toArray(),
         ];
     }
 
@@ -209,6 +233,9 @@ final class BoardService
      * Threads – Catalog
      * ────────────────────────────────────────────── */
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function getCatalog(Board $board): array
     {
         $threads = Thread::query()
@@ -221,6 +248,8 @@ final class BoardService
 
         $result = [];
         foreach ($threads as $thread) {
+            /** @var Thread $thread */
+            /** @var Post|null $op */
             $op = Post::query()
                 ->where('thread_id', $thread->id)
                 ->where('is_op', true)
@@ -233,8 +262,8 @@ final class BoardService
                 'locked'      => $thread->locked,
                 'reply_count' => $thread->reply_count,
                 'image_count' => $thread->image_count,
-                'bumped_at'   => strtotime($thread->bumped_at),
-                'created_at'  => strtotime($thread->created_at),
+                'bumped_at'   => $this->toTimestamp($thread->bumped_at),
+                'created_at'  => $this->toTimestamp($thread->created_at),
                 'op'          => $op ? [
                     'subject'         => $op->subject,
                     'content_preview' => $op->content_preview,
@@ -250,6 +279,9 @@ final class BoardService
      * Threads – Archive
      * ────────────────────────────────────────────── */
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function getArchive(Board $board): array
     {
         $threads = Thread::query()
@@ -261,6 +293,8 @@ final class BoardService
 
         $result = [];
         foreach ($threads as $thread) {
+            /** @var Thread $thread */
+            /** @var Post|null $op */
             $op = Post::query()
                 ->where('thread_id', $thread->id)
                 ->where('is_op', true)
@@ -281,30 +315,51 @@ final class BoardService
      * Create Thread
      * ────────────────────────────────────────────── */
 
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, int>
+     */
     public function createThread(Board $board, array $data): array
     {
-        $boardId = (int) $board->id;
-        if ($boardId <= 0) {
-            throw new \RuntimeException("Board ID is missing or invalid: " . var_export($board->id, true) . " (type: " . gettype($board->id) . ")");
+        if (empty($board->id)) {
+            throw new \RuntimeException("Board ID is missing or invalid: " . var_export($board->id, true));
         }
 
-        return Db::transaction(function () use ($board, $boardId, $data) {
+        // Get next Post ID to use as Thread ID + Post ID
+        try {
+            $nextIdResult = Db::select("SELECT nextval('posts_id_seq') as id");
+            /** @var object{id: string|int} $row */
+            $row = $nextIdResult[0];
+            $nextId = (int) $row->id;
+        } catch (\Throwable $e) {
+            throw new \RuntimeException("Failed to generate ID: " . $e->getMessage());
+        }
+
+        /** @var array<string, int> $result */
+        $result = Db::transaction(function () use ($board, $data, $nextId) {
+            /** @var Thread $thread */
             $thread = Thread::create([
-                'board_id' => $boardId,
+                'id'       => $nextId,
+                'board_id' => $board->id,
                 'sticky'   => false,
                 'locked'   => false,
                 'archived' => false,
             ]);
+
             $thread->update([
                 'bumped_at'   => \Carbon\Carbon::now(),
                 'reply_count' => 0,
                 'image_count' => isset($data['media_url']) ? 1 : 0,
             ]);
 
-            [$name, $trip] = $this->formatter->parseNameTrip($data['name'] ?? '');
-            $contentHtml = $this->formatter->format($data['content'] ?? '');
+            $rawName = $data['name'] ?? '';
+            [$name, $trip] = $this->formatter->parseNameTrip(is_string($rawName) ? $rawName : '');
+            $rawContent = $data['content'] ?? '';
+            $contentHtml = $this->formatter->format(is_string($rawContent) ? $rawContent : '');
 
+            /** @var Post $post */
             $post = Post::create([
+                'id'                   => $nextId,
                 'thread_id'            => $thread->id,
                 'is_op'                => true,
                 'author_name'          => $name,
@@ -321,7 +376,7 @@ final class BoardService
                 'media_dimensions'     => $data['media_dimensions'] ?? null,
                 'media_hash'           => $data['media_hash'] ?? null,
                 'spoiler_image'        => $data['spoiler'] ?? false,
-                'delete_password_hash' => isset($data['password']) ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
+                'delete_password_hash' => (isset($data['password']) && is_string($data['password'])) ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
             ]);
 
             // Prune old threads if over limit
@@ -335,24 +390,36 @@ final class BoardService
                 'post_id'   => $post->id,
             ];
         });
+        return $result;
     }
 
     /* ──────────────────────────────────────────────
      * Create Post (Reply)
      * ────────────────────────────────────────────── */
 
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, int>
+     */
     public function createPost(Thread $thread, array $data): array
     {
         if ($thread->locked) {
             throw new \RuntimeException('Thread is locked');
         }
 
-        return Db::transaction(function () use ($thread, $data) {
-            [$name, $trip] = $this->formatter->parseNameTrip($data['name'] ?? '');
-            $contentHtml = $this->formatter->format($data['content'] ?? '');
-            $isSage = strtolower(trim($data['email'] ?? '')) === 'sage';
+        /** @var array<string, int> $result */
+        $result = Db::transaction(function () use ($thread, $data) {
+            $rawName = $data['name'] ?? '';
+            [$name, $trip] = $this->formatter->parseNameTrip(is_string($rawName) ? $rawName : '');
+            $rawContent = $data['content'] ?? '';
+            $contentHtml = $this->formatter->format(is_string($rawContent) ? $rawContent : '');
+            $rawEmail = $data['email'] ?? '';
+            $email = is_string($rawEmail) ? $rawEmail : '';
+            $isSage = strtolower(trim($email)) === 'sage';
 
+            /** @var Post $post */
             $post = Post::create([
+                // 'id' is auto-incremented by DB now
                 'thread_id'            => $thread->id,
                 'is_op'                => false,
                 'author_name'          => $name,
@@ -369,13 +436,13 @@ final class BoardService
                 'media_dimensions'     => $data['media_dimensions'] ?? null,
                 'media_hash'           => $data['media_hash'] ?? null,
                 'spoiler_image'        => $data['spoiler'] ?? false,
-                'delete_password_hash' => isset($data['password']) ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
+                'delete_password_hash' => (isset($data['password']) && is_string($data['password'])) ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
             ]);
 
             // Update thread counters
-            $thread->increment('reply_count');
+            $thread->newQuery()->where('id', $thread->id)->increment('reply_count');
             if ($post->media_url) {
-                $thread->increment('image_count');
+                $thread->newQuery()->where('id', $thread->id)->increment('image_count');
             }
 
             // Bump thread unless sage
@@ -395,6 +462,7 @@ final class BoardService
                 'thread_id' => $thread->id,
             ];
         });
+        return $result;
     }
 
     /* ──────────────────────────────────────────────
@@ -403,6 +471,7 @@ final class BoardService
 
     public function deletePost(int $postId, string $password, bool $imageOnly = false): bool
     {
+        /** @var Post|null $post */
         $post = Post::find($postId);
         if (!$post || $post->deleted) return false;
 
@@ -434,22 +503,47 @@ final class BoardService
      * Get New Posts (After ID)
      * ────────────────────────────────────────────── */
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function getPostsAfter(int $threadId, int $afterId): array
     {
-        return Post::query()
+        // Note: Comparing UUIDs with '>' is not strictly chronological for v4 UUIDs,
+        // but 'created_at' > would be better. However, let's keep it consistent with request for now,
+        // but prefer created_at sort if we switch logic.
+        // Actually, let's switch to created_at logic if we can, but 'afterId' implies we want posts that came after a specific post ID.
+        // If IDs are UUIDv4, they are random. So 'id > afterId' is meaningless.
+        // We must query posts created after the post with ID = afterId.
+        
+        $lastPost = Post::find($afterId);
+        if (!$lastPost) {
+            return [];
+        }
+
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */
+        $posts = Post::query()
             ->where('thread_id', $threadId)
-            ->where('id', '>', $afterId)
+            ->where('created_at', '>', $lastPost->created_at)
             ->where('deleted', false)
-            ->orderBy('id')
-            ->get()
-            ->map(fn($p) => $this->formatPostOutput($p))
+            ->orderBy('created_at')
+            ->get();
+
+        /** @var array<int, array<string, mixed>> $result */
+        $result = $posts->map(fn(Post $p) => $this->formatPostOutput($p))
+            ->filter()
+            ->values()
             ->toArray();
+        return $result;
     }
 
     /* ──────────────────────────────────────────────
      * Private helpers
      * ────────────────────────────────────────────── */
 
+    /**
+     * @param array<int> $backlinks
+     * @return ($post is null ? null : array<string, mixed>)
+     */
     private function formatPostOutput(?Post $post, array $backlinks = []): ?array
     {
         if (!$post) return null;
@@ -461,7 +555,7 @@ final class BoardService
             'subject'          => $post->subject,
             'content_html'     => $post->content_html,
             'content_preview'  => $post->content_preview,
-            'created_at'       => strtotime($post->created_at ?? 'now'),
+            'created_at'       => $this->toTimestamp($post->created_at),
             'formatted_time'   => $this->formatTime($post->created_at),
             'media_url'        => $post->media_url,
             'thumb_url'        => $post->thumb_url,
@@ -474,10 +568,31 @@ final class BoardService
         ];
     }
 
-    private function formatTime(?string $datetime): string
+    private function toTimestamp(mixed $dt): int
+    {
+        if ($dt instanceof \DateTimeInterface) {
+            return $dt->getTimestamp();
+        }
+        if (is_string($dt)) {
+            $t = strtotime($dt);
+            return $t === false ? 0 : $t;
+        }
+        return time();
+    }
+
+    private function formatTime(mixed $datetime): string
     {
         if (!$datetime) return '';
-        $dt = new \DateTimeImmutable($datetime);
+        if ($datetime instanceof \DateTimeInterface) {
+            $dt = $datetime;
+        } else {
+            try {
+                $str = is_scalar($datetime) ? (string) $datetime : '';
+                $dt = new \DateTimeImmutable($str);
+            } catch (\Exception $e) {
+                return '';
+            }
+        }
         $days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
         return $dt->format('m/d/y') . '(' . $days[(int) $dt->format('w')] . ')' . $dt->format('H:i:s');
     }
@@ -503,6 +618,7 @@ final class BoardService
             ->get();
 
         foreach ($toPrune as $thread) {
+            /** @var Thread $thread */
             $thread->update(['archived' => true]);
         }
     }

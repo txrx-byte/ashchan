@@ -13,6 +13,7 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class CorsMiddleware implements MiddlewareInterface
 {
+    /** @var string[] */
     private array $allowedOrigins;
 
     public function __construct()

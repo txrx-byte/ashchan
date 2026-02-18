@@ -3,11 +3,14 @@ declare(strict_types=1);
 
 use function Hyperf\Support\env;
 
+$port = env('DB_PORT', 5432);
+$port = is_numeric($port) ? (int) $port : 5432;
+
 return [
     'default' => [
         'driver' => env('DB_DRIVER', 'pgsql'),
         'host' => env('DB_HOST', 'postgres'),
-        'port' => (int) env('DB_PORT', 5432),
+        'port' => $port,
         'database' => env('DB_DATABASE', 'ashchan'),
         'username' => env('DB_USER', 'ashchan'),
         'password' => env('DB_PASSWORD', 'ashchan'),

@@ -25,7 +25,7 @@ final class TemplateRenderer
      * Render a PHP template with the given data.
      *
      * @param string $template Template name (without .php extension)
-     * @param array  $data     Variables to extract into the template scope
+     * @param array<string, mixed>  $data     Variables to extract into the template scope
      * @return string Rendered HTML
      */
     public function render(string $template, array $data = []): string

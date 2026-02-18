@@ -30,7 +30,7 @@ final class FrontendController
         // Group boards by category
         $grouped = [];
         foreach ($boards as $b) {
-            $cat = $b['category'] ?? 'Other';
+            $cat = $b['category'];
             $grouped[$cat][] = $b;
         }
 
@@ -60,7 +60,8 @@ final class FrontendController
     /** GET /{slug}/ – Board index (paginated thread list) */
     public function board(RequestInterface $request, string $slug): ResponseInterface
     {
-        $page = max(1, (int) $request->query('page', '1'));
+        $pageRaw = $request->getQueryParams()['page'] ?? '1';
+        $page = is_numeric($pageRaw) ? max(1, (int) $pageRaw) : 1;
         $boardsData = $this->fetchJson('boards', '/api/v1/boards');
         $boards = $boardsData['boards'] ?? [];
 
@@ -77,9 +78,9 @@ final class FrontendController
         $html = $this->renderer->render('board', [
             'boards'         => $boards,
             'board_slug'     => $slug,
-            'board_title'    => $board['title'] ?? $slug,
-            'board_subtitle' => $board['subtitle'] ?? '',
-            'page_title'     => '/' . $slug . '/ - ' . ($board['title'] ?? $slug),
+            'board_title'    => $board['title'],
+            'board_subtitle' => $board['subtitle'],
+            'page_title'     => '/' . $slug . '/ - ' . $board['title'],
             'page_num'       => $page,
             'total_pages'    => $totalPages,
             'threads'        => $threads,
@@ -107,7 +108,7 @@ final class FrontendController
         $html = $this->renderer->render('catalog', [
             'boards'      => $boards,
             'board_slug'  => $slug,
-            'board_title' => $board['title'] ?? $slug,
+            'board_title' => $board['title'],
             'page_title'  => '/' . $slug . '/ - Catalog',
             'threads'     => $threads,
             'thread_id'   => '',
@@ -135,7 +136,7 @@ final class FrontendController
         $html = $this->renderer->render('archive', [
             'boards'           => $boards,
             'board_slug'       => $slug,
-            'board_title'      => $board['title'] ?? $slug,
+            'board_title'      => $board['title'],
             'page_title'       => '/' . $slug . '/ - Archive',
             'archived_threads' => $archived,
             'thread_id'        => '',
@@ -168,7 +169,7 @@ final class FrontendController
         $html = $this->renderer->render('thread', [
             'boards'        => $boards,
             'board_slug'    => $slug,
-            'board_title'   => $board['title'] ?? $slug,
+            'board_title'   => $board['title'],
             'page_title'    => '/' . $slug . '/ - Thread No.' . $id,
             'thread_id'     => $id,
             'page_num'      => 1,
@@ -229,7 +230,22 @@ final class FrontendController
             ->withHeader('Cache-Control', 'public, max-age=3600');
     }
 
-    /** Fetch JSON from a backend service. */
+    /**
+     * @return array{
+     *  boards?: array<int, array{category: string, title: string, subtitle: string}>,
+     *  board?: array{title: string, subtitle: string},
+     *  threads?: array<mixed>,
+     *  total_pages?: int,
+     *  op?: array<mixed>,
+     *  replies?: array<mixed>,
+     *  image_count?: int,
+     *  locked?: bool,
+     *  sticky?: bool,
+     *  archived_threads?: array<mixed>,
+     *  error?: string,
+     *  status?: int
+     * }
+     */
     private function fetchJson(string $service, string $path): array
     {
         $result = $this->proxyClient->forward($service, 'GET', $path, [
@@ -240,7 +256,33 @@ final class FrontendController
             return ['error' => 'Upstream error', 'status' => $result['status']];
         }
 
-        return json_decode($result['body'] ?? '{}', true) ?: [];
+        $body = $result['body'];
+        if (!is_string($body)) {
+            return ['error' => 'Invalid response body', 'status' => 500];
+        }
+
+        $decoded = json_decode($body, true);
+        if (!is_array($decoded)) {
+            return ['error' => 'Invalid JSON', 'status' => 500];
+        }
+
+        /**
+         * @var array{
+         *  boards?: array<int, array{category: string, title: string, subtitle: string}>,
+         *  board?: array{title: string, subtitle: string},
+         *  threads?: array<mixed>,
+         *  total_pages?: int,
+         *  op?: array<mixed>,
+         *  replies?: array<mixed>,
+         *  image_count?: int,
+         *  locked?: bool,
+         *  sticky?: bool,
+         *  archived_threads?: array<mixed>,
+         *  error?: string,
+         *  status?: int
+         * }
+         */
+        return $decoded;
     }
 
     /** Return an HTML response. */

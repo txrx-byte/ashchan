@@ -34,13 +34,12 @@ final class RateLimitMiddleware implements MiddlewareInterface
 
         if ($count >= self::MAX_REQS) {
             $response = new \Hyperf\HttpMessage\Server\Response();
+            $json = json_encode(['error' => 'Rate limit exceeded', 'retry_after' => self::WINDOW]);
             return $response
                 ->withStatus(429)
                 ->withHeader('Content-Type', 'application/json')
                 ->withHeader('Retry-After', (string) self::WINDOW)
-                ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream(
-                    json_encode(['error' => 'Rate limit exceeded', 'retry_after' => self::WINDOW])
-                ));
+                ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream($json ?: ''));
         }
 
         $this->redis->zAdd($key, $now, (string) $now . ':' . random_int(0, 99999));
@@ -58,9 +57,11 @@ final class RateLimitMiddleware implements MiddlewareInterface
     {
         $forwarded = $request->getHeaderLine('X-Forwarded-For');
         if ($forwarded) {
-            return explode(',', $forwarded)[0];
+            $ips = explode(',', $forwarded);
+            return trim($ips[0]);
         }
         $params = $request->getServerParams();
-        return $params['remote_addr'] ?? '127.0.0.1';
+        $remoteAddr = $params['remote_addr'] ?? '127.0.0.1';
+        return is_string($remoteAddr) ? $remoteAddr : '127.0.0.1';
     }
 }

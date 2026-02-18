@@ -60,28 +60,29 @@ final class AuthMiddleware implements MiddlewareInterface
 
         if (!$token) {
             $response = new \Hyperf\HttpMessage\Server\Response();
+            $json = json_encode(['error' => 'Authentication required']);
             return $response->withStatus(401)
                 ->withHeader('Content-Type', 'application/json')
-                ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream(
-                    json_encode(['error' => 'Authentication required'])
-                ));
+                ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream($json ?: ''));
         }
 
         // Validate with auth service
+        $tokenStr = is_string($token) ? $token : '';
         $result = $this->proxyClient->forward('auth', 'GET', '/api/v1/auth/validate', [
-            'Authorization' => "Bearer {$token}",
+            'Authorization' => "Bearer {$tokenStr}",
         ]);
 
         if ($result['status'] !== 200) {
             $response = new \Hyperf\HttpMessage\Server\Response();
+            $json = json_encode(['error' => 'Invalid or expired token']);
             return $response->withStatus(401)
                 ->withHeader('Content-Type', 'application/json')
-                ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream(
-                    json_encode(['error' => 'Invalid or expired token'])
-                ));
+                ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream($json ?: ''));
         }
 
-        $userData = json_decode($result['body'], true)['user'] ?? [];
+        $body = $result['body'];
+        $decoded = is_string($body) ? json_decode($body, true) : [];
+        $userData = is_array($decoded) && isset($decoded['user']) && is_array($decoded['user']) ? $decoded['user'] : [];
 
         // Inject user info into request
         $request = $request

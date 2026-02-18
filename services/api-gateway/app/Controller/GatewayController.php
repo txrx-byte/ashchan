@@ -41,7 +41,7 @@ final class GatewayController
     {
         $service = $this->resolveService($path);
         if (!$service) {
-            return $this->response->json(['error' => 'Route not found'], 404);
+            return $this->response->json(['error' => 'Route not found']);
         }
 
         $method  = $request->getMethod();
@@ -74,7 +74,7 @@ final class GatewayController
                            'X-RateLimit-Remaining', 'X-RateLimit-Reset'];
         foreach ($forwardHeaders as $h) {
             if (isset($result['headers'][$h])) {
-                $resp = $resp->withHeader($h, $result['headers'][$h]);
+                $resp = $resp->withHeader($h, (string) $result['headers'][$h]);
             }
         }
 
@@ -84,7 +84,7 @@ final class GatewayController
     /** Resolve which backend service handles a given path segment. */
     private function resolveService(string $path): ?string
     {
-        $segment = explode('/', $path)[0] ?? '';
+        $segment = explode('/', $path)[0];
         foreach (self::ROUTE_MAP as $service => $prefixes) {
             if (in_array($segment, $prefixes, true)) {
                 return $service;

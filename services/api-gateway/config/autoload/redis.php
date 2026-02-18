@@ -7,8 +7,8 @@ return [
     'default' => [
         'host' => env('REDIS_HOST', 'redis'),
         'auth' => env('REDIS_AUTH', null),
-        'port' => (int) env('REDIS_PORT', 6379),
-        'db' => (int) env('REDIS_DB', 0),
+        'port' => is_numeric(env('REDIS_PORT')) ? (int) env('REDIS_PORT') : 6379,
+        'db' => is_numeric(env('REDIS_DB')) ? (int) env('REDIS_DB') : 0,
         'pool' => [
             'min_connections' => 1,
             'max_connections' => 10,

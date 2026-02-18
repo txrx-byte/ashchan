@@ -24,6 +24,7 @@ final class ModerationService
 
     /**
      * List reports with optional filtering.
+     * @return array<string, mixed>
      */
     public function listReports(string $status = 'pending', int $page = 1, int $perPage = 50): array
     {
@@ -67,6 +68,7 @@ final class ModerationService
             'reviewed_by' => $moderatorId,
         ]);
 
+        /** @var ModerationDecision $decision */
         return $decision;
     }
 
@@ -84,14 +86,17 @@ final class ModerationService
 
     /**
      * Get moderation history for a post.
+     * @return array<int, array<string, mixed>>
      */
     public function getPostHistory(int $postId): array
     {
-        return Report::query()
+        /** @var array<int, array<string, mixed>> $data */
+        $data = Report::query()
             ->where('post_id', $postId)
             ->with('decisions')
             ->orderByDesc('created_at')
             ->get()
             ->toArray();
+        return $data;
     }
 }

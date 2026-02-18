@@ -41,7 +41,7 @@ final class MediaService
      * @param string $origName    Original filename
      * @param string $mimeType    Declared MIME type
      * @param int    $fileSize    File size in bytes
-     * @return array Media metadata for post creation
+     * @return array<string, mixed> Media metadata for post creation
      * @throws \RuntimeException on validation failure
      */
     public function processUpload(string $tmpPath, string $origName, string $mimeType, int $fileSize): array
@@ -51,10 +51,13 @@ final class MediaService
 
         // Hash for dedup
         $hash = hash_file('sha256', $tmpPath);
+        if ($hash === false) {
+            throw new \RuntimeException('Failed to hash file');
+        }
 
         // Check for existing (dedup)
         $existing = MediaObject::query()->where('hash_sha256', $hash)->first();
-        if ($existing) {
+        if ($existing instanceof MediaObject) {
             if ($existing->banned) {
                 throw new \RuntimeException('This file has been banned');
             }
@@ -120,21 +123,24 @@ final class MediaService
         // Double-check actual MIME using fileinfo
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $actualMime = $finfo->file($path);
-        if (!in_array($actualMime, self::ALLOWED_MIMES, true)) {
+        if ($actualMime === false || !in_array($actualMime, self::ALLOWED_MIMES, true)) {
             throw new \RuntimeException('File type mismatch');
         }
     }
 
+    /**
+     * @return array{int, int}
+     */
     private function getImageDimensions(string $path): array
     {
         $info = @getimagesize($path);
-        return $info ? [(int) $info[0], (int) $info[1]] : [0, 0];
+        return is_array($info) ? [(int) $info[0], (int) $info[1]] : [0, 0];
     }
 
     private function generateThumbnail(string $srcPath, string $mime): ?string
     {
         $info = @getimagesize($srcPath);
-        if (!$info) return null;
+        if (!is_array($info)) return null;
 
         [$origW, $origH] = $info;
         if ($origW <= self::THUMB_MAX_WIDTH && $origH <= self::THUMB_MAX_HEIGHT) {
@@ -143,44 +149,56 @@ final class MediaService
         }
 
         $ratio = min(self::THUMB_MAX_WIDTH / $origW, self::THUMB_MAX_HEIGHT / $origH);
-        $thumbW = (int) ($origW * $ratio);
-        $thumbH = (int) ($origH * $ratio);
+        $thumbW = max(1, (int) ($origW * $ratio));
+        $thumbH = max(1, (int) ($origH * $ratio));
 
         $src = match ($mime) {
             'image/jpeg' => imagecreatefromjpeg($srcPath),
             'image/png'  => imagecreatefrompng($srcPath),
             'image/gif'  => imagecreatefromgif($srcPath),
             'image/webp' => imagecreatefromwebp($srcPath),
-            default      => null,
+            default      => false,
         };
 
-        if (!$src) return null;
+        if ($src === false) return null;
 
         $thumb = imagecreatetruecolor($thumbW, $thumbH);
+        if ($thumb === false) {
+            imagedestroy($src);
+            return null;
+        }
 
         // Preserve transparency for PNG/GIF/WebP
         if (in_array($mime, ['image/png', 'image/gif', 'image/webp'])) {
             imagealphablending($thumb, false);
             imagesavealpha($thumb, true);
             $transparent = imagecolorallocatealpha($thumb, 0, 0, 0, 127);
-            imagefilledrectangle($thumb, 0, 0, $thumbW, $thumbH, $transparent);
+            if ($transparent !== false) {
+                imagefilledrectangle($thumb, 0, 0, $thumbW, $thumbH, $transparent);
+            }
         }
 
         imagecopyresampled($thumb, $src, 0, 0, 0, 0, $thumbW, $thumbH, $origW, $origH);
 
-        $thumbPath = tempnam(sys_get_temp_dir(), 'thumb_');
+        $tempPath = tempnam(sys_get_temp_dir(), 'thumb_');
+        if ($tempPath === false) {
+            imagedestroy($src);
+            imagedestroy($thumb);
+            return null;
+        }
 
         match ($mime) {
-            'image/jpeg' => imagejpeg($thumb, $thumbPath, 85),
-            'image/png'  => imagepng($thumb, $thumbPath, 6),
-            'image/gif'  => imagegif($thumb, $thumbPath),
-            'image/webp' => imagewebp($thumb, $thumbPath, 85),
+            'image/jpeg' => imagejpeg($thumb, $tempPath, 85),
+            'image/png'  => imagepng($thumb, $tempPath, 6),
+            'image/gif'  => imagegif($thumb, $tempPath),
+            'image/webp' => imagewebp($thumb, $tempPath, 85),
+            default      => false,
         };
 
         imagedestroy($src);
         imagedestroy($thumb);
 
-        return $thumbPath;
+        return $tempPath;
     }
 
     /**
@@ -202,10 +220,15 @@ final class MediaService
         $signature = base64_encode(hash_hmac('sha1', $stringToSign, $secretKey, true));
 
         $ch = curl_init($url);
+        $fp = fopen($localPath, 'r');
+        if ($fp === false) {
+            throw new \RuntimeException("Failed to open file for upload: {$localPath}");
+        }
+
         curl_setopt_array($ch, [
             CURLOPT_PUT            => true,
-            CURLOPT_INFILE         => fopen($localPath, 'r'),
-            CURLOPT_INFILESIZE     => filesize($localPath),
+            CURLOPT_INFILE         => $fp,
+            CURLOPT_INFILESIZE     => (int) filesize($localPath),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER     => [
                 "Date: {$date}",
@@ -215,14 +238,18 @@ final class MediaService
         ]);
 
         $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+        fclose($fp);
 
         if ($httpCode >= 300) {
             throw new \RuntimeException("Failed to upload to storage: HTTP {$httpCode}");
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function toMetadata(MediaObject $media): array
     {
         $endpoint = rtrim($this->storageEndpoint, '/');

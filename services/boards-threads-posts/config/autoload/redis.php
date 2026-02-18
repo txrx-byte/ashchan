@@ -3,12 +3,17 @@ declare(strict_types=1);
 
 use function Hyperf\Support\env;
 
+$port = env('REDIS_PORT', 6379);
+$port = is_numeric($port) ? (int) $port : 6379;
+$db = env('REDIS_DB', 0);
+$db = is_numeric($db) ? (int) $db : 0;
+
 return [
     'default' => [
         'host' => env('REDIS_HOST', 'redis'),
         'auth' => env('REDIS_AUTH', null),
-        'port' => (int) env('REDIS_PORT', 6379),
-        'db' => (int) env('REDIS_DB', 0),
+        'port' => $port,
+        'db' => $db,
         'pool' => [
             'min_connections' => 1,
             'max_connections' => 10,

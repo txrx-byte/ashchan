@@ -16,20 +16,27 @@ use Hyperf\DbConnection\Model\Model;
  * @property string $ban_expires_at
  * @property string $created_at
  * @property string $updated_at
+ * @method static User|null find(mixed $id)
+ * @method static User findOrFail(mixed $id)
+ * @method static \Hyperf\Database\Model\Builder<User> query()
+ * @method static User create(array<string, mixed> $attributes)
  */
 class User extends Model
 {
     protected ?string $table = 'users';
 
+    /** @var string[] */
     protected array $fillable = [
         'username', 'password_hash', 'email', 'role',
         'banned', 'ban_reason', 'ban_expires_at',
     ];
 
+    /** @var array<string, string> */
     protected array $casts = [
         'id'     => 'integer',
         'banned' => 'boolean',
     ];
 
+    /** @var string[] */
     protected array $hidden = ['password_hash'];
 }

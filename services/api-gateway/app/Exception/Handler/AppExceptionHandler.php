@@ -25,15 +25,17 @@ class AppExceptionHandler extends ExceptionHandler
 
         $this->stopPropagation();
 
+        $json = json_encode([
+            'error' => $throwable->getMessage(),
+            'class' => get_class($throwable),
+            'file' => $throwable->getFile(),
+            'line' => $throwable->getLine(),
+        ]);
+
         return $response
             ->withStatus(500)
             ->withHeader('Content-Type', 'application/json')
-            ->withBody(new SwooleStream(json_encode([
-                'error' => $throwable->getMessage(),
-                'class' => get_class($throwable),
-                'file' => $throwable->getFile(),
-                'line' => $throwable->getLine(),
-            ])));
+            ->withBody(new SwooleStream($json ?: ''));
     }
 
     public function isValid(Throwable $throwable): bool

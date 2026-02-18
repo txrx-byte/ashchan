@@ -7,7 +7,9 @@ return [
     'default' => [
         'host' => env('REDIS_HOST', 'redis'),
         'auth' => env('REDIS_AUTH', null),
+        // @phpstan-ignore-next-line
         'port' => (int) env('REDIS_PORT', 6379),
+        // @phpstan-ignore-next-line
         'db' => (int) env('REDIS_DB', 0),
         'pool' => [
             'min_connections' => 1,

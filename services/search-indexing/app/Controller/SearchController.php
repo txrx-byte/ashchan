@@ -22,15 +22,20 @@ final class SearchController
     #[RequestMapping(path: '', methods: ['GET'])]
     public function search(RequestInterface $request): ResponseInterface
     {
-        $query = (string) $request->query('q', '');
-        $board = $request->query('board');
-        $page  = max(1, (int) $request->query('page', '1'));
+        $params = $request->getQueryParams();
+        $query = $params['q'] ?? '';
+        $board = $params['board'] ?? null;
+        $pageVal = $params['page'] ?? 1;
+        $page  = max(1, is_numeric($pageVal) ? (int) $pageVal : 1);
 
-        if (mb_strlen($query) < 2) {
-            return $this->response->json(['error' => 'Query must be at least 2 characters'], 400);
+        if (!is_string($query) || mb_strlen($query) < 2) {
+            return $this->response->json(['error' => 'Query must be at least 2 characters']);
+        }
+        if (!is_null($board) && !is_string($board)) {
+            return $this->response->json(['error' => 'Invalid board']);
         }
 
-        if ($board) {
+        if (is_string($board) && $board !== '') {
             $data = $this->searchService->search($board, $query, $page);
         } else {
             $data = $this->searchService->searchAll($query, $page);
@@ -43,14 +48,17 @@ final class SearchController
     #[RequestMapping(path: 'index', methods: ['POST'])]
     public function index(RequestInterface $request): ResponseInterface
     {
-        $board    = (string) $request->input('board', '');
-        $threadId = (int) $request->input('thread_id', 0);
-        $postId   = (int) $request->input('post_id', 0);
-        $content  = (string) $request->input('content', '');
+        $board    = $request->input('board');
+        $threadId = $request->input('thread_id');
+        $postId   = $request->input('post_id');
+        $content  = $request->input('content');
         $subject  = $request->input('subject');
 
+        if (!is_string($board) || !is_int($threadId) || !is_int($postId) || !is_string($content) || (!is_null($subject) && !is_string($subject))) {
+            return $this->response->json(['error' => 'Invalid input']);
+        }
         if (!$board || !$postId) {
-            return $this->response->json(['error' => 'board and post_id required'], 400);
+            return $this->response->json(['error' => 'board and post_id required']);
         }
 
         $this->searchService->indexPost($board, $threadId, $postId, $content, $subject);
@@ -61,11 +69,11 @@ final class SearchController
     #[RequestMapping(path: 'index', methods: ['DELETE'])]
     public function remove(RequestInterface $request): ResponseInterface
     {
-        $board  = (string) $request->input('board', '');
-        $postId = (int) $request->input('post_id', 0);
+        $board  = $request->input('board');
+        $postId = $request->input('post_id');
 
-        if (!$board || !$postId) {
-            return $this->response->json(['error' => 'board and post_id required'], 400);
+        if (!is_string($board) || !is_int($postId) || !$board || !$postId) {
+            return $this->response->json(['error' => 'board and post_id required']);
         }
 
         $this->searchService->removePost($board, $postId);

@@ -1,4 +1,7 @@
-<?php ob_start(); ?>
+<?php
+
+declare(strict_types=1);
+ ob_start(); ?>
 
 <hr class="abovePostForm">
 
@@ -45,12 +48,12 @@
 
   <?php foreach (($threads ?? []) as $thread): ?>
   <?php $top = $thread['op'] ?? $thread; ?>
-  <div class="thread" id="thread-<?= (int)$thread['id'] ?>"
+  <div class="thread" id="thread-<?= htmlspecialchars($thread['id']) ?>"
        data-replies="<?= (int)($thread['reply_count'] ?? 0) ?>"
        data-images="<?= (int)($thread['image_count'] ?? 0) ?>"
        data-bumped="<?= htmlspecialchars($thread['bumped_at'] ?? '') ?>"
        data-created="<?= htmlspecialchars($thread['created_at'] ?? '') ?>">
-    <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>">
+    <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>">
       <?php if (!empty($top['thumb_url'])): ?>
       <img class="thumb" src="<?= htmlspecialchars($top['thumb_url']) ?>" alt="" loading="lazy">
       <?php else: ?>

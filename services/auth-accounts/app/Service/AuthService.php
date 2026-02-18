@@ -27,6 +27,7 @@ final class AuthService
             throw new \RuntimeException('Username already taken');
         }
 
+        // @phpstan-ignore-next-line
         return User::create([
             'username'      => $username,
             'password_hash' => password_hash($password, PASSWORD_ARGON2ID),
@@ -35,21 +36,21 @@ final class AuthService
         ]);
     }
 
-    /* ──────────────────────────────────────────────
+    /**
      * Login
-     * ────────────────────────────────────────────── */
-
+     * @return array<string, mixed>|null
+     */
     public function login(string $username, string $password, string $ip, string $userAgent): ?array
     {
         $user = User::query()->where('username', $username)->first();
-        if (!$user || !password_verify($password, $user->password_hash)) {
+        if (!$user instanceof User || !password_verify($password, $user->password_hash)) {
             return null;
         }
 
         if ($user->banned) {
-            $expired = $user->ban_expires_at && strtotime($user->ban_expires_at) < time();
+            $expired = $user->ban_expires_at && strtotime((string) $user->ban_expires_at) < time();
             if (!$expired) {
-                throw new \RuntimeException('Account is banned: ' . ($user->ban_reason ?? ''));
+                throw new \RuntimeException('Account is banned: ' . $user->ban_reason);
             }
             // Unban if expired
             $user->update(['banned' => false, 'ban_reason' => null, 'ban_expires_at' => null]);
@@ -57,6 +58,7 @@ final class AuthService
 
         $token = bin2hex(random_bytes(32));
 
+        // @phpstan-ignore-next-line
         $session = Session::create([
             'user_id'    => $user->id,
             'token'      => hash('sha256', $token),
@@ -69,7 +71,7 @@ final class AuthService
         $this->redis->setex(
             "session:{$token}",
             self::SESSION_TTL,
-            json_encode([
+            (string) json_encode([
                 'user_id'  => $user->id,
                 'username' => $user->username,
                 'role'     => $user->role,
@@ -91,21 +93,26 @@ final class AuthService
      * Session Validation
      * ────────────────────────────────────────────── */
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function validateToken(string $token): ?array
     {
         $cached = $this->redis->get("session:{$token}");
-        if ($cached) {
-            return json_decode($cached, true);
+        if (is_string($cached)) {
+            $decoded = json_decode($cached, true);
+            /** @var array<string, mixed>|null $decoded */
+            return is_array($decoded) ? $decoded : null;
         }
 
         $hashed = hash('sha256', $token);
         $session = Session::query()->where('token', $hashed)->first();
-        if (!$session || $session->isExpired()) {
+        if (!$session instanceof Session || $session->isExpired()) {
             return null;
         }
 
         $user = User::find($session->user_id);
-        if (!$user) return null;
+        if (!$user instanceof User) return null;
 
         $data = [
             'user_id'  => $user->id,
@@ -114,8 +121,8 @@ final class AuthService
         ];
 
         // Re-cache
-        $remaining = max(1, strtotime($session->expires_at) - time());
-        $this->redis->setex("session:{$token}", $remaining, json_encode($data));
+        $remaining = max(1, strtotime((string) $session->expires_at) - time());
+        $this->redis->setex("session:{$token}", $remaining, (string) json_encode($data));
 
         return $data;
     }
@@ -166,7 +173,7 @@ final class AuthService
 
     public function banIp(string $ipHash, string $reason, int $durationSeconds = 86400): void
     {
-        $this->redis->setex("ban:ip:{$ipHash}", $durationSeconds, json_encode([
+        $this->redis->setex("ban:ip:{$ipHash}", $durationSeconds, (string) json_encode([
             'reason'     => $reason,
             'banned_at'  => time(),
             'expires_at' => time() + $durationSeconds,
@@ -179,6 +186,7 @@ final class AuthService
 
     public function recordConsent(string $ipHash, ?int $userId, string $type, string $policyVersion, bool $consented): Consent
     {
+        // @phpstan-ignore-next-line
         return Consent::create([
             'ip_hash'        => $ipHash,
             'user_id'        => $userId,
@@ -203,6 +211,7 @@ final class AuthService
 
     public function requestDataExport(int $userId): DeletionRequest
     {
+        // @phpstan-ignore-next-line
         return DeletionRequest::create([
             'user_id'      => $userId,
             'status'       => 'pending',
@@ -213,6 +222,7 @@ final class AuthService
 
     public function requestDataDeletion(int $userId): DeletionRequest
     {
+        // @phpstan-ignore-next-line
         return DeletionRequest::create([
             'user_id'      => $userId,
             'status'       => 'pending',
@@ -221,12 +231,17 @@ final class AuthService
         ]);
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function getDataRequests(int $userId): array
     {
-        return DeletionRequest::query()
+        /** @var array<int, array<string, mixed>> $data */
+        $data = DeletionRequest::query()
             ->where('user_id', $userId)
             ->orderByDesc('requested_at')
             ->get()
             ->toArray();
+        return $data;
     }
 }

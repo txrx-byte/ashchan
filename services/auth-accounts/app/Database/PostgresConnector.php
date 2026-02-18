@@ -11,6 +11,7 @@ class PostgresConnector extends Connector implements ConnectorInterface
 {
     /**
      * Establish a database connection.
+     * @param array<string, mixed> $config
      */
     public function connect(array $config): PDO
     {
@@ -18,21 +19,28 @@ class PostgresConnector extends Connector implements ConnectorInterface
         $options = $this->getOptions($config);
         $connection = $this->createConnection($dsn, $config, $options);
 
-        if (isset($config['charset'])) {
-            $connection->prepare("set names '{$config['charset']}'")->execute();
+        $charset = $config['charset'] ?? null;
+        if (is_string($charset)) {
+            $connection->prepare("set names '{$charset}'")->execute();
         }
 
-        if (isset($config['timezone'])) {
-            $connection->prepare("set timezone to '{$config['timezone']}'")->execute();
+        $timezone = $config['timezone'] ?? null;
+        if (is_string($timezone)) {
+            $connection->prepare("set timezone to '{$timezone}'")->execute();
         }
 
-        if (isset($config['schema'])) {
-            $schema = $this->formatSchema($config['schema']);
-            $connection->prepare("set search_path to {$schema}")->execute();
+        $schema = $config['schema'] ?? null;
+        if (is_string($schema) || is_array($schema)) {
+            if (is_array($schema)) {
+                $schema = array_filter($schema, 'is_string');
+            }
+            $formattedSchema = $this->formatSchema($schema);
+            $connection->prepare("set search_path to {$formattedSchema}")->execute();
         }
 
-        if (isset($config['application_name'])) {
-            $connection->prepare("set application_name to '{$config['application_name']}'")->execute();
+        $appName = $config['application_name'] ?? null;
+        if (is_string($appName)) {
+            $connection->prepare("set application_name to '{$appName}'")->execute();
         }
 
         return $connection;
@@ -40,16 +48,21 @@ class PostgresConnector extends Connector implements ConnectorInterface
 
     /**
      * Create a DSN string from a configuration.
+     * @param array<string, mixed> $config
      */
     protected function getDsn(array $config): string
     {
-        $host = $config['host'] ?? 'localhost';
-        $port = $config['port'] ?? 5432;
-        $database = $config['database'] ?? 'forge';
+        // @phpstan-ignore-next-line
+        $host = (string) $config['host'];
+        // @phpstan-ignore-next-line
+        $port = (string) $config['port'];
+        // @phpstan-ignore-next-line
+        $database = (string) $config['database'];
         $dsn = "pgsql:host={$host};port={$port};dbname={$database}";
 
-        if (isset($config['sslmode'])) {
-            $dsn .= ";sslmode={$config['sslmode']}";
+        $sslmode = $config['sslmode'] ?? null;
+        if (is_string($sslmode)) {
+            $dsn .= ";sslmode={$sslmode}";
         }
 
         return $dsn;
@@ -57,6 +70,7 @@ class PostgresConnector extends Connector implements ConnectorInterface
 
     /**
      * Format the schema for the DSN.
+     * @param string|string[] $schema
      */
     protected function formatSchema(string|array $schema): string
     {

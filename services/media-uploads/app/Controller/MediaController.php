@@ -23,23 +23,30 @@ final class MediaController
     public function upload(RequestInterface $request): ResponseInterface
     {
         $file = $request->file('upfile');
-        if (!$file || !$file->isValid()) {
-            return $this->response->json(['error' => 'No valid file uploaded'], 400);
+        if (!$file) {
+            return $this->response->json(['error' => 'No file uploaded']);
+        }
+        if (is_array($file) || !$file->isValid()) {
+            return $this->response->json(['error' => 'No valid file uploaded']);
         }
 
         try {
+            $path = $file->getRealPath();
+            if ($path === false) {
+                return $this->response->json(['error' => 'Could not get file path']);
+            }
             $meta = $this->mediaService->processUpload(
-                $file->getRealPath(),
-                $file->getClientFilename(),
-                $file->getClientMediaType(),
-                $file->getSize()
+                $path,
+                (string) $file->getClientFilename(),
+                (string) $file->getClientMediaType(),
+                (int) $file->getSize()
             );
 
-            return $this->response->json($meta, 201);
+            return $this->response->json($meta);
         } catch (\RuntimeException $e) {
-            return $this->response->json(['error' => $e->getMessage()], 422);
+            return $this->response->json(['error' => $e->getMessage()]);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => 'Upload processing failed'], 500);
+            return $this->response->json(['error' => 'Upload processing failed']);
         }
     }
 
@@ -47,9 +54,9 @@ final class MediaController
     #[RequestMapping(path: 'ban', methods: ['POST'])]
     public function ban(RequestInterface $request): ResponseInterface
     {
-        $hash = (string) $request->input('hash', '');
-        if (empty($hash)) {
-            return $this->response->json(['error' => 'Hash required'], 400);
+        $hash = $request->input('hash');
+        if (!is_string($hash) || empty($hash)) {
+            return $this->response->json(['error' => 'Hash required']);
         }
 
         $this->mediaService->banHash($hash);

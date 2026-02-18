@@ -31,19 +31,33 @@ use Hyperf\DbConnection\Model\Model;
  * @property string|null $deleted_at
  * @property string      $created_at
  * @property string      $updated_at
+ * 
+ * @property-read string $media_size_human
+ * @property-read string $content_preview
+ * @property-read Thread|null $thread
+ *
+ * @method static static create(array<string, mixed> $attributes = [])
+ * @method static static|null find(mixed $id, array<string> $columns = ['*'])
+ * @method static \Hyperf\Database\Model\Builder<Post> query()
  */
 class Post extends Model
 {
     protected ?string $table = 'posts';
 
+    /**
+     * @var array<string>
+     */
     protected array $fillable = [
-        'thread_id', 'is_op', 'author_name', 'tripcode', 'capcode',
+        'id', 'thread_id', 'is_op', 'author_name', 'tripcode', 'capcode',
         'email', 'subject', 'content', 'content_html', 'ip_hash',
         'country_code', 'media_id', 'media_url', 'thumb_url',
         'media_filename', 'media_size', 'media_dimensions', 'media_hash',
         'spoiler_image', 'delete_password_hash',
     ];
 
+    /**
+     * @var array<string, string>
+     */
     protected array $casts = [
         'id'             => 'integer',
         'thread_id'      => 'integer',
@@ -53,7 +67,8 @@ class Post extends Model
         'deleted'        => 'boolean',
     ];
 
-    public function thread()
+    /** @return \Hyperf\Database\Model\Relations\BelongsTo<Thread, $this> */
+    public function thread(): \Hyperf\Database\Model\Relations\BelongsTo
     {
         return $this->belongsTo(Thread::class, 'thread_id');
     }

@@ -52,7 +52,7 @@ final class SearchService
     /**
      * Search posts on a board.
      *
-     * @return array{results: array, total: int}
+     * @return array<string, mixed>
      */
     public function search(string $boardSlug, string $query, int $page = 1, int $perPage = 25): array
     {
@@ -63,17 +63,20 @@ final class SearchService
             return ['results' => [], 'total' => 0];
         }
 
-        $all    = $this->redis->hGetAll($key);
+        $all = (array) $this->redis->hGetAll($key);
         $results = [];
 
         foreach ($all as $postId => $docJson) {
+            if (!is_string($docJson)) continue;
             $doc = json_decode($docJson, true);
-            if (!$doc) continue;
-            if (str_contains($doc['text'], $query)) {
+            if (!is_array($doc) || !isset($doc['text'], $doc['thread_id'])) continue;
+            $textVal = $doc['text'];
+            $text = is_string($textVal) ? $textVal : '';
+            if (str_contains($text, $query)) {
                 $results[] = [
                     'post_id'   => (int) $postId,
                     'thread_id' => $doc['thread_id'],
-                    'excerpt'   => $this->highlight($doc['text'], $query),
+                    'excerpt'   => $this->highlight($text, $query),
                 ];
             }
         }
@@ -91,28 +94,32 @@ final class SearchService
 
     /**
      * Search across all boards.
+     * @return array<string, mixed>
      */
     public function searchAll(string $query, int $page = 1, int $perPage = 25): array
     {
-        $pattern = self::INDEX_PREFIX . '*';
-        $cursor  = null;
+        $cursor  = '0';
         $allResults = [];
 
         $keys = [];
-        $iter = 0;
         do {
             $iter = $this->redis->scan($cursor, self::INDEX_PREFIX . '*', 100);
             if ($iter !== false) {
                 $keys = array_merge($keys, (array) $iter);
             }
-        } while ($cursor > 0);
+        } while ($cursor !== null && is_numeric($cursor) && (int)$cursor > 0);
 
         foreach ($keys as $key) {
+            if (!is_string($key)) continue;
             $boardSlug = str_replace(self::INDEX_PREFIX, '', $key);
             $boardResults = $this->search($boardSlug, $query, 1, 1000);
-            foreach ($boardResults['results'] as $r) {
-                $r['board'] = $boardSlug;
-                $allResults[] = $r;
+            if (isset($boardResults['results']) && is_array($boardResults['results'])) {
+                foreach ($boardResults['results'] as $r) {
+                    if (is_array($r)) {
+                        $r['board'] = $boardSlug;
+                        $allResults[] = $r;
+                    }
+                }
             }
         }
 

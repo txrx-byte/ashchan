@@ -19,18 +19,23 @@ use Hyperf\DbConnection\Model\Model;
  * @property bool        $nsfw_flagged
  * @property bool        $banned
  * @property string      $created_at
+ * @method static MediaObject|null find(mixed $id)
+ * @method static \Hyperf\Database\Model\Builder<MediaObject> query()
+ * @method static MediaObject create(array<string, mixed> $attributes)
  */
 class MediaObject extends Model
 {
     protected ?string $table = 'media_objects';
     public bool $timestamps = false;
 
+    /** @var array<int, string> */
     protected array $fillable = [
         'hash_sha256', 'mime_type', 'file_size', 'width', 'height',
         'storage_key', 'thumb_key', 'original_filename', 'phash',
         'nsfw_flagged', 'banned',
     ];
 
+    /** @var array<string, string> */
     protected array $casts = [
         'id'           => 'integer',
         'file_size'    => 'integer',

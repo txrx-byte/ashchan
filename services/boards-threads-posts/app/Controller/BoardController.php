@@ -27,7 +27,7 @@ final class BoardController
     {
         $board = $this->boardService->getBoard($slug);
         if (!$board) {
-            return $this->response->json(['error' => 'Board not found'], 404);
+            return $this->response->json(['error' => 'Board not found'])->withStatus(404);
         }
         return $this->response->json(['board' => $board->toArray()]);
     }

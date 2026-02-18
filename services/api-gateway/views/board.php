@@ -1,4 +1,7 @@
-<?php ob_start(); ?>
+<?php
+
+declare(strict_types=1);
+ ob_start(); ?>
 
 <hr class="abovePostForm">
 
@@ -77,15 +80,15 @@
     <?php endif; ?>
 
     <?php foreach (($threads ?? []) as $thread): ?>
-    <div class="thread" id="t<?= (int)$thread['id'] ?>">
+    <div class="thread" id="t<?= htmlspecialchars($thread['id']) ?>">
       <?php $op = $thread['op'] ?? []; ?>
       <?php if (!empty($op)): ?>
-      <div class="postContainer opContainer" id="pc<?= (int)($op['id'] ?? 0) ?>">
-        <div id="p<?= (int)($op['id'] ?? 0) ?>" class="post op">
+      <div class="postContainer opContainer" id="pc<?= htmlspecialchars($op['id'] ?? '') ?>">
+        <div id="p<?= htmlspecialchars($op['id'] ?? '') ?>" class="post op">
 
           <?php if (!empty($op['media_url'])): ?>
-          <div class="file" id="f<?= (int)($op['id'] ?? 0) ?>">
-            <div class="fileText" id="fT<?= (int)($op['id'] ?? 0) ?>">
+          <div class="file" id="f<?= htmlspecialchars($op['id'] ?? '') ?>">
+            <div class="fileText" id="fT<?= htmlspecialchars($op['id'] ?? '') ?>">
               File: <a href="<?= htmlspecialchars($op['media_url']) ?>" target="_blank"><?= htmlspecialchars($op['media_filename'] ?? 'image') ?></a>
               (<?= htmlspecialchars($op['media_size_human'] ?? '') ?><?php if (!empty($op['media_dimensions'])): ?>, <?= htmlspecialchars($op['media_dimensions']) ?><?php endif; ?>)
             </div>
@@ -95,8 +98,8 @@
           </div>
           <?php endif; ?>
 
-          <div class="postInfo desktop" id="pi<?= (int)($op['id'] ?? 0) ?>">
-            <input type="checkbox" name="<?= (int)($op['id'] ?? 0) ?>" value="delete">
+          <div class="postInfo desktop" id="pi<?= htmlspecialchars($op['id'] ?? '') ?>">
+            <input type="checkbox" name="<?= htmlspecialchars($op['id'] ?? '') ?>" value="delete">
             <?php if (!empty($op['subject'])): ?>
             <span class="subject"><?= htmlspecialchars($op['subject']) ?></span>
             <?php endif; ?>
@@ -106,14 +109,14 @@
             </span>
             <span class="dateTime" data-utc="<?= htmlspecialchars($op['created_at'] ?? '') ?>"><?= htmlspecialchars($op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
             <span class="postNum desktop">
-              <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>#p<?= (int)($op['id'] ?? 0) ?>" title="Link to this post">No.</a><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>#q<?= (int)($op['id'] ?? 0) ?>" title="Reply to this post"><?= (int)($op['id'] ?? 0) ?></a>
+              <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>#p<?= htmlspecialchars($op['id'] ?? '') ?>" title="Link to this post">No.</a><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>#q<?= htmlspecialchars($op['id'] ?? '') ?>" title="Reply to this post"><?= htmlspecialchars($op['id'] ?? '') ?></a>
               <?php if (!empty($thread['sticky'])): ?><img src="/static/img/sticky.gif" alt="Sticky" title="Sticky" class="stickyIcon"><?php endif; ?>
               <?php if (!empty($thread['locked'])): ?><img src="/static/img/closed.gif" alt="Closed" title="Closed" class="closedIcon"><?php endif; ?>
-              &nbsp; <span>[<a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>" class="replylink">Reply</a>]</span>
+              &nbsp; <span>[<a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>" class="replylink">Reply</a>]</span>
             </span>
           </div>
 
-          <blockquote class="postMessage" id="m<?= (int)($op['id'] ?? 0) ?>">
+          <blockquote class="postMessage" id="m<?= htmlspecialchars($op['id'] ?? '') ?>">
             <?= $op['content_html'] ?? htmlspecialchars($op['content'] ?? '') ?>
           </blockquote>
         </div>
@@ -121,7 +124,7 @@
         <!-- Mobile post link -->
         <div class="postLink mobile">
           <span class="info"><?= (int)($thread['reply_count'] ?? 0) ?> Replies / <?= (int)($thread['image_count'] ?? 0) ?> Images</span>
-          <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>" class="button">View Thread</a>
+          <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>" class="button">View Thread</a>
         </div>
       </div>
       <?php endif; ?>
@@ -130,29 +133,29 @@
       <span class="summary desktop">
         <?= (int)$thread['omitted_posts'] ?> repl<?= $thread['omitted_posts'] > 1 ? 'ies' : 'y' ?>
         <?php if (($thread['omitted_images'] ?? 0) > 0): ?>and <?= (int)$thread['omitted_images'] ?> image<?= $thread['omitted_images'] > 1 ? 's' : '' ?><?php endif; ?>
-        omitted. <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>" class="replylink">Click here</a> to view.
+        omitted. <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>" class="replylink">Click here</a> to view.
       </span>
       <?php endif; ?>
 
       <?php foreach (($thread['latest_replies'] ?? []) as $reply): ?>
-      <div class="postContainer replyContainer" id="pc<?= (int)$reply['id'] ?>">
-        <div class="sideArrows" id="sa<?= (int)$reply['id'] ?>">&gt;&gt;</div>
-        <div id="p<?= (int)$reply['id'] ?>" class="post reply">
-          <div class="postInfo desktop" id="pi<?= (int)$reply['id'] ?>">
-            <input type="checkbox" name="<?= (int)$reply['id'] ?>" value="delete">
+      <div class="postContainer replyContainer" id="pc<?= htmlspecialchars($reply['id']) ?>">
+        <div class="sideArrows" id="sa<?= htmlspecialchars($reply['id']) ?>">&gt;&gt;</div>
+        <div id="p<?= htmlspecialchars($reply['id']) ?>" class="post reply">
+          <div class="postInfo desktop" id="pi<?= htmlspecialchars($reply['id']) ?>">
+            <input type="checkbox" name="<?= htmlspecialchars($reply['id']) ?>" value="delete">
             <span class="nameBlock">
               <span class="name"><?= htmlspecialchars($reply['author_name'] ?? 'Anonymous') ?></span>
               <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($reply['tripcode']) ?></span><?php endif; ?>
             </span>
             <span class="dateTime" data-utc="<?= htmlspecialchars($reply['created_at'] ?? '') ?>"><?= htmlspecialchars($reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
             <span class="postNum desktop">
-              <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>#p<?= (int)$reply['id'] ?>" title="Link to this post">No.</a><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= (int)$thread['id'] ?>#q<?= (int)$reply['id'] ?>" title="Reply to this post"><?= (int)$reply['id'] ?></a>
+              <a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>#p<?= htmlspecialchars($reply['id']) ?>" title="Link to this post">No.</a><a href="/<?= htmlspecialchars($board_slug) ?>/thread/<?= htmlspecialchars($thread['id']) ?>#q<?= htmlspecialchars($reply['id']) ?>" title="Reply to this post"><?= htmlspecialchars($reply['id']) ?></a>
             </span>
           </div>
 
           <?php if (!empty($reply['media_url'])): ?>
-          <div class="file" id="f<?= (int)$reply['id'] ?>">
-            <div class="fileText" id="fT<?= (int)$reply['id'] ?>">
+          <div class="file" id="f<?= htmlspecialchars($reply['id']) ?>">
+            <div class="fileText" id="fT<?= htmlspecialchars($reply['id']) ?>">
               File: <a href="<?= htmlspecialchars($reply['media_url']) ?>" target="_blank"><?= htmlspecialchars($reply['media_filename'] ?? 'image') ?></a>
               (<?= htmlspecialchars($reply['media_size_human'] ?? '') ?>)
             </div>
@@ -162,7 +165,7 @@
           </div>
           <?php endif; ?>
 
-          <blockquote class="postMessage" id="m<?= (int)$reply['id'] ?>">
+          <blockquote class="postMessage" id="m<?= htmlspecialchars($reply['id']) ?>">
             <?= $reply['content_html'] ?? htmlspecialchars($reply['content'] ?? '') ?>
           </blockquote>
         </div>

@@ -15,16 +15,21 @@ use Hyperf\DbConnection\Model\Model;
  * @property string $policy_version
  * @property bool   $consented
  * @property string $created_at
+ * @method static Consent|null find(mixed $id)
+ * @method static \Hyperf\Database\Model\Builder<Consent> query()
+ * @method static Consent create(array<string, mixed> $attributes)
  */
 class Consent extends Model
 {
     protected ?string $table = 'consents';
     public bool $timestamps = false;
 
+    /** @var string[] */
     protected array $fillable = [
         'ip_hash', 'user_id', 'consent_type', 'policy_version', 'consented',
     ];
 
+    /** @var array<string, string> */
     protected array $casts = [
         'id'        => 'integer',
         'user_id'   => 'integer',

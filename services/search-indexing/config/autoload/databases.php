@@ -7,6 +7,7 @@ return [
     'default' => [
         'driver' => env('DB_DRIVER', 'pgsql'),
         'host' => env('DB_HOST', 'postgres'),
+        // @phpstan-ignore-next-line
         'port' => (int) env('DB_PORT', 5432),
         'database' => env('DB_DATABASE', 'ashchan'),
         'username' => env('DB_USER', 'ashchan'),

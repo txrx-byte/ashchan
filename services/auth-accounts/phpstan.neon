@@ -1,0 +1,11 @@
+parameters:
+    level: 10
+    bootstrapFiles:
+        - phpstan-bootstrap.php
+    paths:
+        - app
+        - config
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#Static call to instance method Hyperf\DbConnection\Db::.*#'
+        - '#Static call to instance method Hyperf\HttpServer\Router\Router::.*#'

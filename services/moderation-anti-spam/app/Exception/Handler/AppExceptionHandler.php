@@ -28,7 +28,7 @@ class AppExceptionHandler extends ExceptionHandler
         return $response
             ->withStatus(500)
             ->withHeader('Content-Type', 'application/json')
-            ->withBody(new SwooleStream(json_encode([
+            ->withBody(new SwooleStream((string) json_encode([
                 'error' => $throwable->getMessage(),
                 'class' => get_class($throwable),
                 'file' => $throwable->getFile(),
