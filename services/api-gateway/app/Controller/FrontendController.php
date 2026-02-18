@@ -487,9 +487,11 @@ final class FrontendController
     }
 
     /** GET /staff/css/{path} - Serve staff CSS files */
-    public function staffCss(RequestInterface $request): ResponseInterface
+    public function staffCss(RequestInterface $request, string $path): ResponseInterface
     {
-        $path = $request->getAttribute('path');
+        if (empty($path)) {
+            return $this->response->json(['error' => 'File not found'], 404);
+        }
         $filePath = __DIR__ . '/../../public/staff/css/' . basename($path);
         
         if (!file_exists($filePath)) {
@@ -501,9 +503,11 @@ final class FrontendController
     }
 
     /** GET /staff/js/{path} - Serve staff JS files */
-    public function staffJs(RequestInterface $request): ResponseInterface
+    public function staffJs(RequestInterface $request, string $path): ResponseInterface
     {
-        $path = $request->getAttribute('path');
+        if (empty($path)) {
+            return $this->response->json(['error' => 'File not found'], 404);
+        }
         $filePath = __DIR__ . '/../../public/staff/js/' . basename($path);
         
         if (!file_exists($filePath)) {
