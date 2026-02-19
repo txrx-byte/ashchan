@@ -36,15 +36,14 @@ final class AuthMiddleware implements MiddlewareInterface
         // Check if route requires auth
         $requiresAuth = false;
         foreach (self::PROTECTED_PREFIXES as $prefix) {
-            [$reqMethod, $reqPath] = explode(' ', $prefix, 2);
-            if ($method === $reqMethod && str_starts_with($path, $reqPath)) {
-                $requiresAuth = true;
-                break;
+            $parts = explode(' ', $prefix, 2);
+            if (count($parts) === 2) {
+                [$reqMethod, $reqPath] = $parts;
+                if ($method === $reqMethod && str_starts_with($path, $reqPath)) {
+                    $requiresAuth = true;
+                    break;
+                }
             }
-        }
-
-        if (!$requiresAuth) {
-            return $handler->handle($request);
         }
 
         // Extract token
@@ -52,13 +51,18 @@ final class AuthMiddleware implements MiddlewareInterface
         $token = null;
         if (str_starts_with($auth, 'Bearer ')) {
             $token = substr($auth, 7);
-        }
-        if (!$token) {
+        } else {
             $cookies = $request->getCookieParams();
             $token = $cookies['session_token'] ?? null;
         }
 
-        if (!$token) {
+        // If no token and not required, pass
+        if (!$token && !$requiresAuth) {
+            return $handler->handle($request);
+        }
+
+        // If no token but required, fail
+        if (!$token && $requiresAuth) {
             $response = new \Hyperf\HttpMessage\Server\Response();
             $json = json_encode(['error' => 'Authentication required']);
             return $response->withStatus(401)
@@ -68,27 +72,35 @@ final class AuthMiddleware implements MiddlewareInterface
 
         // Validate with auth service
         $tokenStr = is_string($token) ? $token : '';
-        $result = $this->proxyClient->forward('auth', 'GET', '/api/v1/auth/validate', [
-            'Authorization' => "Bearer {$tokenStr}",
-        ]);
+        try {
+            $result = $this->proxyClient->forward('auth', 'GET', '/api/v1/auth/validate', [
+                'Authorization' => "Bearer {$tokenStr}",
+            ]);
 
-        if ($result['status'] !== 200) {
-            $response = new \Hyperf\HttpMessage\Server\Response();
-            $json = json_encode(['error' => 'Invalid or expired token']);
-            return $response->withStatus(401)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream($json ?: ''));
+            if ($result['status'] === 200) {
+                $body = $result['body'];
+                $decoded = is_string($body) ? json_decode($body, true) : [];
+                $userData = is_array($decoded) && isset($decoded['user']) && is_array($decoded['user']) ? $decoded['user'] : [];
+
+                // Inject user info into request
+                $request = $request
+                    ->withAttribute('user_id', $userData['user_id'] ?? null)
+                    ->withAttribute('username', $userData['username'] ?? null)
+                    ->withAttribute('role', $userData['role'] ?? null);
+            } elseif ($requiresAuth) {
+                // Failed and required
+                $response = new \Hyperf\HttpMessage\Server\Response();
+                $json = json_encode(['error' => 'Invalid or expired token']);
+                return $response->withStatus(401)
+                    ->withHeader('Content-Type', 'application/json')
+                    ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream($json ?: ''));
+            }
+        } catch (\Throwable $e) {
+             if ($requiresAuth) {
+                $response = new \Hyperf\HttpMessage\Server\Response();
+                return $response->withStatus(500)->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream('Auth service error'));
+             }
         }
-
-        $body = $result['body'];
-        $decoded = is_string($body) ? json_decode($body, true) : [];
-        $userData = is_array($decoded) && isset($decoded['user']) && is_array($decoded['user']) ? $decoded['user'] : [];
-
-        // Inject user info into request
-        $request = $request
-            ->withAttribute('user_id', $userData['user_id'] ?? null)
-            ->withAttribute('username', $userData['username'] ?? null)
-            ->withAttribute('role', $userData['role'] ?? null);
 
         return $handler->handle($request);
     }

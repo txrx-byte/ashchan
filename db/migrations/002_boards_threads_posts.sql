@@ -56,7 +56,7 @@ CREATE TABLE posts (
   email VARCHAR(128),
   subject VARCHAR(255),
   content_html TEXT,
-  ip_hash VARCHAR(64),
+  ip_address VARCHAR(45),
   country_code VARCHAR(4),
   
   -- Media fields

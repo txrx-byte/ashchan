@@ -19,3 +19,8 @@ Router::post('/api/v1/spam/check', [ModerationController::class, 'spamCheck']);
 // Captcha
 Router::get('/api/v1/captcha', [ModerationController::class, 'captcha']);
 Router::post('/api/v1/captcha/verify', [ModerationController::class, 'verifyCaptcha']);
+
+// StopForumSpam
+use App\Controller\StopForumSpamController;
+Router::post('/api/v1/spam/sfs-check', [StopForumSpamController::class, 'check']);
+Router::post('/api/v1/spam/sfs-report', [StopForumSpamController::class, 'report']);

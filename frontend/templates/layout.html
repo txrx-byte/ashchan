@@ -8,6 +8,9 @@
   <link rel="stylesheet" id="themeStylesheet" href="/static/css/yotsuba-b.css">
   <script src="/static/js/core.js" defer></script>
   <script src="/static/js/extension.js" defer></script>
+  {% if is_staff %}
+  <script src="/static/js/mod.js" defer></script>
+  {% endif %}
   {% block extra_scripts %}{% endblock %}
   <meta name="robots" content="noindex,nofollow">
 </head>

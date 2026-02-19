@@ -84,7 +84,7 @@ final class ThreadController
             'content'         => $content,
             'password'        => $password,
             'spoiler'         => $spoiler,
-            'ip_hash'         => hash('sha256', $this->getClientIp($request)),
+            'ip_address'      => $this->getClientIp($request),
             // Media fields injected by API gateway after upload
             'media_url'       => $input['media_url'] ?? null,
             'thumb_url'       => $input['thumb_url'] ?? null,
@@ -129,7 +129,7 @@ final class ThreadController
             'content'         => $content,
             'password'        => $password,
             'spoiler'         => $spoiler,
-            'ip_hash'         => hash('sha256', $this->getClientIp($request)),
+            'ip_address'      => $this->getClientIp($request),
             'media_url'       => $input['media_url'] ?? null,
             'thumb_url'       => $input['thumb_url'] ?? null,
             'media_filename'  => $input['media_filename'] ?? null,

@@ -828,6 +828,12 @@ var PostMenu = {
     menu.className = 'post-menu';
     menu.innerHTML = html;
 
+    // Dispatch event for extensions (e.g. Mod tools)
+    var event = new CustomEvent('ashchanPostMenuReady', { 
+      detail: { menu: menu, pid: pid, btn: btn } 
+    });
+    document.dispatchEvent(event);
+
     var rect = btn.getBoundingClientRect();
     menu.style.top = (rect.bottom + 3 + window.pageYOffset) + 'px';
     menu.style.left = (rect.left + window.pageXOffset) + 'px';

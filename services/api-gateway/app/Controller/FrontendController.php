@@ -84,6 +84,7 @@ final class FrontendController
             'total_pages'    => $totalPages,
             'threads'        => $threads,
             'thread_id'      => '',
+            'is_staff'       => $this->isStaff($request),
         ]));
 
         return $this->html($html);
@@ -141,7 +142,7 @@ final class FrontendController
     }
 
     /** GET /{slug}/thread/{id} – Thread view */
-    public function thread(string $slug, int $id): ResponseInterface
+    public function thread(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $common = $this->getCommonData();
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
@@ -175,9 +176,16 @@ final class FrontendController
             'image_count'   => $threadData['image_count'] ?? 0,
             'thread_locked' => $threadData['locked'] ?? false,
             'thread_sticky' => $threadData['sticky'] ?? false,
+            'is_staff'      => $this->isStaff($request),
         ]));
 
         return $this->html($html);
+    }
+
+    private function isStaff(RequestInterface $request): bool
+    {
+        $role = $request->getAttribute('role');
+        return in_array($role, ['admin', 'manager', 'moderator', 'janitor'], true);
     }
 
     /** POST /{slug}/threads – Create new thread (from form) */
