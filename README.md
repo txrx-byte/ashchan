@@ -1,4 +1,5 @@
 # ashchan
+[![PHP Composer](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml/badge.svg)](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml)
 
 Ashchan is a high-performance, privacy-first imageboard built on Hyperf with a distributed microservices architecture. It features an **mTLS ServiceMesh** for zero-trust security, DNS-based service discovery, and runs entirely on **rootless Podman** (no Kubernetes).
 
