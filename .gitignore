@@ -10,6 +10,7 @@ Desktop.ini
 # IDE / Editor
 .idea/
 .vscode/
+.vscode/mcp.json
 *.sublime-project
 *.sublime-workspace
 .project
