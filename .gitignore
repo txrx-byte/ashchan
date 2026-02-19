@@ -55,3 +55,6 @@ runtime/logs/
 *.seed
 *.pid.lock
 *.tgz
+
+# Secrets / Certificates
+certs/
