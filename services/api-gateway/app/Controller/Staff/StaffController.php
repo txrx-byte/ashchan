@@ -195,6 +195,46 @@ final class StaffController
         return $this->response->html($html);
     }
 
+    #[PostMapping(path: 'bans/unban')]
+    public function unban(): ResponseInterface
+    {
+        $user = $this->getUser();
+        $body = $this->request->getParsedBody();
+        $ids = $body['ids'] ?? '';
+        
+        if (empty($ids)) {
+            return $this->response->json(['status' => 'error', 'message' => 'No IDs provided']);
+        }
+        
+        $idList = explode(',', $ids);
+        
+        foreach ($idList as $id) {
+            if (is_numeric($id)) {
+                $this->modService->unban((int)$id, $user['username']);
+            }
+        }
+        
+        return $this->response->json(['status' => 'success']);
+    }
+
+    #[GetMapping(path: 'dashboard/stats')]
+    public function dashboardStats(): ResponseInterface
+    {
+        $mode = $this->request->query('mode');
+        $data = [];
+        
+        // Mock data for now until log aggregation is implemented
+        if ($mode === 'clr') {
+            $data = ['System' => 0];
+        } elseif ($mode === 'del') {
+            $data = ['System' => 0];
+        } elseif ($mode === 'fence_skip') {
+            $data = [];
+        }
+        
+        return $this->response->json(['status' => 'success', 'data' => $data]);
+    }
+
     private function getUser(): ?array
     {
         return \Hyperf\Context\Context::get('staff_user');

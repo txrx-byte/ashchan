@@ -188,4 +188,59 @@ final class ThreadController
 
         return is_string($ip) ? $ip : '127.0.0.1';
     }
+
+    /** DELETE /api/v1/boards/{slug}/posts/{id} – Staff delete post */
+    public function staffDeletePost(RequestInterface $request, string $slug, int $id): ResponseInterface
+    {
+        $imageOnly = (bool) $request->query('file_only', false);
+        
+        // In production, authentication is handled by the Gateway.
+        // We assume if this endpoint is reached, the user is authorized.
+        
+        $success = $this->boardService->staffDeletePost($id, $imageOnly);
+        
+        if ($success) {
+            return $this->response->json(['success' => true]);
+        }
+        
+        return $this->response->json(['error' => 'Failed to delete post'])->withStatus(500);
+    }
+
+    /** POST /api/v1/boards/{slug}/threads/{id}/options – Staff thread options */
+    public function staffThreadOptions(RequestInterface $request, string $slug, int $id): ResponseInterface
+    {
+        $option = $request->input('option');
+        
+        if (!in_array($option, ['sticky', 'lock', 'permasage'])) {
+            return $this->response->json(['error' => 'Invalid option'])->withStatus(400);
+        }
+        
+        $success = $this->boardService->toggleThreadOption($id, $option);
+        
+        if ($success) {
+            return $this->response->json(['success' => true]);
+        }
+        
+        return $this->response->json(['error' => 'Failed to toggle option'])->withStatus(500);
+    }
+
+    /** POST /api/v1/boards/{slug}/posts/{id}/spoiler – Staff toggle spoiler */
+    public function staffSpoiler(RequestInterface $request, string $slug, int $id): ResponseInterface
+    {
+        $success = $this->boardService->toggleSpoiler($id);
+        
+        if ($success) {
+            return $this->response->json(['success' => true]);
+        }
+        
+        return $this->response->json(['error' => 'Failed to toggle spoiler'])->withStatus(500);
+    }
+
+    /** GET /api/v1/boards/{slug}/threads/{id}/ips – Staff IP lookup */
+    public function staffThreadIps(RequestInterface $request, string $slug, int $id): ResponseInterface
+    {
+        // Auth check assumed (gateway)
+        $data = $this->boardService->getThreadIps($id);
+        return $this->response->json($data);
+    }
 }

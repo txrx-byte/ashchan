@@ -24,3 +24,9 @@ Router::get('/api/v1/boards/{slug}/threads/{id:\d+}/posts', [ThreadController::c
 
 // Post actions
 Router::post('/api/v1/posts/delete', [ThreadController::class, 'deletePost']);
+
+// Staff actions
+Router::delete('/api/v1/boards/{slug}/posts/{id:\d+}', [ThreadController::class, 'staffDeletePost']);
+Router::post('/api/v1/boards/{slug}/threads/{id:\d+}/options', [ThreadController::class, 'staffThreadOptions']);
+Router::post('/api/v1/boards/{slug}/posts/{id:\d+}/spoiler', [ThreadController::class, 'staffSpoiler']);
+Router::get('/api/v1/boards/{slug}/threads/{id:\d+}/ips', [ThreadController::class, 'staffThreadIps']);

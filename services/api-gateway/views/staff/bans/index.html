@@ -78,8 +78,8 @@
 </thead>
 <tbody>
   <!-- Sample ban entries - would be populated from database -->
-  <tr class="ban-row">
-    <td class="col-edit"><input type="checkbox" class="ban-select"></td>
+  <tr class="ban-row" id="ban-1">
+    <td class="col-edit"><input type="checkbox" class="range-select" data-id="1"></td>
     <td class="col-act"><span class="act-active">✓</span></td>
     <td class="col-board">
       <span class="ban-board">/g/</span>
@@ -103,8 +103,8 @@
       <a href="/staff/bans/edit/1" class="button button-light button-small">Edit</a>
     </td>
   </tr>
-  <tr class="ban-row">
-    <td class="col-edit"><input type="checkbox" class="ban-select"></td>
+  <tr class="ban-row" id="ban-2">
+    <td class="col-edit"><input type="checkbox" class="range-select" data-id="2"></td>
     <td class="col-act"><span class="act-active">✓</span></td>
     <td class="col-board">
       <span class="ban-board">/v/</span>
@@ -153,13 +153,7 @@
 </div>
 </main>
 
-<script>
-// Toggle all checkboxes
-document.getElementById('toggle-all')?.addEventListener('change', function() {
-  document.querySelectorAll('.ban-select').forEach(cb => {
-    cb.checked = this.checked;
-  });
-});
-</script>
+<script src="/staff/js/admincore.js"></script>
+<script src="/staff/js/bans.js"></script>
 </body>
 </html>

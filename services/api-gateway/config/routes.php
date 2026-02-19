@@ -40,7 +40,9 @@ Router::get('/staff/logout', [\App\Controller\Staff\StaffController::class, 'log
 Router::get('/staff', [\App\Controller\Staff\StaffController::class, 'index']);
 Router::get('/staff/admin', [\App\Controller\Staff\StaffController::class, 'admin']);
 Router::get('/staff/dashboard', [\App\Controller\Staff\StaffController::class, 'dashboard']);
+Router::get('/staff/dashboard/stats', [\App\Controller\Staff\StaffController::class, 'dashboardStats']);
 Router::get('/staff/bans', [\App\Controller\Staff\StaffController::class, 'bans']);
+Router::post('/staff/bans/unban', [\App\Controller\Staff\StaffController::class, 'unban']);
 Router::get('/staff/reports', [\App\Controller\Staff\StaffController::class, 'reports']);
 Router::get('/staff/reports/ban-requests', [\App\Controller\Staff\StaffController::class, 'banRequests']);
 

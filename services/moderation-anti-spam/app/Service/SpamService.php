@@ -26,6 +26,7 @@ final class SpamService
 
     public function __construct(
         private Redis $redis,
+        private StopForumSpamService $sfsService,
     ) {}
 
     /**
@@ -33,11 +34,17 @@ final class SpamService
      *
      * @return array{allowed: bool, score: int, reasons: string[], captcha_required: bool}
      */
-    public function check(string $ipHash, string $content, bool $isThread, ?string $imageHash = null): array
+    public function check(string $ipHash, string $content, bool $isThread, ?string $imageHash = null, ?string $realIp = null): array
     {
         $score   = 0;
         /** @var string[] $reasons */
         $reasons = [];
+
+        // Layer 0: StopForumSpam (if real IP provided)
+        if ($realIp && $this->sfsService->check($realIp)) {
+            $score += 100;
+            $reasons[] = 'Blocked by StopForumSpam';
+        }
 
         // Layer 1: Rate limiting
         [$rateLimited, $rateReason] = $this->checkRateLimit($ipHash, $isThread);

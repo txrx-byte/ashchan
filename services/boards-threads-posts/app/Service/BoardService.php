@@ -644,4 +644,100 @@ final class BoardService
             $thread->update(['archived' => true]);
         }
     }
+
+    /* ──────────────────────────────────────────────
+     * Staff Actions
+     * ────────────────────────────────────────────── */
+
+    public function staffDeletePost(int $postId, bool $imageOnly = false): bool
+    {
+        /** @var Post|null $post */
+        $post = Post::find($postId);
+        if (!$post) return false;
+
+        if ($imageOnly) {
+            $post->update([
+                'media_url'  => null,
+                'thumb_url'  => null,
+                'media_size' => null,
+            ]);
+        } else {
+            $post->update([
+                'deleted'    => true,
+                'deleted_at' => \Carbon\Carbon::now(),
+                'content'    => '',
+                'content_html' => '',
+                'media_url'  => null,
+                'thumb_url'  => null,
+            ]);
+        }
+
+        // Invalidate cache
+        $this->redis->del("thread:{$post->thread_id}");
+
+        return true;
+    }
+
+    public function toggleThreadOption(int $threadId, string $option): bool
+    {
+        /** @var Thread|null $thread */
+        $thread = Thread::find($threadId);
+        if (!$thread) return false;
+
+        if ($option === 'sticky') {
+            $thread->sticky = !$thread->sticky;
+        } elseif ($option === 'lock') {
+            $thread->locked = !$thread->locked;
+        } elseif ($option === 'permasage') {
+            // Implement if supported
+        }
+
+        $thread->save();
+        $this->redis->del("thread:{$thread->id}");
+        // Need to load board relation to get slug for cache clearing
+        $thread->load('board');
+        if ($thread->board) {
+            $this->redis->del("board:{$thread->board->slug}:index");
+        }
+
+        return true;
+    }
+
+    public function toggleSpoiler(int $postId): bool
+    {
+        /** @var Post|null $post */
+        $post = Post::find($postId);
+        if (!$post) return false;
+
+        $post->spoiler_image = !$post->spoiler_image;
+        $post->save();
+        
+        $this->redis->del("thread:{$post->thread_id}");
+
+        return true;
+    }
+
+    /**
+     * Get IP hashes for posts in a thread (Staff only).
+     * @return array<int, string> Map of post_id => ip_hash
+     */
+    public function getThreadIps(int $threadId): array
+    {
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */
+        $posts = Post::query()
+            ->where('thread_id', $threadId)
+            ->get();
+
+        $result = [];
+        // Salt for hashing (should be consistent/configurable)
+        $salt = env('IP_HASH_SALT', 'ashchan_secret_salt');
+
+        foreach ($posts as $post) {
+            // Consistent hashing for Same Poster ID
+            $hash = substr(base64_encode(pack('H*', sha1($post->ip_address . $salt))), 0, 8);
+            $result[$post->id] = $hash;
+        }
+
+        return $result;
+    }
 }
