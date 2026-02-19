@@ -97,8 +97,11 @@ init_env_files() {
 
 # Start all services
 start_services() {
-    info "Starting Ashchan services..."
+    info "Cleaning up stale containers and networks..."
     cd "$SCRIPT_DIR"
+    podman-compose down --remove-orphans 2>/dev/null || true
+    
+    info "Starting Ashchan services..."
     podman-compose up -d
     success "Services started!"
     info "Run './ashchan.sh health' to check service status"

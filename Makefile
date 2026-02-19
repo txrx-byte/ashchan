@@ -33,6 +33,7 @@ install:
 	@echo "Done. Edit .env files as needed."
 
 up:
+	podman-compose down --remove-orphans 2>/dev/null || true
 	podman-compose up -d
 
 down:

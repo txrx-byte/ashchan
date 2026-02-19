@@ -5,25 +5,10 @@ version: '2.4'
 # DNS-based service discovery: <service>.ashchan.local
 
 networks:
-  # Primary service mesh network with mTLS
   ashchan-mesh:
     driver: bridge
-    ipam:
-      driver: host-local
-      config:
-        - subnet: 10.90.0.0/24
-          gateway: 10.90.0.1
-    options:
-      com.docker.network.bridge.name: ashchan-mesh
-
-  # Public-facing network (API Gateway only)
   ashchan-public:
     driver: bridge
-    ipam:
-      driver: host-local
-      config:
-        - subnet: 10.90.1.0/24
-          gateway: 10.90.1.1
 
 services:
   # ─────────────────────────────────────────────────────────────
@@ -44,8 +29,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./db/migrations:/docker-entrypoint-initdb.d:ro
     networks:
-      ashchan-mesh:
-        ipv4_address: 10.90.0.10
+      - ashchan-mesh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ashchan"]
       interval: 5s
@@ -62,8 +46,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      ashchan-mesh:
-        ipv4_address: 10.90.0.11
+      - ashchan-mesh
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -85,8 +68,7 @@ services:
     volumes:
       - minio_data:/data
     networks:
-      ashchan-mesh:
-        ipv4_address: 10.90.0.12
+      - ashchan-mesh
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live"]
       interval: 10s
@@ -120,10 +102,8 @@ services:
       redis:
         condition: service_healthy
     networks:
-      ashchan-public:
-        ipv4_address: 10.90.1.10
-      ashchan-mesh:
-        ipv4_address: 10.90.0.20
+      - ashchan-public
+      - ashchan-mesh
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9501/health || exit 1"]
       interval: 10s
@@ -151,8 +131,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      ashchan-mesh:
-        ipv4_address: 10.90.0.21
+      - ashchan-mesh
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9502/health || exit 1"]
       interval: 10s
@@ -180,8 +159,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      ashchan-mesh:
-        ipv4_address: 10.90.0.22
+      - ashchan-mesh
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9503/health || exit 1"]
       interval: 10s
@@ -211,8 +189,7 @@ services:
       minio:
         condition: service_healthy
     networks:
-      ashchan-mesh:
-        ipv4_address: 10.90.0.23
+      - ashchan-mesh
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9504/health || exit 1"]
       interval: 10s
@@ -240,8 +217,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      ashchan-mesh:
-        ipv4_address: 10.90.0.24
+      - ashchan-mesh
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9505/health || exit 1"]
       interval: 10s
@@ -269,8 +245,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      ashchan-mesh:
-        ipv4_address: 10.90.0.25
+      - ashchan-mesh
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9506/health || exit 1"]
       interval: 10s

@@ -10,6 +10,12 @@ export CONTAINERS_CONF="$HOME/.config/containers/registries.conf"
 
 echo "Starting Ashchan services using Podman..."
 
+# --- Cleanup stale containers ---
+echo "Cleaning up any existing containers..."
+for name in ashchan-postgres ashchan-redis ashchan-minio ashchan-api-gateway ashchan-auth-accounts ashchan-boards-threads-posts ashchan-media-uploads ashchan-search-indexing ashchan-moderation-anti-spam; do
+  podman rm -f "$name" 2>/dev/null || true
+done
+
 # --- Create Podman Network ---
 echo "Creating Podman network: ashchan-network..."
 podman network create ashchan-network || true
