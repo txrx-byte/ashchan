@@ -1,0 +1,61 @@
+{
+  "name": "txrx-byte/ashchan",
+  "description": "Ashchan - Microservices-based imageboard software",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^10.0"
+  },
+  "scripts": {
+    "validate:services": [
+      "@validate:api-gateway",
+      "@validate:auth-accounts",
+      "@validate:boards-threads-posts",
+      "@validate:media-uploads",
+      "@validate:search-indexing",
+      "@validate:moderation-anti-spam"
+    ],
+    "validate:api-gateway": "cd services/api-gateway && composer validate --no-check-all --no-check-publish",
+    "validate:auth-accounts": "cd services/auth-accounts && composer validate --no-check-all --no-check-publish",
+    "validate:boards-threads-posts": "cd services/boards-threads-posts && composer validate --no-check-all --no-check-publish",
+    "validate:media-uploads": "cd services/media-uploads && composer validate --no-check-all --no-check-publish",
+    "validate:search-indexing": "cd services/search-indexing && composer validate --no-check-all --no-check-publish",
+    "validate:moderation-anti-spam": "cd services/moderation-anti-spam && composer validate --no-check-all --no-check-publish",
+    "install:all": [
+      "@install:api-gateway",
+      "@install:auth-accounts",
+      "@install:boards-threads-posts",
+      "@install:media-uploads",
+      "@install:search-indexing",
+      "@install:moderation-anti-spam"
+    ],
+    "install:api-gateway": "cd services/api-gateway && composer install --prefer-dist --no-progress",
+    "install:auth-accounts": "cd services/auth-accounts && composer install --prefer-dist --no-progress",
+    "install:boards-threads-posts": "cd services/boards-threads-posts && composer install --prefer-dist --no-progress",
+    "install:media-uploads": "cd services/media-uploads && composer install --prefer-dist --no-progress",
+    "install:search-indexing": "cd services/search-indexing && composer install --prefer-dist --no-progress",
+    "install:moderation-anti-spam": "cd services/moderation-anti-spam && composer install --prefer-dist --no-progress",
+    "phpstan": [
+      "cd services/api-gateway && composer phpstan",
+      "cd services/auth-accounts && composer phpstan",
+      "cd services/boards-threads-posts && composer phpstan",
+      "cd services/media-uploads && composer phpstan",
+      "cd services/search-indexing && composer phpstan",
+      "cd services/moderation-anti-spam && composer phpstan"
+    ],
+    "test": [
+      "cd services/boards-threads-posts && composer test"
+    ]
+  },
+  "config": {
+    "sort-packages": true,
+    "optimize-autoloader": true,
+    "allow-plugins": {
+      "phpstan/extension-installer": true
+    }
+  }
+}
