@@ -31,10 +31,10 @@ return [
         'ca_file' => env('MTLS_CA_FILE', '/etc/mtls/ca/ca.crt'),
 
         // Server certificate file
-        'cert_file' => env('MTLS_CERT_FILE', '/etc/mtls/server/server.crt'),
+        'cert_file' => env('MTLS_CERT_FILE', '/etc/mtls/gateway/gateway.crt'),
 
         // Server private key file
-        'key_file' => env('MTLS_KEY_FILE', '/etc/mtls/server/server.key'),
+        'key_file' => env('MTLS_KEY_FILE', '/etc/mtls/gateway/gateway.key'),
 
         // Require client certificate verification
         'verify_peer' => env('MTLS_VERIFY_PEER', true),
@@ -43,8 +43,8 @@ return [
         'min_tls_version' => env('MTLS_MIN_TLS_VERSION', 'TLSv1.3'),
 
         // Client certificate for outbound requests
-        'client_cert_file' => env('MTLS_CLIENT_CERT_FILE', '/etc/mtls/client/client.crt'),
-        'client_key_file' => env('MTLS_CLIENT_KEY_FILE', '/etc/mtls/client/client.key'),
+        'client_cert_file' => env('MTLS_CLIENT_CERT_FILE', '/etc/mtls/gateway/gateway.crt'),
+        'client_key_file' => env('MTLS_CLIENT_KEY_FILE', '/etc/mtls/gateway/gateway.key'),
     ],
 
     // Middleware configuration
@@ -67,8 +67,8 @@ return [
             'verify' => env('MTLS_CA_FILE', '/etc/mtls/ca/ca.crt'),
 
             // Client certificate for mutual authentication
-            'cert' => env('MTLS_CLIENT_CERT_FILE', '/etc/mtls/client/client.crt'),
-            'key' => env('MTLS_CLIENT_KEY_FILE', '/etc/mtls/client/client.key'),
+            'cert' => env('MTLS_CLIENT_CERT_FILE', '/etc/mtls/gateway/gateway.crt'),
+            'key' => env('MTLS_CLIENT_KEY_FILE', '/etc/mtls/gateway/gateway.key'),
         ],
     ],
 
@@ -87,8 +87,8 @@ return [
                 'open_ssl' => true,
 
                 // Server certificate and key
-                'ssl_cert_file' => env('MTLS_CERT_FILE', '/etc/mtls/server/server.crt'),
-                'ssl_key_file' => env('MTLS_KEY_FILE', '/etc/mtls/server/server.key'),
+                'ssl_cert_file' => env('MTLS_CERT_FILE', '/etc/mtls/gateway/gateway.crt'),
+                'ssl_key_file' => env('MTLS_KEY_FILE', '/etc/mtls/gateway/gateway.key'),
 
                 // Client verification (mTLS)
                 'ssl_verify_peer' => env('MTLS_VERIFY_PEER', true),
