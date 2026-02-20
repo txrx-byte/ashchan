@@ -15,7 +15,7 @@
 openapi: 3.0.3
 info:
   title: Ashchan Moderation/Anti-spam
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
@@ -27,6 +27,184 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/spam/spur-lookup:
+    post:
+      summary: Look up IP context from Spur
+      description: |
+        Queries the Spur Context API for comprehensive IP intelligence including
+        risk factors, tunnel detection (VPN/Proxy/TOR), infrastructure type,
+        and client behavior analysis.
+      tags:
+        - Spur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ip
+              properties:
+                ip:
+                  type: string
+                  description: IPv4 or IPv6 address to look up
+                  example: "89.39.106.191"
+      responses:
+        '200':
+          description: IP context retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpurContextResponse'
+        '400':
+          description: IP address required
+        '422':
+          description: Lookup failed or IP is not public
+        '503':
+          description: Spur integration is not enabled
+
+  /api/v1/spam/spur-evaluate:
+    post:
+      summary: Evaluate IP risk score using Spur data
+      description: |
+        Evaluates an IP address for spam/abuse risk based on Spur context data.
+        Returns a risk score, contributing reasons, and a block recommendation.
+      tags:
+        - Spur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ip
+              properties:
+                ip:
+                  type: string
+                  description: IPv4 or IPv6 address to evaluate
+                  example: "89.39.106.191"
+      responses:
+        '200':
+          description: Risk evaluation complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpurEvaluationResponse'
+        '400':
+          description: IP address required
+        '503':
+          description: Spur integration is not enabled
+
+  /api/v1/spam/spur-status:
+    get:
+      summary: Check if Spur integration is enabled
+      tags:
+        - Spur
+      responses:
+        '200':
+          description: Status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+
+  /api/v1/admin/settings:
+    get:
+      summary: List all site settings
+      description: Returns all configurable site settings (feature toggles).
+      tags:
+        - Settings
+      responses:
+        '200':
+          description: Settings list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSettingsListResponse'
+
+  /api/v1/admin/settings/{key}:
+    get:
+      summary: Get a specific setting
+      tags:
+        - Settings
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: spur_enabled
+      responses:
+        '200':
+          description: Setting value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSettingResponse'
+    put:
+      summary: Update a site setting
+      description: Updates a setting value. Requires admin authentication. All changes are audit-logged.
+      tags:
+        - Settings
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: spur_enabled
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - value
+              properties:
+                value:
+                  type: string
+                  description: New value for the setting
+                  example: "true"
+                reason:
+                  type: string
+                  description: Optional reason for the change
+                  example: "Enabling Spur for VPN detection"
+      responses:
+        '200':
+          description: Setting updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSettingUpdateResponse'
+        '400':
+          description: Value is required
+
+  /api/v1/admin/settings/{key}/audit:
+    get:
+      summary: Get audit history for a setting
+      tags:
+        - Settings
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: spur_enabled
+      responses:
+        '200':
+          description: Audit log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSettingAuditResponse'
+
 components:
   schemas:
     HealthResponse:
@@ -36,3 +214,164 @@ components:
           type: string
       required:
         - status
+
+    SpurContextResponse:
+      type: object
+      properties:
+        ip:
+          type: string
+        risks:
+          type: array
+          items:
+            type: string
+          example: ["CALLBACK_PROXY", "TUNNEL", "GEO_MISMATCH"]
+        tunnels:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpurTunnel'
+        infrastructure:
+          type: string
+          enum: [DATACENTER, MOBILE, ISP, EDUCATIONAL, GOVERNMENT, MILITARY, BUSINESS]
+          example: DATACENTER
+        location:
+          $ref: '#/components/schemas/SpurLocation'
+        organization:
+          type: string
+        as:
+          $ref: '#/components/schemas/SpurAS'
+        client:
+          $ref: '#/components/schemas/SpurClient'
+
+    SpurTunnel:
+      type: object
+      properties:
+        anonymous:
+          type: boolean
+        operator:
+          type: string
+          example: PROTON_VPN
+        type:
+          type: string
+          enum: [VPN, PROXY, TOR]
+
+    SpurLocation:
+      type: object
+      properties:
+        city:
+          type: string
+        country:
+          type: string
+        state:
+          type: string
+
+    SpurAS:
+      type: object
+      properties:
+        number:
+          type: integer
+        organization:
+          type: string
+
+    SpurClient:
+      type: object
+      properties:
+        proxies:
+          type: array
+          items:
+            type: string
+        behaviors:
+          type: array
+          items:
+            type: string
+        count:
+          type: integer
+          description: Number of clients observed behind this IP
+        countries:
+          type: integer
+          description: Number of distinct countries of clients
+        types:
+          type: array
+          items:
+            type: string
+            enum: [MOBILE, DESKTOP]
+
+    SpurEvaluationResponse:
+      type: object
+      properties:
+        score:
+          type: integer
+          description: Composite risk score (higher = riskier)
+        reasons:
+          type: array
+          items:
+            type: string
+          description: List of contributing risk factors
+        block:
+          type: boolean
+          description: Whether the IP should be blocked
+
+    SiteSettingsListResponse:
+      type: object
+      properties:
+        settings:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SiteSettingDetail'
+
+    SiteSettingDetail:
+      type: object
+      properties:
+        value:
+          type: string
+        description:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_by:
+          type: integer
+          nullable: true
+
+    SiteSettingResponse:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+
+    SiteSettingUpdateResponse:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        status:
+          type: string
+          example: updated
+
+    SiteSettingAuditResponse:
+      type: object
+      properties:
+        key:
+          type: string
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              old_value:
+                type: string
+                nullable: true
+              new_value:
+                type: string
+              changed_by:
+                type: integer
+                nullable: true
+              changed_at:
+                type: string
+                format: date-time
+              reason:
+                type: string

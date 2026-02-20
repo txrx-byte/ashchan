@@ -27,6 +27,7 @@ use Hyperf\DbConnection\Model\Model;
  *
  * @property int    $id
  * @property string $ip_hash
+ * @property string $ip_encrypted
  * @property int|null $user_id
  * @property string $consent_type     (age_verification|privacy_policy|data_processing|cookies)
  * @property string $policy_version
@@ -43,7 +44,7 @@ class Consent extends Model
 
     /** @var string[] */
     protected array $fillable = [
-        'ip_hash', 'user_id', 'consent_type', 'policy_version', 'consented',
+        'ip_hash', 'ip_encrypted', 'user_id', 'consent_type', 'policy_version', 'consented',
     ];
 
     /** @var array<string, string> */

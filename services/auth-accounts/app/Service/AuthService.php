@@ -32,6 +32,7 @@ final class AuthService
 
     public function __construct(
         private Redis $redis,
+        private PiiEncryptionService $piiEncryption,
     ) {}
 
     /* ──────────────────────────────────────────────
@@ -79,7 +80,7 @@ final class AuthService
         $session = Session::create([
             'user_id'    => $user->id,
             'token'      => hash('sha256', $token),
-            'ip_address' => $ip,
+            'ip_address' => $this->piiEncryption->encrypt($ip),
             'user_agent' => $userAgent,
             'expires_at' => date('Y-m-d H:i:s', time() + self::SESSION_TTL),
         ]);
@@ -201,11 +202,12 @@ final class AuthService
      * Consent Tracking (GDPR / COPPA / CCPA)
      * ────────────────────────────────────────────── */
 
-    public function recordConsent(string $ipHash, ?int $userId, string $type, string $policyVersion, bool $consented): Consent
+    public function recordConsent(string $ipHash, string $ipEncrypted, ?int $userId, string $type, string $policyVersion, bool $consented): Consent
     {
         // @phpstan-ignore-next-line
         return Consent::create([
             'ip_hash'        => $ipHash,
+            'ip_encrypted'   => $ipEncrypted,
             'user_id'        => $userId,
             'consent_type'   => $type,
             'policy_version' => $policyVersion,

@@ -110,10 +110,11 @@ final class ModerationController extends AbstractController
             'host' => '',
         ];
 
-        // Get reporter info — encrypt IP before storage
+        // Get reporter info — encrypt IP for storage, hash for lookups
         $remoteAddr = $request->server('remote_addr', '');
         $ip = is_string($remoteAddr) ? $remoteAddr : '';
         $encryptedIp = $this->piiEncryption->encrypt($ip);
+        $ipHash = hash('sha256', $ip);
 
         // Get request signature for spam filtering
         $reqSig = $this->buildRequestSignature($request);
@@ -125,6 +126,7 @@ final class ModerationController extends AbstractController
                 (int) $categoryId,
                 $postData,
                 $encryptedIp,
+                $ipHash,
                 null, // pwd
                 null, // pass_id
                 $reqSig
@@ -528,11 +530,15 @@ final class ModerationController extends AbstractController
 
     /**
      * POST /api/v1/spam/check - Check content for spam
+     *
+     * Accepts raw IP — hashes internally for rate-limiting keys.
+     * Falls back to ip_hash for backward compatibility.
      */
     #[PostMapping(path: 'spam/check')]
     public function spamCheck(RequestInterface $request): ResponseInterface
     {
         $content = $request->input('content', '');
+        $rawIp = $request->input('ip', '');
         $ipHash = $request->input('ip_hash', '');
         $isThread = (bool) $request->input('is_thread', false);
         $imageHash = $request->input('image_hash');
@@ -540,8 +546,12 @@ final class ModerationController extends AbstractController
         if (!is_string($content)) {
             $content = '';
         }
-        if (!is_string($ipHash) || $ipHash === '') {
-            return $this->response->json(['error' => 'ip_hash is required'], 400);
+
+        // Prefer raw IP (hash internally), fall back to pre-hashed for backward compat
+        if (is_string($rawIp) && $rawIp !== '') {
+            $ipHash = hash('sha256', $rawIp);
+        } elseif (!is_string($ipHash) || $ipHash === '') {
+            return $this->response->json(['error' => 'ip or ip_hash is required'], 400);
         }
 
         $result = $this->spamService->check(

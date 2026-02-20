@@ -41,3 +41,16 @@ Router::post('/api/v1/captcha/verify', [ModerationController::class, 'verifyCapt
 use App\Controller\StopForumSpamController;
 Router::post('/api/v1/spam/sfs-check', [StopForumSpamController::class, 'check']);
 Router::post('/api/v1/spam/sfs-report', [StopForumSpamController::class, 'report']);
+
+// Spur IP Intelligence
+use App\Controller\SpurController;
+Router::post('/api/v1/spam/spur-lookup', [SpurController::class, 'lookup']);
+Router::post('/api/v1/spam/spur-evaluate', [SpurController::class, 'evaluate']);
+Router::get('/api/v1/spam/spur-status', [SpurController::class, 'status']);
+
+// Site Settings (Admin Feature Toggles)
+use App\Controller\SiteSettingsController;
+Router::get('/api/v1/admin/settings', [SiteSettingsController::class, 'index']);
+Router::get('/api/v1/admin/settings/{key}', [SiteSettingsController::class, 'show']);
+Router::put('/api/v1/admin/settings/{key}', [SiteSettingsController::class, 'update']);
+Router::get('/api/v1/admin/settings/{key}/audit', [SiteSettingsController::class, 'audit']);

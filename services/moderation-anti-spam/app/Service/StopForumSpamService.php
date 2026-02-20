@@ -29,7 +29,7 @@ use Psr\Log\LoggerInterface;
  */
 class StopForumSpamService
 {
-    private const API_URL = 'http://api.stopforumspam.org/api';
+    private const API_URL = 'https://api.stopforumspam.org/api';
     private const REPORT_URL = 'https://www.stopforumspam.com/add.php';
     private const CONFIDENCE_THRESHOLD = 80;
 
@@ -128,7 +128,7 @@ class StopForumSpamService
         try {
             $client = $this->clientFactory->create();
             $client->post(self::REPORT_URL, ['form_params' => $params, 'timeout' => 5]);
-            $this->logger->info("SFS Reported: IP=$ip");
+            $this->logger->info('SFS Reported successfully', ['ip_hash' => hash('sha256', $ip)]);
         } catch (\Throwable $e) {
             $this->logger->error('SFS Report Failed: ' . $e->getMessage());
         }

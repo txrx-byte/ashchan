@@ -25,6 +25,8 @@ use Hyperf\Redis\Redis;
 /**
  * Multi-layer anti-spam engine.
  *
+ * Layer 0a: StopForumSpam check (IP/email/username reputation)
+ * Layer 0b: Spur IP intelligence (VPN/proxy/bot detection)
  * Layer 1: Rate limiting (IP-based sliding window)
  * Layer 2: Content fingerprinting (duplicate detection)
  * Layer 3: Risk scoring (heuristic analysis)
@@ -44,10 +46,15 @@ final class SpamService
     public function __construct(
         private Redis $redis,
         private StopForumSpamService $sfsService,
+        private SpurService $spurService,
     ) {}
 
     /**
      * Run all spam checks on a potential post.
+     *
+     * $ipHash is used for rate-limiting keys in Redis (ephemeral).
+     * $realIp is the raw IP for external intelligence checks (SFS, Spur).
+     * Raw IPs are never logged or persisted by this service.
      *
      * @return array{allowed: bool, score: int, reasons: string[], captcha_required: bool}
      */
@@ -57,10 +64,22 @@ final class SpamService
         /** @var string[] $reasons */
         $reasons = [];
 
-        // Layer 0: StopForumSpam (if real IP provided)
+        // Layer 0a: StopForumSpam (if real IP provided)
         if ($realIp && $this->sfsService->check($realIp)) {
             $score += 100;
             $reasons[] = 'Blocked by StopForumSpam';
+        }
+
+        // Layer 0b: Spur IP Intelligence (if real IP provided and enabled)
+        if ($realIp) {
+            $spurResult = $this->spurService->evaluate($realIp);
+            if ($spurResult['block']) {
+                $score += $spurResult['score'];
+                $reasons = array_merge($reasons, $spurResult['reasons']);
+            } elseif ($spurResult['score'] > 0) {
+                $score += $spurResult['score'];
+                $reasons = array_merge($reasons, $spurResult['reasons']);
+            }
         }
 
         // Layer 1: Rate limiting

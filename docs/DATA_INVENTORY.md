@@ -38,8 +38,8 @@ the legal basis for collection, retention periods, and encryption requirements.
 
 | Table | Column | Classification | Purpose | Retention | Encrypted |
 |---|---|---|---|---|---|
-| `posts` | `ip_address` | **PII-Critical** | Moderation, abuse prevention, SFS reporting | **30 days**, then auto-deleted | **Yes (AES-256-GCM)** |
-| `posts` | `email` | PII-Critical | Sage/noko identification, contact | Post lifetime | **Yes (AES-256-GCM)** |
+| `posts` | `ip_address` | **PII-Critical** | Moderation, abuse prevention, SFS reporting | **30 days**, then auto-deleted | **Yes (XChaCha20-Poly1305)** |
+| `posts` | `email` | PII-Critical | Sage/noko identification, contact | Post lifetime | **Yes (XChaCha20-Poly1305)** |
 | `posts` | `author_name` | PII-Sensitive | Attribution (user-provided) | Post lifetime | No |
 | `posts` | `tripcode` | PII-Sensitive | Identity verification | Post lifetime | No |
 | `posts` | `country_code` | PII-Sensitive | Geographic context | Post lifetime | No |
@@ -53,40 +53,47 @@ the legal basis for collection, retention periods, and encryption requirements.
 
 | Table | Column | Classification | Purpose | Retention | Encrypted |
 |---|---|---|---|---|---|
-| `reports` | `ip` | **PII-Critical** | Reporter identification, abuse prevention | **90 days** | **Yes (AES-256-GCM)** |
-| `reports` | `post_ip` | **PII-Critical** | Reported user's IP for moderation | **90 days** | **Yes (AES-256-GCM)** |
-| `banned_users` | `host` | **PII-Critical** | IP ban enforcement | Ban duration + 30 days | **Yes (AES-256-GCM)** |
-| `banned_users` | `xff` | **PII-Critical** | Proxy detection | Ban duration + 30 days | **Yes (AES-256-GCM)** |
-| `banned_users` | `admin_ip` | **Staff-Internal** | Staff audit trail | 1 year | **Yes (AES-256-GCM)** |
+| `reports` | `ip` | **PII-Critical** | Reporter identification, abuse prevention | **90 days** | **Yes (XChaCha20-Poly1305)** |
+| `reports` | `ip_hash` | **PII-Critical** | Deterministic lookups for abuse filtering | **90 days** | Hashed (SHA-256) |
+| `reports` | `post_ip` | **PII-Critical** | Reported user's IP for moderation | **90 days** | **Yes (XChaCha20-Poly1305)** |
+| `banned_users` | `host` | **PII-Critical** | IP ban enforcement | Ban duration + 30 days | **Yes (XChaCha20-Poly1305)** |
+| `banned_users` | `xff` | **PII-Critical** | Proxy detection | Ban duration + 30 days | **Yes (XChaCha20-Poly1305)** |
+| `banned_users` | `admin_ip` | **Staff-Internal** | Staff audit trail | 1 year | **Yes (XChaCha20-Poly1305)** |
 | `banned_users` | `password` | PII-Sensitive | Pass-based banning | Ban duration | Hashed |
 | `banned_users` | `pass_id` | PII-Sensitive | Pass identification | Ban duration | No |
 | `banned_users` | `post_json` | PII-Sensitive | Evidence snapshot | Ban duration + 30 days | No |
-| `sfs_pending_reports` | `ip_address` | **PII-Critical** | SFS submission (requires decryption) | **30 days or until processed** | **Yes (AES-256-GCM)** |
+| `sfs_pending_reports` | `ip_address` | **PII-Critical** | SFS submission (requires decryption) | **30 days or until processed** | **Yes (XChaCha20-Poly1305)** |
 | `sfs_pending_reports` | `evidence_snapshot` | PII-Sensitive | SFS evidence | 30 days or until processed | No |
 | `risk_scores` | `*` | Operational | Spam scoring | 30 days | No |
 | `moderation_decisions` | `*` | Operational | Audit trail | 1 year | No |
-| `report_clear_log` | `ip` | **PII-Critical** | Staff audit | **90 days** | **Yes (AES-256-GCM)** |
+| `report_clear_log` | `ip_hash` | **PII-Critical** | Staff audit — abuse filtering | **90 days** | Hashed (SHA-256) |
 
 ### 2.4 Media/Uploads (`media-uploads`)
 
 | Table | Column | Classification | Purpose | Retention | Encrypted |
 |---|---|---|---|---|---|
-| `media_objects` | `uploader_ip` | **PII-Critical** | Abuse tracing | **30 days** | **Yes (AES-256-GCM)** |
+| `media_objects` | `uploader_ip` | **PII-Critical** | Abuse tracing | **30 days** | **Yes (XChaCha20-Poly1305)** |
 | `media_objects` | `*` (other) | Operational | Media management | Media lifetime | No |
 
 ### 2.5 API Gateway Logs
 
 | Data | Classification | Purpose | Retention | Encrypted |
 |---|---|---|---|---|
-| `flood_log.ip` | **PII-Critical** | Rate limiting, DDoS prevention | **24 hours** | **Yes (AES-256-GCM)** |
-| `admin_audit_log.ip_address` | **Staff-Internal** | Staff accountability | 1 year | **Yes (AES-256-GCM)** |
+| `flood_log.ip` | **PII-Critical** | Rate limiting, DDoS prevention | **24 hours** | **Yes (XChaCha20-Poly1305)** |
+| `admin_audit_log.ip_address` | **Staff-Internal** | Staff accountability | 1 year | **Yes (XChaCha20-Poly1305)** |
 
 ### 2.6 Infrastructure
 
 | Data | Classification | Purpose | Retention | Encrypted |
 |---|---|---|---|---|
-| Access logs (nginx/Swoole) | PII-Critical (contains IPs) | Debugging, security | **7 days** (logrotate) | At rest (filesystem) |
+| Access logs (nginx/Swoole) | Operational | Debugging, security | **7 days** (logrotate) | At rest (filesystem) |
 | Redis session cache | Operational | Performance | 7-day TTL | In-memory only |
+
+> **IP Address Logging Policy:** HTTP-level access logs (nginx, Swoole) **MUST NOT**
+> contain raw IP addresses. Configure `access_log off;` or redact IPs from the log format.
+> IP addresses are captured **only at post/report creation time** within the application
+> layer and encrypted immediately via `PiiEncryptionService` before database storage.
+> This ensures IPs are never persisted in plaintext anywhere in the system.
 
 ---
 
@@ -101,7 +108,7 @@ the legal basis for collection, retention periods, and encryption requirements.
 | SFS pending report IPs | 30 days or on processing | Automated cron/on-action |
 | Media uploader IPs | 30 days from upload | Automated cron job (nullify) |
 | Audit log staff IPs | 1 year | Automated cron job (nullify) |
-| Access logs | 7 days | logrotate |
+| Access logs | 7 days | logrotate (no IPs — redacted) |
 | Sessions | 7 days | TTL expiry (Redis) + DB cleanup |
 | Consent records | Indefinite | Required for legal compliance |
 | User accounts | Until deletion request | DSR workflow |
@@ -148,11 +155,28 @@ as required by applicable law.
 
 ### 6.1 Encryption at Rest
 
-All PII-Critical data is encrypted using **AES-256-GCM** with envelope encryption:
+All PII-Critical data is encrypted using **XChaCha20-Poly1305** (IETF AEAD) with envelope encryption:
 
-- **Data Encryption Key (DEK):** Random 256-bit key generated per service, stored encrypted.
-- **Key Encryption Key (KEK):** Derived from server-side secret (`PII_ENCRYPTION_KEY` env var).
-- **Nonce:** Unique 12-byte nonce per encrypted value, stored prepended to ciphertext.
+- **Data Encryption Key (DEK):** Derived from server-side secret (`PII_ENCRYPTION_KEY` env var) via BLAKE2b.
+- **Nonce:** Unique 24-byte random nonce per encrypted value, prepended to ciphertext.
+- **Format:** `enc:<base64(nonce || ciphertext || tag)>` — the `enc:` prefix distinguishes
+  encrypted values from plaintext (migration compatibility).
+- **Admin Decryption:** Authorized administrators can decrypt PII values via the
+  `PiiEncryptionService::decrypt()` method for moderation, SFS reporting, and legal compliance.
+
+#### IP Address Handling Architecture
+
+1. **In Transit (API layer):** Raw IP addresses are passed between services via mTLS-protected
+   internal APIs. No IP addresses appear in HTTP-level access logs.
+2. **At Storage (DB layer):** IPs are encrypted via `PiiEncryptionService::encrypt()` before
+   being written to any database column. The encrypted value is admin-decryptable.
+3. **For Lookups:** A deterministic SHA-256 hash of the raw IP (`ip_hash` column) is stored
+   alongside the encrypted IP for efficient database queries (e.g., abuse filtering).
+   The hash is not reversible but enables `WHERE ip_hash = ?` lookups.
+4. **In Logs:** Application logs **never** contain raw IP addresses. Only the SHA-256 hash
+   may appear in log entries for correlation purposes.
+5. **Capture Point:** IPs are only captured at the application level during post creation,
+   report submission, and staff login — never at the HTTP/access-log level.
 
 ### 6.2 SFS Decryption Workflow
 

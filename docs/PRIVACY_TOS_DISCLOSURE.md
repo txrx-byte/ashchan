@@ -20,10 +20,12 @@ may be shared with third parties.
 > When you use Ashchan, we automatically collect limited technical data necessary
 > for the operation, security, and moderation of the platform:
 >
-> - **IP Address:** Collected on each post, thread, and report submission. Used for
->   abuse prevention, ban enforcement, and spam mitigation. Encrypted at rest using
->   industry-standard encryption (XChaCha20-Poly1305). Automatically and
->   irreversibly deleted after **30 days**.
+> - **IP Address:** Collected **only** when you create a post, thread, or report.
+>   Your IP is **not** recorded in HTTP access logs or any other server-level logging.
+>   It is encrypted at rest using industry-standard authenticated encryption
+>   (XChaCha20-Poly1305) and can only be decrypted by authorized administrators
+>   for moderation or legal compliance purposes. Automatically and irreversibly
+>   deleted after **30 days**.
 >
 > - **Email Address (optional):** Only collected if you voluntarily enter it in the
 >   email field. Used for "sage" and "noko" functionality. Encrypted at rest.
@@ -71,7 +73,7 @@ may be shared with third parties.
 > | Report IPs | 90 days | Permanently and irreversibly deleted |
 > | Ban records (IPs) | Ban duration + 30 days | IP data permanently deleted |
 > | Rate limiting logs | 24 hours | Entire record permanently deleted |
-> | Access logs | 7 days | Rotated and overwritten |
+> | Access logs | 7 days | Rotated and overwritten (no IPs stored) |
 > | Moderation decisions | 1 year | Permanently deleted |
 >
 > Deletion is performed automatically by scheduled system processes. No manual
@@ -182,7 +184,8 @@ This disclosure should be:
 <p class="privacy-notice">
   By submitting this post, you agree to our 
   <a href="/privacy" target="_blank">Privacy Policy</a>. 
-  Your IP address is encrypted and automatically deleted after 30 days. 
+  Your IP address is encrypted at rest and automatically deleted after 30 days.
+  It is not recorded in server access logs.
   Spam may be reported to 
   <a href="https://www.stopforumspam.com" target="_blank">StopForumSpam</a>.
 </p>

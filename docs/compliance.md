@@ -26,7 +26,10 @@ This document outlines operational and technical controls for CCPA and GDPR read
 - Deletion requests perform soft delete, then purge within policy window.
 
 ## Data Retention
-- IP and device signals: short-lived, hashed, and rotated.
+- IP addresses: captured only at post/report creation time (never at HTTP level), encrypted
+  at rest (XChaCha20-Poly1305), admin-decryptable for moderation and legal compliance,
+  auto-deleted per retention schedule (30 days for posts, 90 days for reports).
+  A deterministic SHA-256 hash is stored alongside for abuse-filtering lookups.
 - Moderation logs: retained per policy for safety and legal defense.
 - Media: retained until deletion or expiry policy triggers.
 

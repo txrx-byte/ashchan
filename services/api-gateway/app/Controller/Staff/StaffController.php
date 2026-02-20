@@ -113,7 +113,13 @@ final class StaffController
 
         if ($user && $sessionToken) {
             $tokenHash = hash('sha256', (string) $sessionToken);
-            $this->authService->logout($tokenHash, (int) $user['id']);
+            $remoteAddr = $this->request->server('remote_addr', '');
+            $this->authService->logout(
+                $tokenHash,
+                (int) $user['id'],
+                is_string($remoteAddr) ? $remoteAddr : '',
+                $this->request->getHeaderLine('User-Agent')
+            );
         }
 
         /** @var \Hyperf\HttpServer\Response $response */

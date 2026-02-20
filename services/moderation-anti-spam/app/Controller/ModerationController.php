@@ -25,6 +25,7 @@ use App\Model\ModerationDecision;
 use App\Model\Report;
 use App\Model\ReportCategory;
 use App\Service\ModerationService;
+use App\Service\PiiEncryptionService;
 use App\Service\SpamService;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -44,6 +45,7 @@ final class ModerationController
     public function __construct(
         private ModerationService $modService,
         private SpamService $spamService,
+        private PiiEncryptionService $piiEncryption,
         private HttpResponse $response,
     ) {}
 
@@ -110,10 +112,12 @@ final class ModerationController
             'host' => '',
         ];
 
-        // Get reporter info
+        // Get reporter IP — raw IP passed through APIs, encrypted at storage time
         $remoteAddr = $request->server('remote_addr', '');
-        $ip = $request->getHeaderLine('X-Forwarded-For') ?: (is_string($remoteAddr) ? $remoteAddr : '');
-        $ipHash = hash('sha256', $ip);
+        $rawIp = $request->getHeaderLine('X-Forwarded-For') ?: (is_string($remoteAddr) ? $remoteAddr : '');
+        // Encrypt IP for admin-decryptable storage; hash for deterministic lookups
+        $encryptedIp = $this->piiEncryption->encrypt($rawIp);
+        $ipHash = hash('sha256', $rawIp);
 
         // Get request signature for spam filtering
         $reqSig = $this->buildRequestSignature($request);
@@ -124,6 +128,7 @@ final class ModerationController
                 $board,
                 (int) $categoryId,
                 $postData,
+                $encryptedIp,
                 $ipHash,
                 null, // pwd
                 null, // pass_id
@@ -631,24 +636,26 @@ final class ModerationController
     public function spamCheck(RequestInterface $request): ResponseInterface
     {
         $content = $request->input('content', '');
-        $ipHash = $request->input('ip_hash', '');
+        $rawIp = $request->input('ip', '');
         $isThread = (bool) $request->input('is_thread', false);
         $imageHash = $request->input('image_hash');
-        $realIp = $request->input('real_ip');
 
         if (!is_string($content)) {
             $content = '';
         }
-        if (!is_string($ipHash) || $ipHash === '') {
-            return $this->response->json(['error' => 'ip_hash is required'], 400);
+        if (!is_string($rawIp) || $rawIp === '') {
+            return $this->response->json(['error' => 'ip is required'], 400);
         }
+
+        // Derive hash for rate-limiting keys (ephemeral, Redis-only)
+        $ipHash = hash('sha256', $rawIp);
 
         $result = $this->spamService->check(
             $ipHash,
             $content,
             $isThread,
             is_string($imageHash) ? $imageHash : null,
-            is_string($realIp) ? $realIp : null
+            $rawIp
         );
 
         return $this->response->json($result);
@@ -664,7 +671,8 @@ final class ModerationController
 
         return $this->response->json([
             'token' => $captcha['token'],
-            'answer' => $captcha['answer'],
+            // Answer stays server-side in Redis — never returned to client
+            'image_url' => '/api/v1/captcha/image/' . $captcha['token'],
         ]);
     }
 

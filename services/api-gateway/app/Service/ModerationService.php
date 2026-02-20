@@ -40,6 +40,9 @@ final class ModerationService
     #[Inject]
     private LoggerInterface $logger;
 
+    #[Inject]
+    private PiiEncryptionService $piiEncryption;
+
     /**
      * Weight thresholds (from OpenYotsuba ReportQueue)
      */
@@ -55,6 +58,8 @@ final class ModerationService
      * Create a new report (port of report_submit from OpenYotsuba)
      *
      * @param array<string, mixed> $postData Post data snapshot
+     * @param string $reporterIp Encrypted IP (admin-decryptable)
+     * @param string $reporterIpHash SHA-256 hash of raw IP (for deterministic lookups)
      * @return Report
      */
     public function createReport(
@@ -63,6 +68,7 @@ final class ModerationService
         int $categoryId,
         array $postData,
         string $reporterIp,
+        string $reporterIpHash,
         ?string $reporterPwd = null,
         ?string $passId = null,
         ?string $reqSig = null
@@ -80,7 +86,7 @@ final class ModerationService
         $weight = (float) $category->getAttribute('weight');
 
         // Check if reporter should be filtered (reduced weight)
-        $ignoreReason = $this->checkReportFilter($categoryId, $reporterIp, $passId, $reporterPwd);
+        $ignoreReason = $this->checkReportFilter($categoryId, $reporterIpHash, $passId, $reporterPwd);
         if ($ignoreReason > 0) {
             $weight = 0.5;
         }
@@ -97,15 +103,16 @@ final class ModerationService
 
         // Log cleared reporter if re-reporting
         if ($isCleared) {
-            $this->logClearedReporter($reporterIp, $reporterPwd, $passId, $categoryId, $weight);
+            $this->logClearedReporter($reporterIpHash, $reporterPwd, $passId, $categoryId, $weight);
         }
 
         // Determine if worksafe
         $isWorksafe = $this->isWorksafeBoard($board) ? 1 : 0;
 
-        // Create report
+        // Create report — ip is encrypted (admin-decryptable), ip_hash for lookups
         $report = Report::create([
             'ip' => $reporterIp,
+            'ip_hash' => $reporterIpHash,
             'pwd' => $reporterPwd,
             'pass_id' => $passId,
             'req_sig' => $reqSig,
@@ -382,7 +389,8 @@ final class ModerationService
             'global' => $banType === 'global' ? 1 : 0,
             'zonly' => $banType === 'zonly' ? 1 : 0,
             'name' => 'Anonymous',
-            'host' => $targetIp ?? '',
+            'host' => $targetIp !== null ? $this->piiEncryption->encrypt($targetIp) : '',
+            'host_hash' => $targetIp !== null ? hash('sha256', $targetIp) : '',
             'reason' => $customReason ?: $template->getAttribute('public_reason'),
             'length' => $length,
             'now' => now(),
@@ -412,14 +420,17 @@ final class ModerationService
      */
     public function checkBan(string $board, string $ip, ?string $passId = null): array
     {
+        // Use hash for deterministic lookup against host_hash column
+        $ipHash = hash('sha256', $ip);
+
         $query = BannedUser::query()
             ->where('active', 1)
             ->where(function ($q) use ($board) {
                 $q->where('global', 1)
                   ->orWhere('board', $board);
             })
-            ->where(function ($q) use ($ip, $passId) {
-                $q->where('host', $ip);
+            ->where(function ($q) use ($ipHash, $passId) {
+                $q->where('host_hash', $ipHash);
                 if ($passId !== null) {
                     $q->orWhere('pass_id', $passId);
                 }
@@ -485,10 +496,10 @@ final class ModerationService
             return 0;
         }
 
-        // Check cleared reports in past X days
+        // Check cleared reports in past X days — use ip_hash for deterministic lookup
         $clearCount = ReportClearLog::query()
             ->where(function ($q) use ($ip, $passId, $pwd) {
-                $q->where('ip', $ip);
+                $q->where('ip_hash', $ip);
                 if ($passId !== null) {
                     $q->orWhere('pass_id', $passId);
                 }
@@ -510,14 +521,14 @@ final class ModerationService
      * Log cleared reporter for abuse tracking
      */
     private function logClearedReporter(
-        string $ip,
+        string $ipHash,
         ?string $pwd,
         ?string $passId,
         int $categoryId,
         float $weight
     ): void {
         ReportClearLog::create([
-            'ip' => $ip,
+            'ip_hash' => $ipHash,
             'pwd' => $pwd,
             'pass_id' => $passId,
             'category' => $categoryId,

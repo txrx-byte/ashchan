@@ -40,9 +40,12 @@ final class AuthenticationService
     private const CSRF_TOKEN_LENGTH = 32;
     private const CSRF_TOKEN_EXPIRY_HOURS = 24;
     
-    public function __construct(LoggerFactory $loggerFactory)
+    private PiiEncryptionService $piiEncryption;
+
+    public function __construct(LoggerFactory $loggerFactory, PiiEncryptionService $piiEncryption)
     {
         $this->logger = $loggerFactory->get('auth');
+        $this->piiEncryption = $piiEncryption;
     }
     
     /**
@@ -200,7 +203,7 @@ final class AuthenticationService
     /**
      * Logout and invalidate session
      */
-    public function logout(string $tokenHash, int $userId): void
+    public function logout(string $tokenHash, int $userId, string $ipAddress = '', string $userAgent = ''): void
     {
         $this->invalidateSession($tokenHash, 'logout');
         
@@ -214,8 +217,8 @@ final class AuthenticationService
                 null,
                 null,
                 'User logged out',
-                (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
-                (string) ($_SERVER['HTTP_USER_AGENT'] ?? '')
+                $ipAddress,
+                $userAgent
             );
         }
     }
@@ -352,7 +355,8 @@ final class AuthenticationService
         string $ipAddress,
         string $userAgent,
         ?array $oldValues = null,
-        ?array $newValues = null
+        ?array $newValues = null,
+        string $requestUri = ''
     ): void {
         Db::table('admin_audit_log')->insert([
             'user_id' => $userId,
@@ -364,9 +368,9 @@ final class AuthenticationService
             'description' => $description,
             'old_values' => $oldValues ? json_encode($oldValues) : null,
             'new_values' => $newValues ? json_encode($newValues) : null,
-            'ip_address' => $ipAddress,
+            'ip_address' => $this->piiEncryption->encrypt($ipAddress),
             'user_agent' => $userAgent,
-            'request_uri' => $_SERVER['REQUEST_URI'] ?? '',
+            'request_uri' => $requestUri,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
@@ -404,7 +408,7 @@ final class AuthenticationService
         Db::table('staff_sessions')->insert([
             'user_id' => $userId,
             'token_hash' => $tokenHash,
-            'ip_address' => $ipAddress,
+            'ip_address' => $this->piiEncryption->encrypt($ipAddress),
             'user_agent' => $userAgent,
             'expires_at' => date('Y-m-d H:i:s', time() + (self::SESSION_TIMEOUT_HOURS * 3600)),
         ]);
@@ -525,8 +529,9 @@ final class AuthenticationService
             ? "Successful login for user: {$username}"
             : "Failed login attempt for user: {$username} - {$failureReason}";
         
+        // Never log raw IPs — use a one-way hash for log correlation only
         $this->logger->$level($message, [
-            'ip' => $ipAddress,
+            'ip_hash' => hash('sha256', $ipAddress),
             'username' => $username,
             'success' => $success,
             'failure_reason' => $failureReason,
@@ -612,7 +617,7 @@ final class AuthenticationService
             ->where('id', $userId)
             ->update([
                 'last_login_at' => date('Y-m-d H:i:s'),
-                'last_login_ip' => $ipAddress,
+                'last_login_ip' => $this->piiEncryption->encrypt($ipAddress),
                 'last_user_agent' => $userAgent,
             ]);
     }

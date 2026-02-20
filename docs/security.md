@@ -199,9 +199,12 @@ make mtls-status
 - MinIO: Server-side encryption (SSE-S3)
 
 ### Sensitive Fields
-- IP addresses: hashed with salt
+- IP addresses: encrypted at rest (XChaCha20-Poly1305), admin-decryptable. A SHA-256 hash
+  is stored alongside for deterministic lookups. Raw IPs are never logged at the HTTP level —
+  they are captured only at the application layer (post/report creation, staff login) and
+  encrypted immediately before database storage.
 - Email addresses: encrypted (if stored)
-- Consents: encrypted with KMS key
+- Consents: encrypted with PII encryption key
 
 ---
 
@@ -292,9 +295,10 @@ make mtls-status
 
 ### Data Retention
 - Posts: indefinite (until deleted)
-- IP logs: 30 days (hashed)
+- IP data: 30 days (encrypted at rest with XChaCha20-Poly1305, admin-decryptable)
 - Audit logs: 7 years
 - Media: indefinite (until deleted)
+- HTTP access logs: 7 days (no IP addresses — redacted from log format)
 
 ### User Rights (GDPR/CCPA)
 - Right to access: export all user data

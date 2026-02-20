@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\AuthService;
+use App\Service\PiiEncryptionService;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\RequestMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
@@ -32,6 +33,7 @@ final class AuthController
 {
     public function __construct(
         private AuthService $authService,
+        private PiiEncryptionService $piiEncryption,
         private HttpResponse $response,
     ) {}
 
@@ -185,12 +187,14 @@ final class AuthController
     {
         $remoteAddr = $request->server('remote_addr', '');
         $ip = is_string($remoteAddr) ? $remoteAddr : '';
+        // Encrypt IP for admin decryption; hash for deterministic lookups
+        $encryptedIp = $this->piiEncryption->encrypt($ip);
         $ipHash = hash('sha256', $ip);
         $consented = (bool) $request->input('consented', false);
         $version = $request->input('policy_version', '1.0');
 
-        $this->authService->recordConsent($ipHash, null, 'privacy_policy', is_string($version) ? $version : '1.0', $consented);
-        $this->authService->recordConsent($ipHash, null, 'age_verification', is_string($version) ? $version : '1.0', $consented);
+        $this->authService->recordConsent($ipHash, $encryptedIp, null, 'privacy_policy', is_string($version) ? $version : '1.0', $consented);
+        $this->authService->recordConsent($ipHash, $encryptedIp, null, 'age_verification', is_string($version) ? $version : '1.0', $consented);
 
         return $this->response->json(['status' => 'ok']);
     }

@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace App\Controller\Staff;
 
 use App\Service\ModerationService;
+use App\Service\PiiEncryptionService;
 use App\Service\ViewService;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -38,6 +39,7 @@ final class StaffToolsController
 {
     public function __construct(
         private ModerationService $modService,
+        private PiiEncryptionService $piiEncryption,
         private HttpResponse $response,
         private RequestInterface $request,
         private ViewService $viewService,
@@ -166,14 +168,23 @@ final class StaffToolsController
                 ->orderBy('created_on', 'desc')
                 ->limit(100);
             
-            if ($ip !== '') {
-                $query->where('ip', $ip);
+            if ($ip !== '' && is_string($ip)) {
+                // Look up by hash if the ip column is encrypted, or by ip_hash column
+                $query->where('ip_hash', hash('sha256', $ip));
             }
-            if ($board !== '') {
+            if ($board !== '' && is_string($board)) {
                 $query->where('board', $board);
             }
             
             $logs = $query->get();
+
+            // Decrypt IPs for staff display
+            $logs = $logs->map(function ($log) {
+                $log->ip = is_string($log->ip) && $log->ip !== ''
+                    ? $this->piiEncryption->decrypt($log->ip)
+                    : '';
+                return $log;
+            });
         } catch (\Throwable $e) {
             $logs = [];
         }
@@ -213,6 +224,14 @@ final class StaffToolsController
             }
             
             $logs = $query->get();
+
+            // Decrypt staff IPs for display
+            $logs = $logs->map(function ($log) {
+                $log->ip = is_string($log->ip) && $log->ip !== ''
+                    ? $this->piiEncryption->decrypt($log->ip)
+                    : '';
+                return $log;
+            });
         } catch (\Throwable $e) {
             $logs = [];
         }
@@ -262,14 +281,27 @@ final class StaffToolsController
             'posts' => [],
         ];
         
-        // Search bans
+        // Search bans — use host_hash for IP lookups (encrypted IPs can't be searched with LIKE)
         if ($type === 'all' || $type === 'bans') {
-            $results['bans'] = Db::table('banned_users')
-                ->select('id', 'board', 'host', 'reason', 'now', 'length', 'admin')
-                ->where('host', 'like', "%{$query}%")
-                ->orWhere('reason', 'like', "%{$query}%")
-                ->limit(20)
-                ->get();
+            $banQuery = Db::table('banned_users')
+                ->select('id', 'board', 'host', 'reason', 'now', 'length', 'admin');
+            
+            // If query looks like an IP, search by hash; otherwise search by reason text
+            if (filter_var($query, FILTER_VALIDATE_IP)) {
+                $queryHash = hash('sha256', $query);
+                $banQuery->where('host_hash', $queryHash);
+            } else {
+                $banQuery->where('reason', 'like', "%{$query}%");
+            }
+            
+            $bans = $banQuery->limit(20)->get();
+            // Decrypt host IPs for staff display
+            $results['bans'] = $bans->map(function ($ban) {
+                $ban->host = is_string($ban->host) && $ban->host !== ''
+                    ? $this->piiEncryption->decrypt($ban->host)
+                    : '';
+                return $ban;
+            });
         }
         
         // Search reports
@@ -292,26 +324,28 @@ final class StaffToolsController
      */
     private function getIpInfo(string $ip): array
     {
-        // Get ban history for IP
+        $ipHash = hash('sha256', $ip);
+
+        // Get ban history for IP — use host_hash for lookup
         $bans = Db::table('banned_users')
             ->select('id', 'board', 'reason', 'now', 'length', 'admin', 'active')
-            ->where('host', $ip)
+            ->where('host_hash', $ipHash)
             ->orderBy('now', 'desc')
             ->limit(10)
             ->get();
         
-        // Get reports from IP
+        // Get reports from IP — use ip_hash for lookup
         $reports = Db::table('reports')
             ->select('id', 'board', 'no', 'ts', 'cleared')
-            ->where('ip', $ip)
+            ->where('ip_hash', $ipHash)
             ->orderBy('ts', 'desc')
             ->limit(10)
             ->get();
         
-        // Get user actions
+        // Get user actions — use ip_hash for lookup
         $actions = Db::table('user_actions')
             ->select('action', 'board', 'postno', 'time')
-            ->where('ip', $ip)
+            ->where('ip_hash', $ipHash)
             ->orderBy('time', 'desc')
             ->limit(10)
             ->get();
