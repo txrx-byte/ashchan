@@ -11,6 +11,7 @@
     "phpunit/phpunit": "^10.0"
   },
   "scripts": {
+    "test": "php services/boards-threads-posts/vendor/bin/phpunit --configuration phpunit.xml",
     "validate:services": [
       "@validate:api-gateway",
       "@validate:auth-accounts",
