@@ -19,6 +19,7 @@ services:
     image: docker.io/postgres:16-alpine
     container_name: ashchan-postgres-1
     hostname: postgres.ashchan.local
+    user: "70:70"  # postgres user in official image
     environment:
       POSTGRES_USER: ashchan
       POSTGRES_PASSWORD: ashchan
@@ -41,6 +42,7 @@ services:
     image: docker.io/redis:7-alpine
     container_name: ashchan-redis-1
     hostname: redis.ashchan.local
+    user: "999:999"  # redis user in official image
     ports:
       - "6379:6379"
     volumes:
@@ -58,6 +60,7 @@ services:
     image: docker.io/minio/minio:latest
     container_name: ashchan-minio-1
     hostname: minio.ashchan.local
+    user: "1000:1000"  # minio user in official image
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ashchan
