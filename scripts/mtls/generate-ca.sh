@@ -45,10 +45,14 @@ echo "Generating Root CA..."
 echo ""
 
 # Generate CA private key (ECDSA P-256)
+# NOTE: We use mode 644 (not 600) because container volumes mount as root
+# but the application runs as appuser (UID 1000). Swoole needs to read
+# the CA cert/key for mTLS verification.
+# In production, use proper UID mapping or secrets management instead.
 echo "1. Generating CA private key (ECDSA P-256)..."
 openssl ecparam -genkey -name prime256v1 -noout -out "${CA_DIR}/ca.key"
-chmod 600 "${CA_DIR}/ca.key"
-echo "   Created: ${CA_DIR}/ca.key"
+chmod 644 "${CA_DIR}/ca.key"
+echo "   Created: ${CA_DIR}/ca.key (mode 644 for container access)"
 
 # Generate CA certificate
 echo "2. Generating CA certificate (valid for 10 years)..."
@@ -176,7 +180,7 @@ echo ""
 echo "=== Root CA Generation Complete ==="
 echo ""
 echo "CA Certificate: ${CA_DIR}/ca.crt"
-echo "CA Private Key: ${CA_DIR}/ca.key (protected, mode 600)"
+echo "CA Private Key: ${CA_DIR}/ca.key (mode 644 for container access)"
 echo ""
 echo "Next steps:"
 echo "  1. Generate service certificates: ./scripts/mtls/generate-cert.sh <service-name>"

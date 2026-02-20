@@ -76,10 +76,14 @@ SERVICE_DIR="${SERVICES_DIR}/${SERVICE_NAME}"
 mkdir -p "${SERVICE_DIR}"
 
 # Generate private key
+# NOTE: We use mode 644 (not 600) because containers mount these volumes
+# as root but the application runs as appuser (UID 1000). The appuser
+# must be able to read the key files for Swoole SSL to work.
+# In production, use proper UID mapping or secrets management instead.
 echo "1. Generating private key..."
 openssl ecparam -genkey -name prime256v1 -noout -out "${SERVICE_DIR}/${SERVICE_NAME}.key"
-chmod 600 "${SERVICE_DIR}/${SERVICE_NAME}.key"
-echo "   Created: ${SERVICE_DIR}/${SERVICE_NAME}.key"
+chmod 644 "${SERVICE_DIR}/${SERVICE_NAME}.key"
+echo "   Created: ${SERVICE_DIR}/${SERVICE_NAME}.key (mode 644 for container access)"
 
 # Generate CSR
 echo "2. Generating Certificate Signing Request (CSR)..."
@@ -143,7 +147,7 @@ echo ""
 echo "=== Certificate Generation Complete ==="
 echo ""
 echo "Certificate: ${SERVICE_DIR}/${SERVICE_NAME}.crt"
-echo "Private Key: ${SERVICE_DIR}/${SERVICE_NAME}.key (protected, mode 600)"
+echo "Private Key: ${SERVICE_DIR}/${SERVICE_NAME}.key (mode 644 for container access)"
 echo "CA Bundle:   ${CA_DIR}/ca.crt"
 echo ""
 echo "Certificate details:"
