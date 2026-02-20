@@ -1,0 +1,38 @@
+{
+  "name": "ashchan/ashchan",
+  "description": "Ashchan Imageboard - Microservices Architecture",
+  "type": "project",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require": {
+    "php": "^8.2"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1"
+  },
+  "scripts": {
+    "phpstan": "phpstan analyze --memory-limit=1G",
+    "phpstan-baseline": "phpstan analyze --memory-limit=1G --generate-baseline",
+    "phpstan:api-gateway": "cd services/api-gateway && composer phpstan",
+    "phpstan:auth-accounts": "cd services/auth-accounts && composer phpstan",
+    "phpstan:boards-threads-posts": "cd services/boards-threads-posts && composer phpstan",
+    "phpstan:media-uploads": "cd services/media-uploads && composer phpstan",
+    "phpstan:moderation-anti-spam": "cd services/moderation-anti-spam && composer phpstan",
+    "phpstan:search-indexing": "cd services/search-indexing && composer phpstan",
+    "phpstan:all-services": [
+      "@phpstan:api-gateway",
+      "@phpstan:auth-accounts",
+      "@phpstan:boards-threads-posts",
+      "@phpstan:media-uploads",
+      "@phpstan:moderation-anti-spam",
+      "@phpstan:search-indexing"
+    ]
+  },
+  "config": {
+    "sort-packages": true,
+    "optimize-autoloader": true,
+    "allow-plugins": {
+      "phpstan/extension-installer": true
+    }
+  }
+}

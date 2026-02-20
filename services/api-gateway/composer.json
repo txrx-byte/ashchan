@@ -34,6 +34,8 @@
     }
   },
   "scripts": {
-    "start": "php bin/hyperf.php start"
+    "start": "php bin/hyperf.php start",
+    "phpstan": "phpstan analyze --memory-limit=512M",
+    "phpstan-baseline": "phpstan analyze --memory-limit=512M --generate-baseline"
   }
 }

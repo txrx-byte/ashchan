@@ -5,7 +5,21 @@ parameters:
     paths:
         - app
         - config
+    # Comprehensive strictness rules for PHPStan 10
+    checkMissingIterableValueType: true
+    checkGenericClassInNonGenericObjectType: true
     reportUnmatchedIgnoredErrors: false
+    treatPhpDocTypesAsCertain: false
+    checkAlwaysTrueCheckTypeFunctionCall: true
+    checkAlwaysTrueInstanceof: true
+    checkAlwaysTrueStrictComparison: true
+    checkExplicitMixedMissingReturn: true
+    checkFunctionNameCase: true
+    checkInternalClassCaseSensitivity: true
+    checkMissingCallableSignature: true
+    checkTooWideReturnTypesInProtectedAndPublicMethods: true
+    checkUninitializedProperties: true
+    checkDynamicProperties: true
     ignoreErrors:
         - '#Static call to instance method Hyperf\DbConnection\Db::.*#'
         - '#Static call to instance method Hyperf\HttpServer\Router\Router::.*#'

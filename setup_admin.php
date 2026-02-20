@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 // Generate admin password hash
 require '/home/abrookstgz/ashchan/services/api-gateway/vendor/autoload.php';
 
