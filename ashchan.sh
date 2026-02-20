@@ -229,7 +229,7 @@ run_migrations() {
     local attempt=0
     
     while [[ $attempt -lt $max_attempts ]]; do
-        if podman exec ashchan-postgres pg_isready -U ashchan &>/dev/null; then
+        if podman exec ashchan-postgres-1 pg_isready -U ashchan &>/dev/null; then
             success "PostgreSQL is ready"
             break
         fi
@@ -242,13 +242,13 @@ run_migrations() {
         exit 1
     fi
     
-    # Run migrations from db directory
-    local db_dir="${SCRIPT_DIR}/db"
+    # Run migrations from db/migrations directory
+    local db_dir="${SCRIPT_DIR}/db/migrations"
     if [[ -d "$db_dir" ]]; then
         for migration in "$db_dir"/*.sql; do
             if [[ -f "$migration" ]]; then
                 info "Running: $(basename "$migration")"
-                podman exec -i ashchan-postgres psql -U ashchan -d ashchan < "$migration"
+                podman exec -i ashchan-postgres-1 psql -U ashchan -d ashchan < "$migration"
             fi
         done
         success "Migrations complete"
@@ -259,7 +259,7 @@ run_migrations() {
         local services=("moderation-anti-spam" "auth-accounts" "boards-threads-posts" "media-uploads")
         for svc in "${services[@]}"; do
             info "Running migrations for ${svc}..."
-            podman exec -w "/app" "ashchan-${svc}" php bin/hyperf.php db:migrate 2>/dev/null || \
+            podman exec -w "/app" "ashchan-${svc}-1" php bin/hyperf.php db:migrate 2>/dev/null || \
                 warn "Migration failed or not available for ${svc}"
         done
     fi
@@ -271,35 +271,52 @@ check_health() {
     echo ""
     
     local services=(
-        "postgres:5432"
-        "redis:6379"
-        "minio:9001"
-        "api-gateway:9501"
-        "auth-accounts:9502"
-        "boards-threads-posts:9503"
-        "media-uploads:9504"
-        "search-indexing:9505"
-        "moderation-anti-spam:9506"
+        "postgres-1:5432:tcp"
+        "redis-1:6379:tcp"
+        "minio-1:9000:http" # Corrected port for health check
+        "gateway-1:9501:http"
+        "auth-1:8502:mtls"
+        "boards-1:8503:mtls"
+        "media-1:8504:mtls"
+        "search-1:8505:mtls"
+        "moderation-1:8506:mtls"
     )
     
     for svc in "${services[@]}"; do
-        IFS=':' read -r name port <<< "$svc"
+        IFS=':' read -r name port type <<< "$svc"
         
         # Check if container is running
         local status=$(podman inspect "ashchan-${name}" --format '{{.State.Status}}' 2>/dev/null || echo "not_found")
         
         if [[ "$status" == "running" ]]; then
-            # Try HTTP health check for web services
-            if [[ "$name" != "postgres" ]] && [[ "$name" != "redis" ]]; then
+            if [[ "$type" == "http" ]]; then
                 local response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${port}/health" 2>/dev/null || echo "000")
+                if [[ "$name" == "minio-1" ]]; then
+                    response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${port}/minio/health/live" 2>/dev/null || echo "000")
+                fi
                 if [[ "$response" == "200" ]]; then
                     success "${name}: healthy (HTTP 200)"
-                elif [[ "$response" == "000" ]]; then
-                    warn "${name}: running but no /health endpoint"
                 else
                     warn "${name}: running but health check returned ${response}"
                 fi
+            elif [[ "$type" == "mtls" ]]; then
+                # Use gateway certs to test mTLS connection from INSIDE the gateway container
+                local service_short_name="${name%-1}" # e.g., auth-1 -> auth
+                local dns_name="${service_short_name}.ashchan.local"
+
+                local response=$(podman exec ashchan-gateway-1 curl -s -k -o /dev/null -w "%{http_code}" \
+                    --cert /etc/mtls/gateway/gateway.crt \
+                    --key /etc/mtls/gateway/gateway.key \
+                    --cacert /etc/mtls/ca/ca.crt \
+                    "https://${dns_name}:8443/health" 2>/dev/null || echo "000")
+                
+                if [[ "$response" == "200" ]]; then
+                    success "${name}: healthy (mTLS 200)"
+                else
+                    warn "${name}: running but mTLS check returned ${response} (from gateway: https://${dns_name}:8443/health)"
+                fi
             else
+                # TCP check
                 success "${name}: running"
             fi
         elif [[ "$status" == "not_found" ]]; then
@@ -320,7 +337,28 @@ check_health() {
 setup_all() {
     info "Running Ashchan initial setup..."
     echo ""
+
+    # mTLS Automation
+    if [[ ! -f "certs/ca/ca.crt" ]]; then
+        info "Initializing mTLS Certificate Authority..."
+        ./scripts/mtls/generate-ca.sh
+    fi
+
+    if [[ ! -f "certs/services/gateway/gateway.crt" ]]; then
+        info "Generating ServiceMesh certificates..."
+        ./scripts/mtls/generate-all-certs.sh
+    fi
     
+    # Copy certificates to named volumes for Podman
+    info "Copying mTLS certificates to named volumes..."
+    podman run --rm -v ashchan_ca_certs:/mnt:rw alpine/git cp "${SCRIPT_DIR}/certs/ca/ca.crt" /mnt/ca.crt
+    
+    local services=("gateway" "auth" "boards" "media" "search" "moderation")
+    for svc in "${services[@]}"; do
+        podman run --rm -v ashchan_${svc}_certs:/mnt:rw alpine/git cp "${SCRIPT_DIR}/certs/services/${svc}/${svc}.crt" /mnt/${svc}.crt
+        podman run --rm -v ashchan_${svc}_certs:/mnt:rw alpine/git cp "${SCRIPT_DIR}/certs/services/${svc}/${svc}.key" /mnt/${svc}.key
+    done
+
     init_env_files
     echo ""
     
