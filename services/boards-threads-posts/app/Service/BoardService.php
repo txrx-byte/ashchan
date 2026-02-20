@@ -730,11 +730,12 @@ final class BoardService
 
         $result = [];
         // Salt for hashing (should be consistent/configurable)
-        $salt = env('IP_HASH_SALT', 'ashchan_secret_salt');
+        $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
 
         foreach ($posts as $post) {
             // Consistent hashing for Same Poster ID
-            $hash = substr(base64_encode(pack('H*', sha1($post->ip_address . $salt))), 0, 8);
+            $ipAddr = $post->getAttribute('ip_address');
+            $hash = substr(base64_encode(pack('H*', sha1((is_string($ipAddr) ? $ipAddr : '') . $salt))), 0, 8);
             $result[$post->id] = $hash;
         }
 

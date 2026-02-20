@@ -97,6 +97,9 @@ class BannedUser extends Model
 
     /**
      * Get active bans only
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeActive(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -106,6 +109,9 @@ class BannedUser extends Model
 
     /**
      * Get bans for a specific board
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
@@ -119,6 +125,9 @@ class BannedUser extends Model
 
     /**
      * Get global bans only
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeGlobal(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -127,6 +136,9 @@ class BannedUser extends Model
 
     /**
      * Get bans by IP
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeByIp(
         \Hyperf\Database\Model\Builder $query,
@@ -137,6 +149,9 @@ class BannedUser extends Model
 
     /**
      * Get bans by 4chan Pass ID
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeByPassId(
         \Hyperf\Database\Model\Builder $query,

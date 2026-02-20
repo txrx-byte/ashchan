@@ -56,12 +56,12 @@ class StaffAuthMiddleware implements MiddlewareInterface
         }
         
         // Hash token for lookup
-        $tokenHash = hash('sha256', $sessionToken);
+        $tokenHash = hash('sha256', (string) $sessionToken);
         
         // Validate session
         $validation = $this->authService->validateSession($tokenHash);
         
-        if (!$validation['valid']) {
+        if (!$validation['valid'] || !isset($validation['user'])) {
             return $this->redirectToLogin($request, 'Invalid or expired session. Please login again.');
         }
         
@@ -86,7 +86,7 @@ class StaffAuthMiddleware implements MiddlewareInterface
                 ], 403);
             }
             
-            if (!$this->authService->validateCsrfToken($user['id'], $csrfToken)) {
+            if (!$this->authService->validateCsrfToken((int) $user['id'], $csrfToken)) {
                 $this->logSecurityEvent($user, 'csrf_failure', 'Invalid CSRF token', $request);
                 return $this->response->json([
                     'error' => 'Invalid CSRF token. Please refresh the page and try again.',
@@ -96,7 +96,7 @@ class StaffAuthMiddleware implements MiddlewareInterface
         
         // Check access level for certain paths
         $requiredLevel = $this->getRequiredAccessLevel($path);
-        if ($requiredLevel && !$this->authService->hasAccessLevel($user['id'], $requiredLevel)) {
+        if ($requiredLevel && !$this->authService->hasAccessLevel((int) $user['id'], $requiredLevel)) {
             $this->logSecurityEvent($user, 'access_denied', "Insufficient access level for {$path}", $request);
             return $this->response->json([
                 'error' => 'Access denied. Insufficient privileges.',
@@ -106,7 +106,7 @@ class StaffAuthMiddleware implements MiddlewareInterface
         // Check board access for board-specific paths
         if (preg_match('#/staff/(?:reports|bans)/([a-z0-9]+)#', $path, $matches)) {
             $board = $matches[1];
-            if (!$this->authService->canAccessBoard($user['id'], $board)) {
+            if (!$this->authService->canAccessBoard((int) $user['id'], $board)) {
                 $this->logSecurityEvent($user, 'board_access_denied', "No access to board /{$board}/", $request);
                 return $this->response->json([
                     'error' => 'Access denied. You do not have access to this board.',
@@ -154,18 +154,20 @@ class StaffAuthMiddleware implements MiddlewareInterface
     
     /**
      * Log security event
+     *
+     * @param array<string, mixed> $user
      */
     private function logSecurityEvent(array $user, string $eventType, string $message, ServerRequestInterface $request): void
     {
         $this->authService->logAuditAction(
-            $user['id'],
-            $user['username'],
+            (int) $user['id'],
+            (string) $user['username'],
             $eventType,
             'security',
             null,
             null,
             $message,
-            $request->getServerParams()['remote_addr'] ?? '',
+            (string) ($request->getServerParams()['remote_addr'] ?? ''),
             $request->getHeaderLine('User-Agent')
         );
     }

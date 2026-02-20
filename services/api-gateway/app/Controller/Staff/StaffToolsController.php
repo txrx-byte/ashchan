@@ -32,8 +32,8 @@ final class StaffToolsController
     #[GetMapping(path: 'search')]
     public function search(): ResponseInterface
     {
-        $query = $this->request->query('q', '');
-        $type = $this->request->query('type', 'all');
+        $query = (string) $this->request->query('q', '');
+        $type = (string) $this->request->query('type', 'all');
         $results = null;
         
         if ($query !== '') {
@@ -54,7 +54,7 @@ final class StaffToolsController
     #[GetMapping(path: 'ip-lookup')]
     public function ipLookup(): ResponseInterface
     {
-        $ip = $this->request->query('ip', '');
+        $ip = (string) $this->request->query('ip', '');
         $info = null;
         
         if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
@@ -74,7 +74,7 @@ final class StaffToolsController
     #[GetMapping(path: 'check-md5')]
     public function checkMd5(): ResponseInterface
     {
-        $md5 = $this->request->query('md5', '');
+        $md5 = (string) $this->request->query('md5', '');
         $results = null;
         
         if ($md5 !== '') {
@@ -94,9 +94,9 @@ final class StaffToolsController
     #[GetMapping(path: 'check-filter')]
     public function checkFilter(): ResponseInterface
     {
-        $comment = $this->request->query('comment', '');
-        $name = $this->request->query('name', '');
-        $subject = $this->request->query('subject', '');
+        $comment = (string) $this->request->query('comment', '');
+        $name = (string) $this->request->query('name', '');
+        $subject = (string) $this->request->query('subject', '');
         $result = null;
         
         if ($comment !== '' || $name !== '' || $subject !== '') {
@@ -234,6 +234,8 @@ final class StaffToolsController
 
     /**
      * Perform search across tables
+     *
+     * @return array<string, mixed>
      */
     private function performSearch(string $query, string $type): array
     {
@@ -268,6 +270,8 @@ final class StaffToolsController
 
     /**
      * Get IP information
+     *
+     * @return array<string, mixed>
      */
     private function getIpInfo(string $ip): array
     {
@@ -317,6 +321,8 @@ final class StaffToolsController
 
     /**
      * Check MD5 hash against database
+     *
+     * @return array<string, mixed>
      */
     private function checkMd5Hash(string $md5): array
     {
@@ -339,12 +345,14 @@ final class StaffToolsController
             'posts' => $posts,
             'post_count' => count($posts),
             'blacklisted' => $blacklisted !== null,
-            'blacklist_reason' => $blacklisted['banreason'] ?? null,
+            'blacklist_reason' => $blacklisted ? ($blacklisted->banreason ?? null) : null,
         ];
     }
 
     /**
      * Test post against filters
+     *
+     * @return array<string, mixed>
      */
     private function testPostFilter(string $comment, string $name, string $subject): array
     {
@@ -359,18 +367,18 @@ final class StaffToolsController
         foreach ($filters as $filter) {
             $matched = false;
             
-            if ($filter['regex']) {
-                $matched = @preg_match('/' . $filter['pattern'] . '/i', $content);
+            if ($filter->regex) {
+                $matched = @preg_match('/' . (string) $filter->pattern . '/i', $content);
             } else {
-                $matched = stripos($content, $filter['pattern']) !== false;
+                $matched = stripos($content, (string) $filter->pattern) !== false;
             }
             
             if ($matched) {
                 $matches[] = [
-                    'id' => $filter['id'],
-                    'pattern' => $filter['pattern'],
-                    'board' => $filter['board'],
-                    'ban_days' => $filter['ban_days'],
+                    'id' => $filter->id,
+                    'pattern' => $filter->pattern,
+                    'board' => $filter->board,
+                    'ban_days' => $filter->ban_days,
                 ];
             }
         }

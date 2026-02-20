@@ -44,7 +44,8 @@ final class AutopurgeController
     #[PostMapping(path: 'store')]
     public function store(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['pattern'])) {
@@ -60,13 +61,13 @@ final class AutopurgeController
 
         $user = \Hyperf\Context\Context::get('staff_user');
         Db::table('autopurge_rules')->insert([
-            'pattern' => trim($body['pattern']),
+            'pattern' => trim((string) ($body['pattern'] ?? '')),
             'is_regex' => isset($body['is_regex']),
             'boards' => $body['boards'] ?? [],
             'purge_threads' => isset($body['purge_threads']),
             'purge_replies' => isset($body['purge_replies']),
             'ban_length_days' => (int)($body['ban_length_days'] ?? 0),
-            'ban_reason' => trim($body['ban_reason'] ?? ''),
+            'ban_reason' => trim((string) ($body['ban_reason'] ?? '')),
             'is_active' => isset($body['is_active']),
             'created_by' => $user['id'] ?? null,
             'created_at' => date('Y-m-d H:i:s'),
@@ -98,7 +99,9 @@ final class AutopurgeController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['pattern'])) {
@@ -113,13 +116,13 @@ final class AutopurgeController
         }
 
         Db::table('autopurge_rules')->where('id', $id)->update([
-            'pattern' => trim($body['pattern']),
+            'pattern' => trim((string) ($body['pattern'] ?? '')),
             'is_regex' => isset($body['is_regex']),
             'boards' => $body['boards'] ?? [],
             'purge_threads' => isset($body['purge_threads']),
             'purge_replies' => isset($body['purge_replies']),
             'ban_length_days' => (int)($body['ban_length_days'] ?? 0),
-            'ban_reason' => trim($body['ban_reason'] ?? ''),
+            'ban_reason' => trim((string) ($body['ban_reason'] ?? '')),
             'is_active' => isset($body['is_active']),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
@@ -142,9 +145,10 @@ final class AutopurgeController
     #[PostMapping(path: 'test')]
     public function test(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
-        $pattern = $body['pattern'] ?? '';
-        $sampleText = $body['sample_text'] ?? '';
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
+        $pattern = (string) ($body['pattern'] ?? '');
+        $sampleText = (string) ($body['sample_text'] ?? '');
         $isRegex = isset($body['is_regex']);
 
         if (empty($pattern)) {

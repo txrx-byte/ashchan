@@ -61,8 +61,8 @@ final class AuthMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        // If no token but required, fail
-        if (!$token && $requiresAuth) {
+        // If no token, it must be required at this point
+        if (!$token) {
             $response = new \Hyperf\HttpMessage\Server\Response();
             $json = json_encode(['error' => 'Authentication required']);
             return $response->withStatus(401)

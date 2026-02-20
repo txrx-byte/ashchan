@@ -10,8 +10,6 @@ use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 use Hyperf\Logger\LoggerFactory;
 
-use Hyperf\Logger\LoggerFactory;
-
 /**
  * Serves the frontend HTML pages and static files.
  * Fetches data from backend microservices via ProxyClient, then renders PHP templates.
@@ -160,11 +158,14 @@ final class FrontendController
         }
 
         $op = $threadData['op'] ?? null;
-        if ($op) {
+        if (is_array($op)) {
             $op = $this->rewritePostMedia($op);
         }
         $replies = $threadData['replies'] ?? [];
         foreach ($replies as &$reply) {
+            if (!is_array($reply)) {
+                continue;
+            }
             $reply = $this->rewritePostMedia($reply);
         }
 
@@ -198,7 +199,7 @@ final class FrontendController
         $mediaResult = $this->handleMediaUpload($request);
 
         if ($mediaResult && isset($mediaResult['error'])) {
-            return $this->html('<h1>Upload Error</h1><p>' . htmlspecialchars($mediaResult['error']) . '</p>', 400);
+            return $this->html('<h1>Upload Error</h1><p>' . htmlspecialchars((string) $mediaResult['error']) . '</p>', 400);
         }
 
         if ($mediaResult) {
@@ -211,19 +212,21 @@ final class FrontendController
             'User-Agent'      => $request->getHeaderLine('User-Agent'),
         ];
 
-        $result = $this->proxyClient->forward('boards', 'POST', "/api/v1/boards/{$slug}/threads", $headers, json_encode($input));
+        $result = $this->proxyClient->forward('boards', 'POST', "/api/v1/boards/{$slug}/threads", $headers, (string) (json_encode($input) ?: '{}'));
 
         if ($result['status'] >= 400) {
-            return $this->html('<h1>Post Error</h1><p>' . htmlspecialchars($result['body']) . '</p>', $result['status']);
+            return $this->html('<h1>Post Error</h1><p>' . htmlspecialchars((string) $result['body']) . '</p>', $result['status']);
         }
 
-        $data = json_decode($result['body'], true);
+        $data = json_decode((string) $result['body'], true);
         $threadId = $data['thread_id'] ?? null;
 
         if ($threadId) {
+            /** @var ResponseInterface */
             return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/thread/{$threadId}");
         }
 
+        /** @var ResponseInterface */
         return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/");
     }
 
@@ -234,7 +237,7 @@ final class FrontendController
         $mediaResult = $this->handleMediaUpload($request);
 
         if ($mediaResult && isset($mediaResult['error'])) {
-            return $this->html('<h1>Upload Error</h1><p>' . htmlspecialchars($mediaResult['error']) . '</p>', 400);
+            return $this->html('<h1>Upload Error</h1><p>' . htmlspecialchars((string) $mediaResult['error']) . '</p>', 400);
         }
 
         if ($mediaResult) {
@@ -247,19 +250,21 @@ final class FrontendController
             'User-Agent'      => $request->getHeaderLine('User-Agent'),
         ];
 
-        $result = $this->proxyClient->forward('boards', 'POST', "/api/v1/boards/{$slug}/threads/{$id}/posts", $headers, json_encode($input));
+        $result = $this->proxyClient->forward('boards', 'POST', "/api/v1/boards/{$slug}/threads/{$id}/posts", $headers, (string) (json_encode($input) ?: '{}'));
 
         if ($result['status'] >= 400) {
-            return $this->html('<h1>Post Error</h1><p>' . htmlspecialchars($result['body']) . '</p>', $result['status']);
+            return $this->html('<h1>Post Error</h1><p>' . htmlspecialchars((string) $result['body']) . '</p>', $result['status']);
         }
 
-        $data = json_decode($result['body'], true);
+        $data = json_decode((string) $result['body'], true);
         $postId = $data['post_id'] ?? null;
 
         if ($postId) {
+            /** @var ResponseInterface */
             return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/thread/{$id}#p{$postId}");
         }
 
+        /** @var ResponseInterface */
         return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/thread/{$id}");
     }
 
@@ -301,8 +306,9 @@ final class FrontendController
 
         $result = $this->proxyClient->forward('media', 'POST', '/api/v1/media/upload', [], $body);
 
-        $data = json_decode($result['body'], true);
-        if ($result['status'] === 200 && $data && !isset($data['error'])) {
+        $data = json_decode((string) $result['body'], true);
+        if ($result['status'] === 200 && is_array($data) && !isset($data['error'])) {
+            /** @var array<string, mixed> $data */
             return $data;
         }
 
@@ -369,6 +375,7 @@ final class FrontendController
      *  locked?: bool,
      *  sticky?: bool,
      *  archived_threads?: array<mixed>,
+     *  blotter?: array<mixed>,
      *  error?: string,
      *  status?: int
      * }
@@ -390,7 +397,7 @@ final class FrontendController
                 $service,
                 $result['status'],
                 $path,
-                (string) ($result['body'] ?? 'N/A')
+                (string) ($result['body'] ?: 'N/A')
             ));
             return [];
         }
@@ -417,6 +424,7 @@ final class FrontendController
          *  locked?: bool,
          *  sticky?: bool,
          *  archived_threads?: array<mixed>,
+         *  blotter?: array<mixed>,
          *  error?: string,
          *  status?: int
          * }
@@ -446,7 +454,7 @@ final class FrontendController
         // Group boards for the navbar
         $grouped = [];
         foreach ($boards as $b) {
-            $cat = $b['category'] ?? 'Other';
+            $cat = $b['category'];
             $grouped[$cat][] = $b;
         }
 
@@ -477,11 +485,17 @@ final class FrontendController
     private function rewriteMediaUrls(array $threads): array
     {
         foreach ($threads as &$thread) {
-            if (isset($thread['op'])) {
+            if (!is_array($thread)) {
+                continue;
+            }
+            if (isset($thread['op']) && is_array($thread['op'])) {
                 $thread['op'] = $this->rewritePostMedia($thread['op']);
             }
-            if (isset($thread['latest_replies'])) {
+            if (isset($thread['latest_replies']) && is_array($thread['latest_replies'])) {
                 foreach ($thread['latest_replies'] as &$reply) {
+                    if (!is_array($reply)) {
+                        continue;
+                    }
                     $reply = $this->rewritePostMedia($reply);
                 }
             }
@@ -502,10 +516,10 @@ final class FrontendController
         $replace = "/media/";
 
         if (!empty($post['media_url'])) {
-            $post['media_url'] = str_replace($search, $replace, $post['media_url']);
+            $post['media_url'] = str_replace($search, $replace, (string) $post['media_url']);
         }
         if (!empty($post['thumb_url'])) {
-            $post['thumb_url'] = str_replace($search, $replace, $post['thumb_url']);
+            $post['thumb_url'] = str_replace($search, $replace, (string) $post['thumb_url']);
         }
         return $post;
     }

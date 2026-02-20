@@ -235,6 +235,7 @@ final class ModerationController extends AbstractController
         if (!is_array($postData)) {
             $postData = [];
         }
+        /** @var array<string, mixed> $postData */
 
         try {
             $banRequest = $this->modService->createBanRequest(
@@ -354,6 +355,7 @@ final class ModerationController extends AbstractController
     #[PostMapping(path: 'ban-templates')]
     public function createBanTemplate(RequestInterface $request): ResponseInterface
     {
+        /** @var array<string, mixed> $data */
         $data = $request->all();
 
         // Required fields
@@ -390,9 +392,10 @@ final class ModerationController extends AbstractController
 
         try {
             $template->update($data);
+            $fresh = $template->fresh();
             return $this->response->json([
                 'status' => 'updated',
-                'template' => $template->fresh()->toArray(),
+                'template' => $fresh ? $fresh->toArray() : $template->toArray(),
             ]);
         } catch (\Throwable $e) {
             return $this->response->json(['error' => 'Failed to update template'], 500);
@@ -491,6 +494,6 @@ final class ModerationController extends AbstractController
             'accept-language' => $request->getHeaderLine('Accept-Language'),
         ];
 
-        return hash('sha256', json_encode($headers));
+        return hash('sha256', json_encode($headers) ?: '');
     }
 }

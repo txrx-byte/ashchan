@@ -41,7 +41,7 @@ class StaffReportCategoryController
             ->orderBy('weight', 'desc')
             ->get();
         
-        return $this->response->view('staff/report-categories/index', [
+        return $this->response->json([
             'categories' => $categories->toArray(),
             'isManager' => true,
         ]);
@@ -59,7 +59,7 @@ class StaffReportCategoryController
             return $this->response->json(['error' => 'Permission denied'], 403);
         }
         
-        return $this->response->view('staff/report-categories/update', [
+        return $this->response->json([
             'category' => null,
             'action' => 'create',
             'boardList' => $this->getBoardList(true),
@@ -77,6 +77,8 @@ class StaffReportCategoryController
         if (!$staffInfo['is_manager']) {
             return $this->response->json(['error' => 'Permission denied'], 403);
         }
+        
+        /** @var array<string, mixed> $data */
         
         $data = $request->all();
         
@@ -124,7 +126,7 @@ class StaffReportCategoryController
             return $this->response->json(['error' => 'Category not found'], 404);
         }
         
-        return $this->response->view('staff/report-categories/update', [
+        return $this->response->json([
             'category' => $category->toArray(),
             'action' => 'edit',
             'boardList' => $this->getBoardList(true),
@@ -147,6 +149,8 @@ class StaffReportCategoryController
         if (!$category) {
             return $this->response->json(['error' => 'Category not found'], 404);
         }
+        
+        /** @var array<string, mixed> $data */
         
         $data = $request->all();
         
@@ -202,8 +206,12 @@ class StaffReportCategoryController
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getStaffInfo(): array
     {
+        /** @var array<string, mixed> */
         return \Hyperf\Context\Context::get('staff_info', [
             'username' => 'system',
             'level' => 'janitor',
@@ -211,6 +219,9 @@ class StaffReportCategoryController
         ]);
     }
 
+    /**
+     * @return array<int|string, string>
+     */
     private function getBoardList(bool $allowSpecial = false): array
     {
         $boards = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'];

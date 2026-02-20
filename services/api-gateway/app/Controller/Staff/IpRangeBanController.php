@@ -44,12 +44,13 @@ final class IpRangeBanController
     #[PostMapping(path: 'store')]
     public function store(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['range'])) {
             $errors[] = 'IP range is required';
-        } elseif (!$this->validateCidr($body['range'])) {
+        } elseif (!$this->validateCidr((string) $body['range'])) {
             $errors[] = 'Invalid CIDR notation (e.g., 192.168.1.0/24)';
         }
         if (empty($body['reason'])) {
@@ -60,13 +61,13 @@ final class IpRangeBanController
             return $this->response->json(['success' => false, 'errors' => $errors], 400);
         }
 
-        [$rangeStart, $rangeEnd] = $this->parseCidr($body['range']);
+        [$rangeStart, $rangeEnd] = $this->parseCidr((string) $body['range']);
         $user = \Hyperf\Context\Context::get('staff_user');
 
         Db::table('ip_range_bans')->insert([
             'range_start' => $rangeStart,
             'range_end' => $rangeEnd,
-            'reason' => trim($body['reason']),
+            'reason' => trim((string) ($body['reason'] ?? '')),
             'boards' => $body['boards'] ?? [],
             'is_active' => isset($body['is_active']),
             'expires_at' => !empty($body['expires_at']) ? $body['expires_at'] : null,
@@ -100,12 +101,14 @@ final class IpRangeBanController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['range'])) {
             $errors[] = 'IP range is required';
-        } elseif (!$this->validateCidr($body['range'])) {
+        } elseif (!$this->validateCidr((string) $body['range'])) {
             $errors[] = 'Invalid CIDR notation (e.g., 192.168.1.0/24)';
         }
         if (empty($body['reason'])) {
@@ -116,12 +119,12 @@ final class IpRangeBanController
             return $this->response->json(['success' => false, 'errors' => $errors], 400);
         }
 
-        [$rangeStart, $rangeEnd] = $this->parseCidr($body['range']);
+        [$rangeStart, $rangeEnd] = $this->parseCidr((string) $body['range']);
 
         Db::table('ip_range_bans')->where('id', $id)->update([
             'range_start' => $rangeStart,
             'range_end' => $rangeEnd,
-            'reason' => trim($body['reason']),
+            'reason' => trim((string) ($body['reason'] ?? '')),
             'boards' => $body['boards'] ?? [],
             'is_active' => isset($body['is_active']),
             'expires_at' => !empty($body['expires_at']) ? $body['expires_at'] : null,
@@ -146,8 +149,9 @@ final class IpRangeBanController
     #[PostMapping(path: 'test')]
     public function test(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
-        $testIp = $body['ip'] ?? '';
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
+        $testIp = (string) ($body['ip'] ?? '');
 
         if (empty($testIp) || !$this->validateIp($testIp)) {
             return $this->response->json(['valid' => false, 'error' => 'Invalid IP address']);
@@ -193,13 +197,19 @@ final class IpRangeBanController
         return filter_var($ip, FILTER_VALIDATE_IP) !== false;
     }
 
+    /**
+     * @return array{string, string}
+     */
     private function parseCidr(string $cidr): array
     {
         [$ip, $mask] = explode('/', $cidr);
         $ipLong = ip2long($ip);
+        if ($ipLong === false) {
+            return ['0.0.0.0', '0.0.0.0'];
+        }
         $maskLong = ~((1 << (32 - (int)$mask)) - 1);
-        $start = long2ip($ipLong & $maskLong);
-        $end = long2ip($ipLong | ~$maskLong);
+        $start = (string) long2ip($ipLong & $maskLong);
+        $end = (string) long2ip($ipLong | ~$maskLong);
         return [$start, $end];
     }
 }

@@ -166,7 +166,9 @@ final class ModerationService
         // Format reports
         $formatted = [];
         foreach ($reports as $report) {
-            $formatted[] = $this->formatReport($report);
+            /** @var array<string, mixed> $reportArray */
+            $reportArray = $report->toArray();
+            $formatted[] = $this->formatReport($reportArray);
         }
 
         return [
@@ -273,6 +275,7 @@ final class ModerationService
      */
     public function approveBanRequest(int $requestId, string $approverUsername): BannedUser
     {
+        /** @var BanRequest $request */
         $request = BanRequest::findOrFail($requestId);
         $template = BanTemplate::find($request->getAttribute('ban_template'));
 
@@ -283,10 +286,10 @@ final class ModerationService
         // Create ban
         $ban = $this->createBanFromTemplate(
             $template,
-            $request->getAttribute('board'),
-            $request->getAttribute('post_no'),
+            (string) $request->getAttribute('board'),
+            (int) $request->getAttribute('post_no'),
             $approverUsername,
-            $request->getAttribute('reason')
+            (string) $request->getAttribute('reason')
         );
 
         // Delete request
@@ -294,12 +297,12 @@ final class ModerationService
 
         // Update janitor stats
         $this->updateJanitorStats(
-            $request->getAttribute('janitor'),
+            (string) $request->getAttribute('janitor'),
             1, // accepted
-            $request->getAttribute('board'),
-            $request->getAttribute('post_no'),
-            $request->getAttribute('ban_template'),
-            $template->getAttribute('id'),
+            (string) $request->getAttribute('board'),
+            (int) $request->getAttribute('post_no'),
+            (int) $request->getAttribute('ban_template'),
+            (int) $template->getAttribute('id'),
             $approverUsername
         );
 
@@ -311,15 +314,16 @@ final class ModerationService
      */
     public function denyBanRequest(int $requestId, string $denierUsername): bool
     {
+        /** @var BanRequest $request */
         $request = BanRequest::findOrFail($requestId);
 
         // Update janitor stats
         $this->updateJanitorStats(
-            $request->getAttribute('janitor'),
+            (string) $request->getAttribute('janitor'),
             0, // denied
-            $request->getAttribute('board'),
-            $request->getAttribute('post_no'),
-            $request->getAttribute('ban_template'),
+            (string) $request->getAttribute('board'),
+            (int) $request->getAttribute('post_no'),
+            (int) $request->getAttribute('ban_template'),
             0,
             $denierUsername
         );
@@ -387,7 +391,7 @@ final class ModerationService
     /**
      * Check if user is banned
      *
-     * @return array{banned: bool, reason?: string, expires_at?: string|null}
+     * @return array{banned: bool, reason?: string, expires_at?: string|null, is_permanent?: bool}
      */
     public function checkBan(string $board, string $ip, ?string $passId = null): array
     {
@@ -413,8 +417,8 @@ final class ModerationService
         if ($ban) {
             return [
                 'banned' => true,
-                'reason' => $ban->getAttribute('reason'),
-                'expires_at' => $ban->getAttribute('length')?->toIso8601String(),
+                'reason' => (string) $ban->getAttribute('reason'),
+                'expires_at' => $ban->getAttribute('length') !== null ? (string) $ban->getAttribute('length')->toIso8601String() : null,
                 'is_permanent' => $ban->getAttribute('length') === null,
             ];
         }
@@ -445,7 +449,7 @@ final class ModerationService
                 continue;
             }
 
-            $counts[$board] = (int) ceil($weight / self::GLOBAL_THRES);
+            $counts[(string) $board] = (int) ceil($weight / self::GLOBAL_THRES);
         }
 
         return $counts;
@@ -547,13 +551,31 @@ final class ModerationService
             'no' => (int) $report['no'],
             'count' => (int) $report['cnt'],
             'weight' => (float) $report['total_weight'],
-            'ts' => isset($report['time']) ? strtotime($report['time']) : 0,
-            'post' => json_decode($report['post_json'] ?? '{}', true),
+            'ts' => isset($report['time']) ? strtotime((string) $report['time']) : 0,
+            'post' => json_decode((string) ($report['post_json'] ?? '{}'), true),
             'resto' => (int) $report['resto'],
             'is_thread' => (int) $report['resto'] === 0,
             'is_highlighted' => (float) $report['total_weight'] >= self::HIGHLIGHT_THRES,
             'is_unlocked' => (float) $report['total_weight'] >= self::GLOBAL_THRES,
         ];
+    }
+
+    /**
+     * Unban a user by ban ID
+     */
+    public function unbanUser(int $banId, string $staffUsername): bool
+    {
+        $ban = BannedUser::find($banId);
+        if (!$ban) {
+            return false;
+        }
+
+        $ban->setAttribute('active', 0);
+        $ban->setAttribute('unbannedon', now());
+        $ban->setAttribute('admin', $staffUsername);
+        $ban->save();
+
+        return true;
     }
 
     /**

@@ -91,6 +91,9 @@ class Report extends Model
 
     /**
      * Get reports for a specific board
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
@@ -101,6 +104,9 @@ class Report extends Model
 
     /**
      * Get only cleared reports
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeCleared(
         \Hyperf\Database\Model\Builder $query
@@ -110,6 +116,9 @@ class Report extends Model
 
     /**
      * Get only pending reports
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopePending(
         \Hyperf\Database\Model\Builder $query
@@ -119,11 +128,15 @@ class Report extends Model
 
     /**
      * Get reports grouped by post with aggregated weight
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeGroupedByPost(
         \Hyperf\Database\Model\Builder $query,
         ?string $board = null
     ): \Hyperf\Database\Model\Builder {
+        /** @var \Hyperf\Database\Model\Builder<static> $query */
         $query = $query->selectRaw('
             no,
             board,
@@ -164,7 +177,10 @@ class Report extends Model
         $json = $this->getAttribute('post_json');
         if (is_string($json)) {
             $decoded = json_decode($json, true);
-            return is_array($decoded) ? (array) $decoded : [];
+            if (is_array($decoded)) {
+                /** @var array<string, mixed> $decoded */
+                return $decoded;
+            }
         }
         return [];
     }

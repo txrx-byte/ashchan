@@ -45,14 +45,14 @@ class StaffReportController extends AbstractController
         $boardlist = $this->getBoardList();
         
         // Determine access level
-        $isMod = (bool) ($staffInfo['is_mod'] ?? false);
-        $isManager = (bool) ($staffInfo['is_manager'] ?? false);
-        $isAdmin = (bool) ($staffInfo['is_admin'] ?? false);
+        $isMod = $staffInfo['is_mod'];
+        $isManager = $staffInfo['is_manager'];
+        $isAdmin = $staffInfo['is_admin'];
         
         $html = $this->viewService->render('staff/reports/index', [
             'boardlist' => $boardlist,
             'access' => [
-                'board' => $staffInfo['boards'] ?? [],
+                'board' => $staffInfo['boards'],
                 'is_mod' => $isMod,
                 'is_manager' => $isManager,
                 'is_admin' => $isAdmin,
@@ -62,7 +62,7 @@ class StaffReportController extends AbstractController
             'isAdmin' => $isAdmin,
             'currentBoard' => $board,
             'cleared_only' => $cleared,
-            'username' => $staffInfo['username'] ?? 'system',
+            'username' => $staffInfo['username'],
         ]);
 
         return $this->html($this->response, $html);
@@ -133,7 +133,7 @@ class StaffReportController extends AbstractController
             'requests' => $data['requests'],
             'count' => $data['count'],
             'boardlist' => $this->getBoardList(),
-            'isMod' => (bool) ($this->getStaffInfo()['is_mod'] ?? false),
+            'isMod' => (bool) ($this->getStaffInfo()['is_mod']),
         ]);
 
         return $this->html($this->response, $html);

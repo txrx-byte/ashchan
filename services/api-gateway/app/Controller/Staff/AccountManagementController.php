@@ -47,17 +47,18 @@ final class AccountManagementController
     #[PostMapping(path: 'store')]
     public function store(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
-        if (strlen($body['username'] ?? '') < 3) $errors[] = 'Username must be at least 3 characters';
+        if (strlen((string) ($body['username'] ?? '')) < 3) $errors[] = 'Username must be at least 3 characters';
         if (!filter_var($body['email'] ?? '', FILTER_VALIDATE_EMAIL)) $errors[] = 'Invalid email';
-        if (strlen($body['password'] ?? '') < 8) $errors[] = 'Password must be at least 8 characters';
+        if (strlen((string) ($body['password'] ?? '')) < 8) $errors[] = 'Password must be at least 8 characters';
         if (Db::table('staff_users')->where('username', $body['username'] ?? '')->first()) $errors[] = 'Username exists';
         if (Db::table('staff_users')->where('email', $body['email'] ?? '')->first()) $errors[] = 'Email exists';
         if (!empty($errors)) return $this->response->json(['success' => false, 'errors' => $errors], 400);
         Db::table('staff_users')->insertGetId([
-            'username' => trim($body['username']), 'email' => trim($body['email']),
-            'password_hash' => password_hash($body['password'], PASSWORD_BCRYPT, ['cost' => 12]),
+            'username' => trim((string) ($body['username'] ?? '')), 'email' => trim((string) ($body['email'] ?? '')),
+            'password_hash' => password_hash((string) ($body['password'] ?? ''), PASSWORD_BCRYPT, ['cost' => 12]),
             'access_level' => $body['access_level'] ?? 'janitor', 'board_access' => $body['boards'] ?? [],
             'is_active' => true, 'created_at' => date('Y-m-d H:i:s'),
         ]);
@@ -82,15 +83,16 @@ final class AccountManagementController
     {
         $user = Db::table('staff_users')->where('id', $id)->first();
         if (!$user) return $this->response->json(['error' => 'Not found'], 404);
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         Db::table('staff_users')->where('id', $id)->update([
             'access_level' => $body['access_level'] ?? $user->access_level,
             'board_access' => $body['boards'] ?? [],
             'is_active' => isset($body['is_active']) ? 1 : 0,
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
-        if (!empty($body['new_password']) && strlen($body['new_password']) >= 8) {
-            Db::table('staff_users')->where('id', $id)->update(['password_hash' => password_hash($body['new_password'], PASSWORD_BCRYPT, ['cost' => 12])]);
+        if (!empty($body['new_password']) && strlen((string) $body['new_password']) >= 8) {
+            Db::table('staff_users')->where('id', $id)->update(['password_hash' => password_hash((string) $body['new_password'], PASSWORD_BCRYPT, ['cost' => 12])]);
         }
         return $this->response->json(['success' => true, 'redirect' => '/staff/accounts']);
     }

@@ -26,10 +26,10 @@ class MtlsMiddleware implements MiddlewareInterface
 
     public function __construct(ConfigInterface $config)
     {
-        $this->enabled = $config->get('mtls.enabled', true);
-        $this->caFile = $config->get('mtls.ca_file', '/etc/mtls/ca/ca.crt');
-        $this->verifyPeer = $config->get('mtls.verify_peer', true);
-        $this->minTlsVersion = $config->get('mtls.min_tls_version', 'TLSv1.3');
+        $this->enabled = (bool) $config->get('mtls.enabled', true);
+        $this->caFile = (string) $config->get('mtls.ca_file', '/etc/mtls/ca/ca.crt');
+        $this->verifyPeer = (bool) $config->get('mtls.verify_peer', true);
+        $this->minTlsVersion = (string) $config->get('mtls.min_tls_version', 'TLSv1.3');
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -66,13 +66,15 @@ class MtlsMiddleware implements MiddlewareInterface
         }
 
         // Add TLS version to headers for logging
-        $request = $request->withHeader('X-Client-TLS-Version', $sslContext['version'] ?? 'unknown');
+        $request = $request->withHeader('X-Client-TLS-Version', (string) ($sslContext['version'] ?? 'unknown'));
 
         return $handler->handle($request);
     }
 
     /**
      * Get SSL context from Swoole request
+     *
+     * @return array<string, mixed>|null
      */
     private function getSslContext(ServerRequestInterface $request): ?array
     {
@@ -80,11 +82,13 @@ class MtlsMiddleware implements MiddlewareInterface
 
         // Check for Swoole SSL context
         if (isset($serverRequest['ssl'])) {
+            /** @var array<string, mixed> */
             return $serverRequest['ssl'];
         }
 
         // Check for standard HTTPS context
         if (isset($serverRequest['https'])) {
+            /** @var array<string, mixed> */
             return $serverRequest['https'];
         }
 
@@ -93,6 +97,8 @@ class MtlsMiddleware implements MiddlewareInterface
 
     /**
      * Verify client certificate against CA
+     *
+     * @param array<string, mixed> $sslContext
      */
     private function verifyClientCertificate(array $sslContext): string|true
     {
@@ -111,7 +117,7 @@ class MtlsMiddleware implements MiddlewareInterface
         }
 
         // Check TLS version
-        $tlsVersion = $sslContext['version'] ?? '';
+        $tlsVersion = (string) ($sslContext['version'] ?? '');
         if ($tlsVersion && version_compare($tlsVersion, $this->minTlsVersion, '<')) {
             return sprintf('TLS version %s is below minimum required %s', $tlsVersion, $this->minTlsVersion);
         }
@@ -149,12 +155,14 @@ class MtlsMiddleware implements MiddlewareInterface
 
     /**
      * Extract client identity from certificate
+     *
+     * @param array<string, mixed> $sslContext
      */
     private function extractClientIdentity(array $sslContext): ?string
     {
         // Try to get CN from client certificate subject
         if (isset($sslContext['client_cert_dn'])) {
-            $dn = $sslContext['client_cert_dn'];
+            $dn = (string) $sslContext['client_cert_dn'];
 
             // Extract CN from DN string
             if (preg_match('/CN=([^,\/]+)/', $dn, $matches)) {
@@ -164,7 +172,7 @@ class MtlsMiddleware implements MiddlewareInterface
 
         // Try to get subject alternative name
         if (isset($sslContext['subject_alt_name'])) {
-            $san = $sslContext['subject_alt_name'];
+            $san = (string) $sslContext['subject_alt_name'];
 
             // Extract DNS name from SAN
             if (preg_match('/DNS:([^,\s]+)/', $san, $matches)) {
@@ -184,7 +192,7 @@ class MtlsMiddleware implements MiddlewareInterface
             'error' => 'Forbidden',
             'message' => 'mTLS authentication failed',
             'reason' => $reason,
-        ], JSON_PRETTY_PRINT);
+        ], JSON_PRETTY_PRINT) ?: '{}';
 
         return new class ($body) implements ResponseInterface {
             private string $body;
@@ -208,7 +216,7 @@ class MtlsMiddleware implements MiddlewareInterface
             {
                 return [
                     'Content-Type' => ['application/json'],
-                    'Content-Length' => [strlen($this->body)],
+                    'Content-Length' => [(string) strlen($this->body)],
                 ];
             }
 
@@ -221,7 +229,7 @@ class MtlsMiddleware implements MiddlewareInterface
             {
                 return match (strtolower($name)) {
                     'content-type' => ['application/json'],
-                    'content-length' => [strlen($this->body)],
+                    'content-length' => [(string) strlen($this->body)],
                     default => [],
                 };
             }
@@ -246,7 +254,7 @@ class MtlsMiddleware implements MiddlewareInterface
                 return $this;
             }
 
-            public function getBody()
+            public function getBody(): \Psr\Http\Message\StreamInterface
             {
                 return new SwooleStream($this->body);
             }

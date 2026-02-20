@@ -27,7 +27,7 @@ final class StopForumSpamController
     #[PostMapping(path: 'check')]
     public function check(RequestInterface $request): ResponseInterface
     {
-        $ip = $request->input('ip', '');
+        $ip = (string) $request->input('ip', '');
         $email = $request->input('email');
         $username = $request->input('username');
 
@@ -35,7 +35,11 @@ final class StopForumSpamController
             return $this->response->json(['is_spam' => false]);
         }
 
-        $isSpam = $this->sfsService->check($ip, $email, $username);
+        $isSpam = $this->sfsService->check(
+            $ip,
+            is_string($email) ? $email : null,
+            is_string($username) ? $username : null
+        );
 
         return $this->response->json(['is_spam' => $isSpam]);
     }
@@ -46,10 +50,10 @@ final class StopForumSpamController
     #[PostMapping(path: 'report')]
     public function report(RequestInterface $request): ResponseInterface
     {
-        $ip = $request->input('ip', '');
-        $email = $request->input('email', '');
-        $username = $request->input('username', 'Anonymous');
-        $evidence = $request->input('evidence', '');
+        $ip = (string) $request->input('ip', '');
+        $email = (string) $request->input('email', '');
+        $username = (string) $request->input('username', 'Anonymous');
+        $evidence = (string) $request->input('evidence', '');
 
         if (empty($ip)) {
             return $this->response->json(['error' => 'IP required'], 400);

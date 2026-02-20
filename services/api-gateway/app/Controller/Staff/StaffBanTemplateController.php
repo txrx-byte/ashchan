@@ -43,7 +43,7 @@ class StaffBanTemplateController
             ->orderBy('name')
             ->get();
         
-        return $this->response->view('staff/ban-templates/index', [
+        return $this->response->json([
             'templates' => $templates->toArray(),
             'isManager' => true,
             'isAdmin' => $staffInfo['is_admin'],
@@ -62,7 +62,7 @@ class StaffBanTemplateController
             return $this->response->json(['error' => 'Permission denied'], 403);
         }
         
-        return $this->response->view('staff/ban-templates/update', [
+        return $this->response->json([
             'template' => null,
             'action' => 'create',
             'banTypes' => ['local' => 'Local', 'global' => 'Global', 'zonly' => 'Unappealable'],
@@ -81,6 +81,8 @@ class StaffBanTemplateController
         if (!$staffInfo['is_manager']) {
             return $this->response->json(['error' => 'Permission denied'], 403);
         }
+        
+        /** @var array<string, mixed> $data */
         
         $data = $request->all();
         
@@ -137,7 +139,7 @@ class StaffBanTemplateController
             return $this->response->json(['error' => 'Template not found'], 404);
         }
         
-        return $this->response->view('staff/ban-templates/update', [
+        return $this->response->json([
             'template' => $template->toArray(),
             'action' => 'edit',
             'banTypes' => ['local' => 'Local', 'global' => 'Global', 'zonly' => 'Unappealable'],
@@ -161,6 +163,8 @@ class StaffBanTemplateController
         if (!$template) {
             return $this->response->json(['error' => 'Template not found'], 404);
         }
+        
+        /** @var array<string, mixed> $data */
         
         $data = $request->all();
         
@@ -215,8 +219,12 @@ class StaffBanTemplateController
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getStaffInfo(): array
     {
+        /** @var array<string, mixed> */
         return \Hyperf\Context\Context::get('staff_info', [
             'username' => 'system',
             'level' => 'janitor',

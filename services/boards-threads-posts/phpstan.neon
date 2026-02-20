@@ -9,3 +9,5 @@ parameters:
     ignoreErrors:
         - '#Static call to instance method Hyperf\DbConnection\Db::.*#'
         - '#Static call to instance method Hyperf\HttpServer\Router\Router::.*#'
+        # Hyperf Model::getAttribute() returns mixed; explicit casts are intentional
+        - '#Cannot cast mixed to (int|float|string)\.#'

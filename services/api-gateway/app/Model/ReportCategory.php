@@ -67,6 +67,9 @@ class ReportCategory extends Model
 
     /**
      * Get categories for a specific board
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
@@ -81,6 +84,9 @@ class ReportCategory extends Model
 
     /**
      * Get worksafe categories only
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeWorksafe(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -92,6 +98,9 @@ class ReportCategory extends Model
 
     /**
      * Get not-worksafe categories only
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeNotWorksafe(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -171,12 +180,14 @@ class ReportCategory extends Model
             ->orderBy('weight', 'desc')
             ->get();
 
+        /** @var array{rule: list<array<string, mixed>>, illegal: array<string, mixed>|null} $result */
         $result = [
             'rule' => [],
             'illegal' => null,
         ];
 
         foreach ($categories as $cat) {
+            /** @var array<string, mixed> $catArray */
             $catArray = $cat->toArray();
 
             // Illegal category (ID 31 is traditional)

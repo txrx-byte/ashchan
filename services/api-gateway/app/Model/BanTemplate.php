@@ -100,6 +100,9 @@ class BanTemplate extends Model
 
     /**
      * Get active templates
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeActive(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
@@ -108,6 +111,9 @@ class BanTemplate extends Model
 
     /**
      * Get templates for a specific board
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
@@ -121,6 +127,9 @@ class BanTemplate extends Model
 
     /**
      * Get templates by access level
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeForAccess(
         \Hyperf\Database\Model\Builder $query,
@@ -192,6 +201,7 @@ class BanTemplate extends Model
             ->orderBy('name')
             ->get();
 
+        /** @var array<string, list<array<string, mixed>>> $grouped */
         $grouped = [
             'local' => [],
             'global' => [],
@@ -199,9 +209,11 @@ class BanTemplate extends Model
         ];
 
         foreach ($templates as $tpl) {
-            $type = $tpl->getAttribute('ban_type');
+            $type = (string) $tpl->getAttribute('ban_type');
             if (isset($grouped[$type])) {
-                $grouped[$type][] = $tpl->toArray();
+                /** @var array<string, mixed> $tplArray */
+                $tplArray = $tpl->toArray();
+                $grouped[$type][] = $tplArray;
             }
         }
 

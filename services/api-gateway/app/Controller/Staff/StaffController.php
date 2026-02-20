@@ -53,7 +53,9 @@ final class StaffController
             return $this->response->redirect('/staff/admin');
         }
         
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        
+        $body = (array) $this->request->getParsedBody();
         $username = $body['username'] ?? '';
         $password = $body['password'] ?? '';
         
@@ -62,7 +64,7 @@ final class StaffController
         }
         
         $serverParams = $this->request->getServerParams();
-        $ipAddress = $serverParams['remote_addr'] ?? '0.0.0.0';
+        $ipAddress = (string) ($serverParams['remote_addr'] ?? '0.0.0.0');
         $userAgent = $this->request->getHeaderLine('User-Agent');
         
         $result = $this->authService->authenticate($username, $password, $ipAddress, $userAgent);
@@ -75,11 +77,14 @@ final class StaffController
             return $this->response->redirect('/staff/login?error=' . urlencode($errorMsg));
         }
         
+        $token = isset($result['session_token']) ? $result['session_token'] : '';
+        /** @var \Hyperf\HttpServer\Response $response */
         $response = $this->response->redirect('/staff/admin');
-        $cookie = new Cookie('staff_session', $result['session_token'], time() + (8 * 3600), '/', '', true, true, false, 'Strict');
-        $response = $response->withCookie($cookie);
+        $cookie = new Cookie('staff_session', $token, time() + (8 * 3600), '/', '', true, true, false, 'Strict');
+        /** @var ResponseInterface $cookieResponse */
+        $cookieResponse = $response->withCookie($cookie);
 
-        return $response;
+        return $cookieResponse;
     }
 
     #[PostMapping(path: 'logout')]
@@ -90,21 +95,26 @@ final class StaffController
         $sessionToken = $cookies['staff_session'] ?? null;
 
         if ($user && $sessionToken) {
-            $tokenHash = hash('sha256', $sessionToken);
-            $this->authService->logout($tokenHash, $user['id']);
+            $tokenHash = hash('sha256', (string) $sessionToken);
+            $this->authService->logout($tokenHash, (int) $user['id']);
         }
 
+        /** @var \Hyperf\HttpServer\Response $response */
         $response = $this->response->redirect('/staff/login');
         $cookie = new Cookie('staff_session', '', time() - 3600, '/', '', true, true);
-        $response = $response->withCookie($cookie);
+        /** @var ResponseInterface $cookieResponse */
+        $cookieResponse = $response->withCookie($cookie);
         
-        return $response;
+        return $cookieResponse;
     }
 
     #[GetMapping(path: 'admin')]
     public function admin(): ResponseInterface
     {
         $user = $this->getUser();
+        if (!$user) {
+            return $this->response->redirect('/staff/login');
+        }
         $reportCounts = $this->modService->countReportsByBoard();
         $totalReports = array_sum($reportCounts);
         $banRequests = $this->modService->getBanRequests();
@@ -117,7 +127,7 @@ final class StaffController
             'isAdmin' => $user['access_level'] === 'admin',
             'totalReports' => $totalReports,
             'banRequestCount' => $banRequests['count'],
-            'csrf_token' => $this->authService->generateCsrfToken($user['id']),
+            'csrf_token' => $this->authService->generateCsrfToken((int) $user['id']),
         ]);
         return $this->response->html($html);
     }
@@ -126,6 +136,9 @@ final class StaffController
     public function dashboard(): ResponseInterface
     {
         $user = $this->getUser();
+        if (!$user) {
+            return $this->response->redirect('/staff/login');
+        }
         $reportCounts = $this->modService->countReportsByBoard();
         $totalReports = array_sum($reportCounts);
         $banRequests = $this->modService->getBanRequests();
@@ -139,7 +152,7 @@ final class StaffController
             'totalReports' => $totalReports,
             'reportCounts' => $reportCounts,
             'banRequestCount' => $banRequests['count'],
-            'csrf_token' => $this->authService->generateCsrfToken($user['id']),
+            'csrf_token' => $this->authService->generateCsrfToken((int) $user['id']),
         ]);
         return $this->response->html($html);
     }
@@ -148,13 +161,16 @@ final class StaffController
     public function bans(): ResponseInterface
     {
         $user = $this->getUser();
+        if (!$user) {
+            return $this->response->redirect('/staff/login');
+        }
         $search = $this->request->query('q', '');
         
         $html = $this->viewService->render('staff/bans/index', [
             'isMod' => in_array($user['access_level'], ['mod', 'manager', 'admin']),
             'isManager' => in_array($user['access_level'], ['manager', 'admin']),
             'searchQuery' => $search,
-            'csrf_token' => $this->authService->generateCsrfToken($user['id']),
+            'csrf_token' => $this->authService->generateCsrfToken((int) $user['id']),
         ]);
         return $this->response->html($html);
     }
@@ -163,7 +179,10 @@ final class StaffController
     public function reports(): ResponseInterface
     {
         $user = $this->getUser();
-        
+        if (!$user) {
+            return $this->response->redirect('/staff/login');
+        }
+
         $html = $this->viewService->render('staff/reports/index', [
             'boardlist' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
             'access' => ['board' => $user['board_access']],
@@ -173,7 +192,7 @@ final class StaffController
             'currentBoard' => '',
             'cleared_only' => false,
             'username' => $user['username'],
-            'csrf_token' => $this->authService->generateCsrfToken($user['id']),
+            'csrf_token' => $this->authService->generateCsrfToken((int) $user['id']),
         ]);
         return $this->response->html($html);
     }
@@ -182,6 +201,9 @@ final class StaffController
     public function banRequests(): ResponseInterface
     {
         $user = $this->getUser();
+        if (!$user) {
+            return $this->response->redirect('/staff/login');
+        }
         $board = $this->request->query('board');
         $data = $this->modService->getBanRequests(is_string($board) && $board !== '' ? $board : null);
 
@@ -190,7 +212,7 @@ final class StaffController
             'count' => $data['count'],
             'boardlist' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
             'isMod' => in_array($user['access_level'], ['mod', 'manager', 'admin']),
-            'csrf_token' => $this->authService->generateCsrfToken($user['id']),
+            'csrf_token' => $this->authService->generateCsrfToken((int) $user['id']),
         ]);
         return $this->response->html($html);
     }
@@ -199,18 +221,23 @@ final class StaffController
     public function unban(): ResponseInterface
     {
         $user = $this->getUser();
-        $body = $this->request->getParsedBody();
+        if (!$user) {
+            return $this->response->json(['status' => 'error', 'message' => 'Unauthorized']);
+        }
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $ids = $body['ids'] ?? '';
         
         if (empty($ids)) {
             return $this->response->json(['status' => 'error', 'message' => 'No IDs provided']);
         }
         
-        $idList = explode(',', $ids);
+        $idList = explode(',', (string) $ids);
+        $username = (string) ($user['username'] ?? '');
         
         foreach ($idList as $id) {
             if (is_numeric($id)) {
-                $this->modService->unban((int)$id, $user['username']);
+                $this->modService->unbanUser((int)$id, $username);
             }
         }
         
@@ -235,8 +262,12 @@ final class StaffController
         return $this->response->json(['status' => 'success', 'data' => $data]);
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     private function getUser(): ?array
     {
+        /** @var array<string, mixed>|null */
         return \Hyperf\Context\Context::get('staff_user');
     }
 }

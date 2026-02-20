@@ -31,7 +31,7 @@ final class AuthenticationService
     /**
      * Authenticate user and create session
      * 
-     * @return array{success: bool, user?: array, error?: string, lockout_remaining?: int}
+     * @return array{success: bool, user?: array<string, mixed>, error?: string, lockout_remaining?: int, session_token?: string}
      */
     public function authenticate(string $username, string $password, string $ipAddress, string $userAgent): array
     {
@@ -74,7 +74,7 @@ final class AuthenticationService
         
         // Check if account is locked
         if ($user['is_locked']) {
-            $lockedUntil = strtotime($user['locked_until']);
+            $lockedUntil = strtotime((string) $user['locked_until']);
             if ($lockedUntil > time()) {
                 $this->logLoginAttempt($ipAddress, $username, false, 'account_locked', $userAgent);
                 return [
@@ -84,17 +84,17 @@ final class AuthenticationService
                 ];
             } else {
                 // Auto-unlock expired lockout
-                $this->unlockAccount($user['id']);
+                $this->unlockAccount((int) $user['id']);
             }
         }
         
         // Verify password
-        if (!password_verify($password, $user['password_hash'])) {
+        if (!password_verify($password, (string) $user['password_hash'])) {
             $this->logLoginAttempt($ipAddress, $username, false, 'invalid_password', $userAgent);
             $this->recordFailedAttempt($ipAddress, $username, $userAgent);
             
             // Check if we should lock the account
-            $this->checkAndLockAccount($user['id']);
+            $this->checkAndLockAccount((int) $user['id']);
             
             return [
                 'success' => false,
@@ -103,22 +103,22 @@ final class AuthenticationService
         }
         
         // Password is correct - reset failed attempts
-        $this->resetFailedAttempts($user['id']);
+        $this->resetFailedAttempts((int) $user['id']);
         
         // Check if password needs rehash (cost increased)
-        if (password_needs_rehash($user['password_hash'], PASSWORD_ARGON2ID)) {
-            $this->updatePasswordHash($user['id'], $password);
+        if (password_needs_rehash((string) $user['password_hash'], PASSWORD_ARGON2ID)) {
+            $this->updatePasswordHash((int) $user['id'], $password);
         }
         
         // Create session
-        $sessionToken = $this->createSession($user['id'], $ipAddress, $userAgent);
+        $sessionToken = $this->createSession((int) $user['id'], $ipAddress, $userAgent);
         
         // Update user last login
-        $this->updateLastLogin($user['id'], $ipAddress, $userAgent);
+        $this->updateLastLogin((int) $user['id'], $ipAddress, $userAgent);
         
         // Log successful login
         $this->logLoginAttempt($ipAddress, $username, true, null, $userAgent);
-        $this->logAuditAction($user['id'], $username, 'login', 'system', null, null, 'User logged in', $ipAddress, $userAgent);
+        $this->logAuditAction((int) $user['id'], $username, 'login', 'system', null, null, 'User logged in', $ipAddress, $userAgent);
         
         return [
             'success' => true,
@@ -137,7 +137,7 @@ final class AuthenticationService
     /**
      * Validate session token and return user info
      * 
-     * @return array{valid: bool, user?: array}
+     * @return array{valid: bool, user?: array<string, mixed>}
      */
     public function validateSession(string $tokenHash): array
     {
@@ -191,14 +191,14 @@ final class AuthenticationService
         if ($user) {
             $this->logAuditAction(
                 $userId,
-                $user->username,
+                (string) $user->username,
                 'logout',
                 'system',
                 null,
                 null,
                 'User logged out',
-                $_SERVER['REMOTE_ADDR'] ?? '',
-                $_SERVER['HTTP_USER_AGENT'] ?? ''
+                (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
+                (string) ($_SERVER['HTTP_USER_AGENT'] ?? '')
             );
         }
     }
@@ -267,12 +267,12 @@ final class AuthenticationService
         }
         
         // Check if user has all permissions flag
-        if (in_array('all', $user->access_flags ?? [])) {
+        if (in_array('all', (array) ($user->access_flags ?? []))) {
             return true;
         }
         
         // Check specific permission
-        return in_array($permission, $user->access_flags ?? []);
+        return in_array($permission, (array) ($user->access_flags ?? []));
     }
     
     /**
@@ -315,11 +315,14 @@ final class AuthenticationService
             return true;
         }
         
-        return in_array($board, $user->board_access ?? []);
+        return in_array($board, (array) ($user->board_access ?? []));
     }
     
     /**
      * Log audit action
+     *
+     * @param array<string, mixed>|null $oldValues
+     * @param array<string, mixed>|null $newValues
      */
     public function logAuditAction(
         int $userId,
@@ -367,7 +370,7 @@ final class AuthenticationService
             ->where('u.is_active', true)
             ->pluck('permission_name');
         
-        return $permissions->toArray();
+        return array_map(static fn (mixed $v): string => (string) $v, $permissions->toArray());
     }
     
     /**
@@ -432,7 +435,7 @@ final class AuthenticationService
             ->where('user_id', $userId)
             ->first();
         
-        $maxSessions = $settings->max_concurrent_sessions ?? 3;
+        $maxSessions = (int) ($settings->max_concurrent_sessions ?? 3);
         
         // Keep only the most recent sessions
         $oldSessions = Db::table('staff_sessions')
@@ -443,7 +446,7 @@ final class AuthenticationService
             ->pluck('token_hash');
         
         foreach ($oldSessions as $tokenHash) {
-            $this->invalidateSession($tokenHash, 'replaced');
+            $this->invalidateSession((string) $tokenHash, 'replaced');
         }
     }
     
@@ -524,7 +527,7 @@ final class AuthenticationService
             return;
         }
         
-        $newFailedCount = ($user->failed_login_attempts ?? 0) + 1;
+        $newFailedCount = (int) ($user->failed_login_attempts ?? 0) + 1;
         
         if ($newFailedCount >= self::MAX_LOGIN_ATTEMPTS) {
             // Lock account

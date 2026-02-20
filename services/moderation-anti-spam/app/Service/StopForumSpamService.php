@@ -24,7 +24,7 @@ class StopForumSpamService
         LoggerFactory $loggerFactory
     ) {
         $this->logger = $loggerFactory->get('sfs');
-        $this->apiKey = env('SFS_API_KEY');
+        $this->apiKey = is_string($val = env('SFS_API_KEY')) ? $val : null;
     }
 
     /**
@@ -54,21 +54,28 @@ class StopForumSpamService
                 return false;
             }
 
+            /** @var array<string, mixed>|null $data */
             $data = json_decode($response->getBody()->getContents(), true);
             
-            if (!isset($data['success']) || !$data['success']) {
+            if (!is_array($data) || !isset($data['success']) || !$data['success']) {
                 return false;
             }
 
             foreach (['ip', 'email', 'username'] as $type) {
                 if (isset($data[$type]) && is_array($data[$type])) {
+                    /** @var array<string, mixed> $typeData */
+                    $typeData = $data[$type];
                     // Normalize single vs multiple response structure
-                    $entries = isset($data[$type]['appears']) ? [$data[$type]] : $data[$type];
+                    $entries = isset($typeData['appears']) ? [$typeData] : $typeData;
                     
                     foreach ($entries as $entry) {
+                        if (!is_array($entry)) {
+                            continue;
+                        }
                         if (isset($entry['appears']) && $entry['appears'] && isset($entry['confidence'])) {
-                            if ($entry['confidence'] >= self::CONFIDENCE_THRESHOLD) {
-                                $this->logger->info("SFS Block: $type matched with confidence {$entry['confidence']}");
+                            $confidence = (float) $entry['confidence'];
+                            if ($confidence >= self::CONFIDENCE_THRESHOLD) {
+                                $this->logger->info("SFS Block: $type matched with confidence {$confidence}");
                                 return true;
                             }
                         }

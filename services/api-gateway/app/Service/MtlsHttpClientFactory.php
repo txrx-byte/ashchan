@@ -27,7 +27,8 @@ class MtlsHttpClientFactory
      * Create an mTLS-enabled HTTP client for a specific service
      *
      * @param string $serviceUrl The base URL of the target service
-     * @param array $options Additional Guzzle options
+     * @param array<string, mixed> $options Additional Guzzle options
+     * @return \GuzzleHttp\ClientInterface
      */
     public function create(string $serviceUrl, array $options = []): ClientInterface
     {
@@ -61,12 +62,13 @@ class MtlsHttpClientFactory
      * Create a client for a specific service by name
      *
      * @param string $serviceName Service name (e.g., 'auth', 'boards', 'media')
+     * @return \GuzzleHttp\ClientInterface
      */
     public function createForService(string $serviceName): ClientInterface
     {
-        $serviceUrl = $this->config->get(sprintf('services.%s.url', $serviceName));
+        $serviceUrl = (string) $this->config->get(sprintf('services.%s.url', $serviceName));
 
-        if (! $serviceUrl) {
+        if (!$serviceUrl) {
             throw new \InvalidArgumentException("Service URL not configured for: {$serviceName}");
         }
 
@@ -78,7 +80,7 @@ class MtlsHttpClientFactory
      */
     public function getCaFile(): string
     {
-        return $this->config->get('mtls.ca_file', '/etc/mtls/ca/ca.crt');
+        return (string) $this->config->get('mtls.ca_file', '/etc/mtls/ca/ca.crt');
     }
 
     /**
@@ -86,7 +88,7 @@ class MtlsHttpClientFactory
      */
     public function getClientCertFile(): string
     {
-        return $this->config->get('mtls.client_cert_file', '/etc/mtls/client/client.crt');
+        return (string) $this->config->get('mtls.client_cert_file', '/etc/mtls/client/client.crt');
     }
 
     /**
@@ -94,7 +96,7 @@ class MtlsHttpClientFactory
      */
     public function getClientKeyFile(): string
     {
-        return $this->config->get('mtls.client_key_file', '/etc/mtls/client/client.key');
+        return (string) $this->config->get('mtls.client_key_file', '/etc/mtls/client/client.key');
     }
 
     /**
@@ -102,6 +104,7 @@ class MtlsHttpClientFactory
      *
      * @param string $serviceUrl The service URL to test
      * @param string $endpoint The health check endpoint
+     * @return array<string, mixed>
      */
     public function testConnection(string $serviceUrl, string $endpoint = '/health'): array
     {

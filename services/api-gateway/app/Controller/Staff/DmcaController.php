@@ -41,7 +41,8 @@ final class DmcaController
     #[PostMapping(path: 'store')]
     public function store(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['claimant_name'])) {
@@ -69,17 +70,17 @@ final class DmcaController
         $user = \Hyperf\Context\Context::get('staff_user');
         $infringingUrls = is_array($body['infringing_urls']) 
             ? $body['infringing_urls'] 
-            : array_filter(array_map('trim', explode("\n", $body['infringing_urls'])));
+            : array_filter(array_map('trim', explode("\n", (string) ($body['infringing_urls'] ?? ''))));
 
         Db::table('dmca_notices')->insertGetId([
-            'claimant_name' => trim($body['claimant_name']),
-            'claimant_company' => trim($body['claimant_company'] ?? ''),
-            'claimant_email' => trim($body['claimant_email']),
-            'claimant_phone' => trim($body['claimant_phone'] ?? ''),
-            'copyrighted_work' => trim($body['copyrighted_work']),
+            'claimant_name' => trim((string) ($body['claimant_name'] ?? '')),
+            'claimant_company' => trim((string) ($body['claimant_company'] ?? '')),
+            'claimant_email' => trim((string) ($body['claimant_email'] ?? '')),
+            'claimant_phone' => trim((string) ($body['claimant_phone'] ?? '')),
+            'copyrighted_work' => trim((string) ($body['copyrighted_work'] ?? '')),
             'infringing_urls' => $infringingUrls,
-            'statement' => trim($body['statement']),
-            'signature' => trim($body['signature'] ?? ''),
+            'statement' => trim((string) ($body['statement'] ?? '')),
+            'signature' => trim((string) ($body['signature'] ?? '')),
             'status' => 'pending',
             'received_at' => date('Y-m-d H:i:s'),
         ]);
@@ -115,14 +116,16 @@ final class DmcaController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+
+        $body = (array) $this->request->getParsedBody();
         $user = \Hyperf\Context\Context::get('staff_user');
 
         Db::table('dmca_notices')->where('id', $id)->update([
             'status' => $body['status'] ?? 'processed',
             'processed_at' => date('Y-m-d H:i:s'),
             'processed_by' => $user['id'] ?? null,
-            'notes' => trim($body['notes'] ?? ''),
+            'notes' => trim((string) ($body['notes'] ?? '')),
         ]);
 
         // Log takedowns
@@ -134,7 +137,7 @@ final class DmcaController
                     'board' => $takedown['board'],
                     'post_no' => (int)$takedown['post_no'],
                     'md5_hash' => $takedown['md5_hash'] ?? null,
-                    'takedown_reason' => trim($takedown['reason'] ?? ''),
+                    'takedown_reason' => trim((string) ($takedown['reason'] ?? '')),
                     'takedown_at' => date('Y-m-d H:i:s'),
                     'takedown_by' => $user['id'] ?? null,
                 ]);
@@ -152,7 +155,9 @@ final class DmcaController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+
+        $body = (array) $this->request->getParsedBody();
         $validStatuses = ['pending', 'processed', 'rejected'];
         $status = $body['status'] ?? 'pending';
 

@@ -51,6 +51,9 @@ class BanRequest extends Model
 
     /**
      * Get requests for a specific board
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeForBoard(
         \Hyperf\Database\Model\Builder $query,
@@ -61,6 +64,9 @@ class BanRequest extends Model
 
     /**
      * Get requests by janitor
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeByJanitor(
         \Hyperf\Database\Model\Builder $query,
@@ -78,13 +84,18 @@ class BanRequest extends Model
         $json = $this->getAttribute('post_json');
         if (is_string($json)) {
             $decoded = json_decode($json, true);
-            return is_array($decoded) ? (array) $decoded : [];
+            if (is_array($decoded)) {
+                /** @var array<string, mixed> $decoded */
+                return $decoded;
+            }
         }
         return [];
     }
 
     /**
      * Get associated ban template
+     *
+     * @return \Hyperf\Database\Model\Relations\BelongsTo<\App\Model\BanTemplate, $this>
      */
     public function template(): \Hyperf\Database\Model\Relations\BelongsTo
     {

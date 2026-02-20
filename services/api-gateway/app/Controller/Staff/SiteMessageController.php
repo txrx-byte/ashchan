@@ -44,7 +44,8 @@ final class SiteMessageController
     #[PostMapping(path: 'store')]
     public function store(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['title'])) {
@@ -60,8 +61,8 @@ final class SiteMessageController
 
         $user = \Hyperf\Context\Context::get('staff_user');
         Db::table('site_messages')->insert([
-            'title' => trim($body['title']),
-            'message' => trim($body['message']),
+            'title' => trim((string) ($body['title'] ?? '')),
+            'message' => trim((string) ($body['message'] ?? '')),
             'is_html' => isset($body['is_html']),
             'boards' => $body['boards'] ?? [],
             'is_active' => isset($body['is_active']),
@@ -97,7 +98,9 @@ final class SiteMessageController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['title'])) {
@@ -112,8 +115,8 @@ final class SiteMessageController
         }
 
         Db::table('site_messages')->where('id', $id)->update([
-            'title' => trim($body['title']),
-            'message' => trim($body['message']),
+            'title' => trim((string) ($body['title'] ?? '')),
+            'message' => trim((string) ($body['message'] ?? '')),
             'is_html' => isset($body['is_html']),
             'boards' => $body['boards'] ?? [],
             'is_active' => isset($body['is_active']),
@@ -140,9 +143,10 @@ final class SiteMessageController
     #[PostMapping(path: 'preview')]
     public function preview(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
-        $title = $body['title'] ?? '';
-        $message = $body['message'] ?? '';
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
+        $title = (string) ($body['title'] ?? '');
+        $message = (string) ($body['message'] ?? '');
         $isHtml = isset($body['is_html']);
 
         if ($isHtml) {

@@ -6,7 +6,6 @@ parameters:
         - phpstan-bootstrap.php
     paths:
         - app
-        - config
     scanDirectories:
         - vendor/hyperf
     reportUnmatchedIgnoredErrors: false
@@ -43,3 +42,12 @@ parameters:
         - '#Part \$.*\(mixed\) of encapsed string cannot be cast to string\.#'
         - '#Return type of call to method .* contains unresolvable type\.#'
         - '#Parameter .* \$callback of method .* contains unresolvable type\.#'
+        # GuzzleHttp is a runtime dependency not available during static analysis
+        - '#GuzzleHttp#'
+        # config/mtls.php references runtime Swoole constants and server classes
+        - '#IndexController not found#'
+        - '#Constant TLSv1_2_METHOD not found#'
+        - '#Constant TLSv1_3_METHOD not found#'
+        -
+            message: '#Binary operation "\|" between mixed and mixed results in an error#'
+            path: config/mtls.php

@@ -42,7 +42,8 @@ final class BlotterController
     #[PostMapping(path: 'store')]
     public function store(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['message'])) {
@@ -55,7 +56,7 @@ final class BlotterController
 
         $user = \Hyperf\Context\Context::get('staff_user');
         Db::table('blotter_messages')->insert([
-            'message' => trim($body['message']),
+            'message' => trim((string) ($body['message'] ?? '')),
             'is_html' => isset($body['is_html']),
             'is_active' => isset($body['is_active']),
             'priority' => (int)($body['priority'] ?? 0),
@@ -86,7 +87,9 @@ final class BlotterController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
         if (empty($body['message'])) {
@@ -98,7 +101,7 @@ final class BlotterController
         }
 
         Db::table('blotter_messages')->where('id', $id)->update([
-            'message' => trim($body['message']),
+            'message' => trim((string) ($body['message'] ?? '')),
             'is_html' => isset($body['is_html']),
             'is_active' => isset($body['is_active']),
             'priority' => (int)($body['priority'] ?? 0),
@@ -123,8 +126,9 @@ final class BlotterController
     #[PostMapping(path: 'preview')]
     public function preview(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
-        $message = $body['message'] ?? '';
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
+        $message = (string) ($body['message'] ?? '');
         $isHtml = isset($body['is_html']);
 
         if ($isHtml) {

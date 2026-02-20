@@ -211,7 +211,7 @@ final class ThreadController
     {
         $option = $request->input('option');
         
-        if (!in_array($option, ['sticky', 'lock', 'permasage'])) {
+        if (!is_string($option) || !in_array($option, ['sticky', 'lock', 'permasage'])) {
             return $this->response->json(['error' => 'Invalid option'])->withStatus(400);
         }
         

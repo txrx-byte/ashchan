@@ -6,6 +6,7 @@ namespace App\Controller;
 use Hyperf\Context\Context;
 use Hyperf\HttpServer\Contract\ResponseInterface;
 use Hyperf\HttpMessage\Stream\SwooleStream;
+use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
 
 abstract class AbstractController
 {
@@ -15,7 +16,8 @@ abstract class AbstractController
      */
     protected function getStaffInfo(): array
     {
-        return Context::get('staff_info', [
+        /** @var array{username: string, level: string, boards: array<string>, is_mod: bool, is_manager: bool, is_admin: bool} $info */
+        $info = Context::get('staff_info', [
             'username' => 'system',
             'level' => 'janitor',
             'boards' => [],
@@ -23,6 +25,7 @@ abstract class AbstractController
             'is_manager' => false,
             'is_admin' => false,
         ]);
+        return $info;
     }
 
     /**
@@ -38,9 +41,11 @@ abstract class AbstractController
     /**
      * Create a HTML response
      */
-    protected function html(ResponseInterface $response, string $body, int $status = 200): ResponseInterface
+    protected function html(ResponseInterface $response, string $body, int $status = 200): PsrResponseInterface
     {
-        return $response->withStatus($status)
+        /** @var PsrResponseInterface $base */
+        $base = $response; // @phpstan-ignore varTag.nativeType
+        return $base->withStatus($status)
             ->withHeader('Content-Type', 'text/html; charset=utf-8')
             ->withBody(new SwooleStream($body));
     }

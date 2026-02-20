@@ -45,6 +45,9 @@ class ReportClearLog extends Model
 
     /**
      * Get clear logs for an IP within a time range
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeForIpInRange(
         \Hyperf\Database\Model\Builder $query,
@@ -57,6 +60,9 @@ class ReportClearLog extends Model
 
     /**
      * Count clears for abuse detection
+     *
+     * @param \Hyperf\Database\Model\Builder<static> $query
+     * @return \Hyperf\Database\Model\Builder<static>
      */
     public function scopeCountForAbuseCheck(
         \Hyperf\Database\Model\Builder $query,

@@ -44,10 +44,11 @@ final class CapcodeController
     #[PostMapping(path: 'store')]
     public function store(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
-        if (strlen($body['name'] ?? '') < 2) {
+        if (strlen((string) ($body['name'] ?? '')) < 2) {
             $errors[] = 'Name must be at least 2 characters';
         }
         if (empty($body['label'])) {
@@ -63,9 +64,9 @@ final class CapcodeController
 
         $user = \Hyperf\Context\Context::get('staff_user');
         Db::table('capcodes')->insert([
-            'name' => trim($body['name']),
+            'name' => trim((string) ($body['name'] ?? '')),
             'tripcode' => $tripcode,
-            'label' => trim($body['label']),
+            'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
             'boards' => $body['boards'] ?? [],
             'is_active' => isset($body['is_active']),
@@ -99,10 +100,12 @@ final class CapcodeController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+
+        $body = (array) $this->request->getParsedBody();
         $errors = [];
 
-        if (strlen($body['name'] ?? '') < 2) {
+        if (strlen((string) ($body['name'] ?? '')) < 2) {
             $errors[] = 'Name must be at least 2 characters';
         }
         if (empty($body['label'])) {
@@ -114,8 +117,8 @@ final class CapcodeController
         }
 
         Db::table('capcodes')->where('id', $id)->update([
-            'name' => trim($body['name']),
-            'label' => trim($body['label']),
+            'name' => trim((string) ($body['name'] ?? '')),
+            'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
             'boards' => $body['boards'] ?? [],
             'is_active' => isset($body['is_active']),
@@ -140,7 +143,8 @@ final class CapcodeController
     #[PostMapping(path: 'test')]
     public function test(): ResponseInterface
     {
-        $body = $this->request->getParsedBody();
+        /** @var array<string, mixed> $body */
+        $body = (array) $this->request->getParsedBody();
         $tripcode = $body['tripcode'] ?? '';
 
         // Check if tripcode exists
