@@ -10,6 +10,8 @@ use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 use Hyperf\Logger\LoggerFactory;
 
+use Hyperf\Logger\LoggerFactory;
+
 /**
  * Serves the frontend HTML pages and static files.
  * Fetches data from backend microservices via ProxyClient, then renders PHP templates.
@@ -20,6 +22,7 @@ final class FrontendController
         private HttpResponse $response,
         private ProxyClient $proxyClient,
         private TemplateRenderer $renderer,
+        private LoggerFactory $loggerFactory,
     ) {}
 
     /** GET / – Homepage with board listing */
@@ -382,7 +385,7 @@ final class FrontendController
             // we want to display "Board not found" without crashing.
             // Other errors (e.g. 5xx) will result in empty data and generic error messages.
             // If the service is completely down, it'll still return empty data.
-            \Hyperf\Logger\LoggerFactory::get('default')->error(sprintf(
+            $this->loggerFactory->get('default')->error(sprintf(
                 'Upstream service "%s" returned error status %d for path "%s". Body: %s',
                 $service,
                 $result['status'],

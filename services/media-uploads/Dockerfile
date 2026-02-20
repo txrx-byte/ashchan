@@ -1,7 +1,7 @@
 # Ashchan Media/Uploads Service Dockerfile
 # mTLS ServiceMesh Enabled
 
-FROM hyperf/hyperf:8.2-alpine-v3.19-swoole
+FROM docker.io/hyperf/hyperf:8.2-alpine-v3.19-swoole
 
 # Install OpenSSL, CA certificates, and image processing libraries for mTLS and media handling
 RUN apk add --no-cache openssl ca-certificates gd imagemagick ffmpeg
@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Copy composer.json and install dependencies
 COPY composer.json ./
-RUN composer install --no-dev --optimize-autoloader --no-scripts 2>/dev/null || composer install --no-dev --no-scripts
+RUN composer install --optimize-autoloader --no-scripts 2>/dev/null || composer install --no-scripts
 
 # Copy application code
 COPY . .

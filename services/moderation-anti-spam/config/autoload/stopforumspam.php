@@ -3,6 +3,6 @@
 declare(strict_types=1);
 
 return [
-    'api_key' => env('STOPFORUMSPAM_API_KEY', ''),
-    'threshold' => (int) env('STOPFORUMSPAM_THRESHOLD', 80),
+    'api_key' => getenv('STOPFORUMSPAM_API_KEY') ?: '',
+    'threshold' => (int) (getenv('STOPFORUMSPAM_THRESHOLD') ?: 80),
 ];

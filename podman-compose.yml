@@ -16,7 +16,7 @@ services:
   # ─────────────────────────────────────────────────────────────
 
   postgres:
-    image: postgres:16-alpine
+    image: docker.io/postgres:16-alpine
     container_name: ashchan-postgres-1
     hostname: postgres.ashchan.local
     environment:
@@ -27,18 +27,18 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+      - ./db/migrations:/app/db/migrations:ro
     networks:
       - ashchan-mesh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ashchan"]
+      test: "pg_isready -U ashchan"
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: docker.io/redis:7-alpine
     container_name: ashchan-redis-1
     hostname: redis.ashchan.local
     ports:
@@ -48,14 +48,14 @@ services:
     networks:
       - ashchan-mesh
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: "redis-cli ping"
       interval: 5s
       timeout: 3s
       retries: 5
     restart: unless-stopped
 
   minio:
-    image: minio/minio:latest
+    image: docker.io/minio/minio:latest
     container_name: ashchan-minio-1
     hostname: minio.ashchan.local
     command: server /data --console-address ":9001"
@@ -70,7 +70,7 @@ services:
     networks:
       - ashchan-mesh
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live"]
+      test: "curl -f http://localhost:9000/minio/health/live"
       interval: 10s
       timeout: 5s
       retries: 3
@@ -105,7 +105,7 @@ services:
       - ashchan-public
       - ashchan-mesh
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9501/health || exit 1"]
+      test: "curl -f http://localhost:9501/health || exit 1"
       interval: 10s
       timeout: 5s
       retries: 3
@@ -119,7 +119,7 @@ services:
     hostname: auth.ashchan.local
     ports:
       - "9502:9502"   # HTTP (development only)
-      - "8443:8443"   # Internal mTLS (different host port to avoid conflict)
+      - "8502:8443"   # Internal mTLS (different host port to avoid conflict)
     env_file:
       - ./services/auth-accounts/.env
     volumes:
@@ -133,7 +133,7 @@ services:
     networks:
       - ashchan-mesh
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9502/health || exit 1"]
+      test: "curl -f http://localhost:9502/health || exit 1"
       interval: 10s
       timeout: 5s
       retries: 3
@@ -161,7 +161,7 @@ services:
     networks:
       - ashchan-mesh
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9503/health || exit 1"]
+      test: "curl -f http://localhost:9503/health || exit 1"
       interval: 10s
       timeout: 5s
       retries: 3
@@ -191,7 +191,7 @@ services:
     networks:
       - ashchan-mesh
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9504/health || exit 1"]
+      test: "curl -f http://localhost:9504/health || exit 1"
       interval: 10s
       timeout: 5s
       retries: 3
@@ -219,7 +219,7 @@ services:
     networks:
       - ashchan-mesh
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9505/health || exit 1"]
+      test: "curl -f http://localhost:9505/health || exit 1"
       interval: 10s
       timeout: 5s
       retries: 3
@@ -247,7 +247,7 @@ services:
     networks:
       - ashchan-mesh
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9506/health || exit 1"]
+      test: "curl -f http://localhost:9506/health || exit 1"
       interval: 10s
       timeout: 5s
       retries: 3

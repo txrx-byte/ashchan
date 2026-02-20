@@ -44,17 +44,14 @@ logs:
 
 migrate:
 	@echo "Running migrations..."
-	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /docker-entrypoint-initdb.d/001_auth_accounts.sql
-	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /docker-entrypoint-initdb.d/002_boards_threads_posts.sql
-	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /docker-entrypoint-initdb.d/003_media_uploads.sql
-	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /docker-entrypoint-initdb.d/004_moderation_anti_spam.sql
+	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/001_auth_accounts.sql
+	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/002_boards_threads_posts.sql
+	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/003_media_uploads.sql
+	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/004_moderation_anti_spam.sql
 
 test:
-	@echo "Running tests..."
-	@for svc in api-gateway auth-accounts boards-threads-posts media-uploads search-indexing moderation-anti-spam; do \
-		echo "Testing $$svc..."; \
-		cd services/$$svc && composer test; \
-	done
+	@echo "Running tests for boards-threads-posts..."
+	podman exec -it ashchan-boards-1 php /app/vendor/bin/phpunit /app/tests/Feature
 
 lint:
 	@echo "Linting PHP code..."
@@ -113,11 +110,11 @@ mtls-status:
 
 rebuild:
 	@echo "Rebuilding all services..."
-	podman-compose build
+	podman-compose build $(BUILD_ARGS)
 
 rebuild-%:
 	@echo "Rebuilding $* service..."
-	podman-compose build $*
+	podman-compose build $(BUILD_ARGS) $*
 
 restart:
 	@echo "Restarting all services..."
