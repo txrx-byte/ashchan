@@ -452,21 +452,15 @@ final class ModerationService
     {
         $results = Report::query()
             ->where('cleared', 0)
-            ->selectRaw('board, SUM(weight) as total_weight')
+            ->selectRaw('board, COUNT(*) as report_count, SUM(weight) as total_weight')
             ->groupBy('board')
             ->get();
 
         $counts = [];
         foreach ($results as $row) {
             $board = $row->getAttribute('board');
-            $weight = (float) $row->getAttribute('total_weight');
-
-            // Apply thread weight boost if needed
-            if ($weight < self::GLOBAL_THRES) {
-                continue;
-            }
-
-            $counts[(string) $board] = (int) ceil($weight / self::GLOBAL_THRES);
+            $count = (int) $row->getAttribute('report_count');
+            $counts[(string) $board] = $count;
         }
 
         return $counts;
@@ -543,8 +537,24 @@ final class ModerationService
         int $acceptedTpl,
         string $modUsername
     ): void {
-        // This would typically insert into janitor_stats table
-        // For now, just log
+        try {
+            \Hyperf\DbConnection\Db::table('janitor_stats')->insert([
+                'janitor_username' => $janitorUsername,
+                'action' => $action,
+                'board' => $board,
+                'post_id' => $postId,
+                'requested_template' => $requestedTpl,
+                'accepted_template' => $acceptedTpl,
+                'mod_username' => $modUsername,
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Table may not exist yet — log and continue
+            $this->logger->warning('Failed to insert janitor stats', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $this->logger->info('Janitor stats updated', [
             'janitor' => $janitorUsername,
             'action' => $action === 1 ? 'accepted' : 'denied',

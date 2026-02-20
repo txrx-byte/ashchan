@@ -172,6 +172,7 @@ Router::post('/api/v1/ban-templates', [App\Controller\ModerationController::clas
 Router::put('/api/v1/ban-templates/{id:\d+}', [App\Controller\ModerationController::class, 'updateBanTemplate']);
 Router::post('/api/v1/bans/check', [App\Controller\ModerationController::class, 'checkBan']);
 Router::post('/api/v1/bans', [App\Controller\ModerationController::class, 'createBan']);
+Router::post('/api/v1/bans/{id:\d+}/unban', [App\Controller\ModerationController::class, 'unban']);
 
 // Spam check and captcha
 Router::post('/api/v1/spam/check', [App\Controller\ModerationController::class, 'spamCheck']);

@@ -28,6 +28,11 @@ use Hyperf\Redis\Redis;
 final class SpamService
 {
     private const CAPTCHA_TTL = 300; // 5 minutes
+    private const RATE_WINDOW = 60;   // 60 seconds
+    private const RATE_LIMIT = 5;     // 5 posts per window
+    private const THREAD_LIMIT = 1;   // 1 thread per 5 min
+    private const THREAD_WINDOW = 300;
+    private const RISK_THRESHOLD_BLOCK = 10;
 
     public function __construct(
         private Redis $redis,
@@ -39,10 +44,92 @@ final class SpamService
     /** @return array{is_spam: bool, score: float, message: string} */
     public function check(string $ipHash, string $content, bool $isThread = false, ?string $imageHash = null): array
     {
+        $score = 0.0;
+        $reasons = [];
+
+        // Layer 1: Rate limiting
+        $postKey = "ratelimit:post:{$ipHash}";
+        $now = time();
+        $this->redis->zRemRangeByScore($postKey, '-inf', (string) ($now - self::RATE_WINDOW));
+        $postCount = (int) $this->redis->zCard($postKey);
+        if ($postCount >= self::RATE_LIMIT) {
+            $score += 10.0;
+            $reasons[] = 'Post rate limit exceeded';
+        }
+        $this->redis->zAdd($postKey, $now, (string) $now . ':' . bin2hex(random_bytes(4)));
+        $this->redis->expire($postKey, self::RATE_WINDOW);
+
+        if ($isThread) {
+            $threadKey = "ratelimit:thread:{$ipHash}";
+            $this->redis->zRemRangeByScore($threadKey, '-inf', (string) ($now - self::THREAD_WINDOW));
+            $threadCount = (int) $this->redis->zCard($threadKey);
+            if ($threadCount >= self::THREAD_LIMIT) {
+                $score += 10.0;
+                $reasons[] = 'Thread creation rate limit exceeded';
+            }
+            $this->redis->zAdd($threadKey, $now, (string) $now);
+            $this->redis->expire($threadKey, self::THREAD_WINDOW);
+        }
+
+        // Layer 2: Duplicate content detection
+        if (mb_strlen($content) >= 10) {
+            $sanitized = preg_replace('/\s+/', ' ', trim($content));
+            $fingerprint = hash('sha256', mb_strtolower(is_string($sanitized) ? $sanitized : ''));
+            $fpKey = "fingerprint:{$fingerprint}";
+            if ($this->redis->exists($fpKey)) {
+                $score += 4.0;
+                $reasons[] = 'Duplicate content detected';
+            }
+            $this->redis->setex($fpKey, 3600, '1');
+        }
+
+        // Layer 3: Content heuristics
+        $lower = mb_strtolower($content);
+        $urlCount = preg_match_all('/https?:\/\//', $lower);
+        if ($urlCount > 3) {
+            $score += 3.0;
+            $reasons[] = 'Excessive URLs';
+        }
+        if (preg_match('/(.)\1{9,}/', $content)) {
+            $score += 3.0;
+            $reasons[] = 'Repeated characters';
+        }
+        $alphaOnly = preg_replace('/[^a-zA-Z]/', '', $content);
+        $alphaLen = mb_strlen(is_string($alphaOnly) ? $alphaOnly : '');
+        if ($alphaLen > 20) {
+            $capsOnly = preg_replace('/[^A-Z]/', '', $content);
+            $capsLen = mb_strlen(is_string($capsOnly) ? $capsOnly : '');
+            if ($capsLen / $alphaLen > 0.7) {
+                $score += 2.0;
+                $reasons[] = 'Excessive caps';
+            }
+        }
+
+        // Layer 4: Banned image hash
+        if ($imageHash !== null && $this->redis->sIsMember('banned_images', $imageHash)) {
+            $score += 10.0;
+            $reasons[] = 'Banned image hash';
+        }
+
+        // Layer 5: IP reputation
+        $repScore = $this->redis->get("ip_reputation:{$ipHash}");
+        if (is_numeric($repScore) && (int) $repScore > 0) {
+            $score += (float) $repScore;
+            $reasons[] = 'IP reputation penalty';
+        }
+
+        // Record negative reputation
+        if ($score >= 7.0) {
+            $this->redis->incr("ip_reputation:{$ipHash}");
+            $this->redis->expire("ip_reputation:{$ipHash}", 86400);
+        }
+
+        $isSpam = $score >= self::RISK_THRESHOLD_BLOCK;
+
         return [
-            'is_spam' => false,
-            'score' => 0.0,
-            'message' => 'OK',
+            'is_spam' => $isSpam,
+            'score' => $score,
+            'message' => $isSpam ? implode('; ', $reasons) : 'OK',
         ];
     }
 

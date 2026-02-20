@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Model\BanTemplate;
+use App\Model\ModerationDecision;
 use App\Model\Report;
 use App\Model\ReportCategory;
 use App\Service\ModerationService;
@@ -511,5 +512,179 @@ final class ModerationController
         ];
 
         return hash('sha256', (string) json_encode($headers));
+    }
+
+    /* ──────────────────────────────────────────────
+     * Moderation Decisions
+     * ────────────────────────────────────────────── */
+
+    /**
+     * POST /api/v1/reports/{id}/decide - Make a moderation decision on a report
+     */
+    #[PostMapping(path: 'reports/{id:\d+}/decide')]
+    public function decide(RequestInterface $request, int $id): ResponseInterface
+    {
+        $staffUsername = $request->input('staff_username', 'system');
+        $action = $request->input('action'); // 'ban', 'warn', 'delete', 'delete_and_ban'
+        $templateId = $request->input('template_id');
+        $reason = $request->input('reason', '');
+
+        if (!is_string($staffUsername) || $staffUsername === '') {
+            return $this->response->json(['error' => 'Invalid staff_username'], 400);
+        }
+        if (!is_string($action) || !in_array($action, ['ban', 'warn', 'delete', 'delete_and_ban'], true)) {
+            return $this->response->json(['error' => 'Invalid action (must be ban, warn, delete, or delete_and_ban)'], 400);
+        }
+
+        try {
+            $report = Report::findOrFail($id);
+
+            // Record the moderation decision
+            $decision = ModerationDecision::create([
+                'moderator_id' => $staffUsername,
+                'target_type' => 'report',
+                'target_id' => (string) $id,
+                'action' => $action,
+                'reason' => is_string($reason) ? $reason : '',
+                'metadata' => [
+                    'report_id' => $id,
+                    'board' => $report->getAttribute('board'),
+                    'post_no' => $report->getAttribute('no'),
+                    'template_id' => is_numeric($templateId) ? (int) $templateId : null,
+                ],
+            ]);
+
+            // Apply the action
+            if (in_array($action, ['ban', 'delete_and_ban', 'warn'], true) && is_numeric($templateId)) {
+                $template = BanTemplate::find((int) $templateId);
+                if ($template instanceof BanTemplate) {
+                    $this->modService->createBanFromTemplate(
+                        $template,
+                        (string) $report->getAttribute('board'),
+                        (int) $report->getAttribute('no'),
+                        $staffUsername,
+                        is_string($reason) ? $reason : '',
+                        [],
+                        (string) $report->getAttribute('post_ip')
+                    );
+                }
+            }
+
+            // Clear the report after decision
+            $this->modService->clearReport($id, $staffUsername);
+
+            return $this->response->json([
+                'status' => 'success',
+                'decision' => $decision->toArray(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/reports/{id}/dismiss - Dismiss a report without action
+     */
+    #[PostMapping(path: 'reports/{id:\d+}/dismiss')]
+    public function dismiss(RequestInterface $request, int $id): ResponseInterface
+    {
+        $staffUsername = $request->input('staff_username', 'system');
+
+        if (!is_string($staffUsername) || $staffUsername === '') {
+            return $this->response->json(['error' => 'Invalid staff_username'], 400);
+        }
+
+        try {
+            $report = Report::findOrFail($id);
+
+            // Record the dismissal as a moderation decision
+            ModerationDecision::create([
+                'moderator_id' => $staffUsername,
+                'target_type' => 'report',
+                'target_id' => (string) $id,
+                'action' => 'dismiss',
+                'reason' => 'Dismissed',
+                'metadata' => [
+                    'report_id' => $id,
+                    'board' => $report->getAttribute('board'),
+                    'post_no' => $report->getAttribute('no'),
+                ],
+            ]);
+
+            // Clear the report
+            $this->modService->clearReport($id, $staffUsername);
+
+            return $this->response->json(['status' => 'dismissed']);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /* ──────────────────────────────────────────────
+     * Spam Check & Captcha
+     * ────────────────────────────────────────────── */
+
+    /**
+     * POST /api/v1/spam/check - Check content for spam
+     */
+    #[PostMapping(path: 'spam/check')]
+    public function spamCheck(RequestInterface $request): ResponseInterface
+    {
+        $content = $request->input('content', '');
+        $ipHash = $request->input('ip_hash', '');
+        $isThread = (bool) $request->input('is_thread', false);
+        $imageHash = $request->input('image_hash');
+        $realIp = $request->input('real_ip');
+
+        if (!is_string($content)) {
+            $content = '';
+        }
+        if (!is_string($ipHash) || $ipHash === '') {
+            return $this->response->json(['error' => 'ip_hash is required'], 400);
+        }
+
+        $result = $this->spamService->check(
+            $ipHash,
+            $content,
+            $isThread,
+            is_string($imageHash) ? $imageHash : null,
+            is_string($realIp) ? $realIp : null
+        );
+
+        return $this->response->json($result);
+    }
+
+    /**
+     * GET /api/v1/captcha - Generate a captcha challenge
+     */
+    #[GetMapping(path: 'captcha')]
+    public function captcha(): ResponseInterface
+    {
+        $captcha = $this->spamService->generateCaptcha();
+
+        return $this->response->json([
+            'token' => $captcha['token'],
+            'answer' => $captcha['answer'],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/captcha/verify - Verify a captcha response
+     */
+    #[PostMapping(path: 'captcha/verify')]
+    public function verifyCaptcha(RequestInterface $request): ResponseInterface
+    {
+        $token = $request->input('token');
+        $answer = $request->input('answer');
+
+        if (!is_string($token) || $token === '' || !is_string($answer) || $answer === '') {
+            return $this->response->json(['error' => 'token and answer required'], 400);
+        }
+
+        $valid = $this->spamService->verifyCaptcha($token, $answer);
+
+        return $this->response->json([
+            'valid' => $valid,
+        ]);
     }
 }

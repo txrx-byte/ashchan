@@ -266,16 +266,52 @@ final class StaffController
     {
         $mode = $this->request->query('mode');
         $data = [];
-        
-        // Mock data for now until log aggregation is implemented
-        if ($mode === 'clr') {
-            $data = ['System' => 0];
-        } elseif ($mode === 'del') {
-            $data = ['System' => 0];
-        } elseif ($mode === 'fence_skip') {
-            $data = [];
+
+        try {
+            if ($mode === 'clr') {
+                // Cleared reports by staff member in last 24h
+                $rows = \Hyperf\DbConnection\Db::table('reports')
+                    ->select(\Hyperf\DbConnection\Db::raw('cleared_by, COUNT(*) as cnt'))
+                    ->where('cleared', 1)
+                    ->where('updated_at', '>', now()->subDay())
+                    ->groupBy('cleared_by')
+                    ->orderByDesc('cnt')
+                    ->limit(20)
+                    ->get();
+                foreach ($rows as $row) {
+                    $data[(string) $row->cleared_by] = (int) $row->cnt;
+                }
+            } elseif ($mode === 'del') {
+                // Deletions by staff member in last 24h
+                $rows = \Hyperf\DbConnection\Db::table('admin_audit_log')
+                    ->select(\Hyperf\DbConnection\Db::raw('username, COUNT(*) as cnt'))
+                    ->where('action_type', 'delete')
+                    ->where('created_at', '>', now()->subDay())
+                    ->groupBy('username')
+                    ->orderByDesc('cnt')
+                    ->limit(20)
+                    ->get();
+                foreach ($rows as $row) {
+                    $data[(string) $row->username] = (int) $row->cnt;
+                }
+            } elseif ($mode === 'fence_skip') {
+                // Ban evasion attempts in last 24h
+                $rows = \Hyperf\DbConnection\Db::table('admin_audit_log')
+                    ->select(\Hyperf\DbConnection\Db::raw('board, COUNT(*) as cnt'))
+                    ->where('action_type', 'ban_evasion')
+                    ->where('created_at', '>', now()->subDay())
+                    ->groupBy('board')
+                    ->orderByDesc('cnt')
+                    ->limit(20)
+                    ->get();
+                foreach ($rows as $row) {
+                    $data[(string) $row->board] = (int) $row->cnt;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Tables may not exist yet — return empty data
         }
-        
+
         return $this->response->json(['status' => 'success', 'data' => $data]);
     }
 

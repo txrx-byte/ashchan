@@ -502,6 +502,93 @@ final class ModerationController extends AbstractController
     }
 
     /**
+     * POST /api/v1/bans/{id}/unban - Unban a user (staff only)
+     */
+    #[PostMapping(path: 'bans/{id:\d+}/unban')]
+    public function unban(RequestInterface $request, int $id): ResponseInterface
+    {
+        $staffUsername = $request->input('staff_username');
+
+        if (!is_string($staffUsername) || $staffUsername === '') {
+            return $this->response->json(['error' => 'Invalid staff_username'], 400);
+        }
+
+        $result = $this->modService->unbanUser($id, $staffUsername);
+
+        if ($result) {
+            return $this->response->json(['status' => 'unbanned']);
+        }
+
+        return $this->response->json(['error' => 'Ban not found'], 404);
+    }
+
+    /* ──────────────────────────────────────────────
+     * Spam Check & Captcha
+     * ────────────────────────────────────────────── */
+
+    /**
+     * POST /api/v1/spam/check - Check content for spam
+     */
+    #[PostMapping(path: 'spam/check')]
+    public function spamCheck(RequestInterface $request): ResponseInterface
+    {
+        $content = $request->input('content', '');
+        $ipHash = $request->input('ip_hash', '');
+        $isThread = (bool) $request->input('is_thread', false);
+        $imageHash = $request->input('image_hash');
+
+        if (!is_string($content)) {
+            $content = '';
+        }
+        if (!is_string($ipHash) || $ipHash === '') {
+            return $this->response->json(['error' => 'ip_hash is required'], 400);
+        }
+
+        $result = $this->spamService->check(
+            $ipHash,
+            $content,
+            $isThread,
+            is_string($imageHash) ? $imageHash : null
+        );
+
+        return $this->response->json($result);
+    }
+
+    /**
+     * GET /api/v1/captcha - Generate a captcha challenge
+     */
+    #[GetMapping(path: 'captcha')]
+    public function captcha(): ResponseInterface
+    {
+        $captcha = $this->spamService->generateCaptcha();
+
+        return $this->response->json([
+            'token' => $captcha['token'],
+            'question' => $captcha['question'],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/captcha/verify - Verify a captcha response
+     */
+    #[PostMapping(path: 'captcha/verify')]
+    public function verifyCaptcha(RequestInterface $request): ResponseInterface
+    {
+        $token = $request->input('token');
+        $answer = $request->input('answer');
+
+        if (!is_string($token) || $token === '' || !is_string($answer) || $answer === '') {
+            return $this->response->json(['error' => 'token and answer required'], 400);
+        }
+
+        $valid = $this->spamService->verifyCaptcha($token, $answer);
+
+        return $this->response->json([
+            'valid' => $valid,
+        ]);
+    }
+
+    /**
      * Build request signature for spam filtering
      * @return string
      */
