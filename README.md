@@ -1,13 +1,13 @@
 # ashchan
 [![PHP Composer](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml/badge.svg)](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml)
 
-Ashchan is a high-performance, privacy-first imageboard built on Hyperf with a distributed microservices architecture. It features an **mTLS ServiceMesh** for zero-trust security, DNS-based service discovery, and runs entirely on **rootless Podman** (no Kubernetes).
+Ashchan is a high-performance, privacy-first imageboard built on Hyperf with a distributed microservices architecture. It features an **mTLS ServiceMesh** for zero-trust security, DNS-based service discovery, and runs entirely on **rootless Podman** (or you could deploy it to Kubernetes... but I'm not testing it soon :joy: ).
 
 ## Features
 
 - **mTLS ServiceMesh**: All service-to-service communication encrypted and authenticated via mutual TLS
 - **DNS-Based Discovery**: Services addressed by name (`auth.ashchan.local`, `boards.ashchan.local`, etc.)
-- **Rootless Podman**: No root required, simpler deployment than Kubernetes
+- **Rootless Podman**: No root required, simpler deployment than Kubernetes (in my opinion...)
 - **Privacy-First**: Minimal data retention, IP hashing, compliance-ready (GDPR/CCPA)
 - **Horizontal Scale**: Designed for traffic spikes and high availability
 
