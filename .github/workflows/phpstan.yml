@@ -1,0 +1,91 @@
+name: PHPStan Static Analysis
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+permissions:
+  contents: read
+
+jobs:
+  phpstan-root:
+    name: PHPStan Root Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+          coverage: none
+      
+      - name: Validate composer.json
+        run: composer validate --strict
+      
+      - name: Cache Composer packages
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-phpstan-root-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-phpstan-root-
+      
+      - name: Install root dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      
+      - name: Run PHPStan (Root)
+        run: composer phpstan
+
+  phpstan-services:
+    name: PHPStan Service Analysis
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api-gateway
+          - auth-accounts
+          - boards-threads-posts
+          - media-uploads
+          - moderation-anti-spam
+          - search-indexing
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+          coverage: none
+      
+      - name: Validate composer.json (${{ matrix.service }})
+        run: |
+          cd services/${{ matrix.service }}
+          composer validate --strict
+      
+      - name: Cache Composer packages
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          path: services/${{ matrix.service }}/vendor
+          key: ${{ runner.os }}-phpstan-${{ matrix.service }}-${{ hashFiles(format('services/{0}/composer.lock', matrix.service)) }}
+          restore-keys: |
+            ${{ runner.os }}-phpstan-${{ matrix.service }}-
+      
+      - name: Install dependencies (${{ matrix.service }})
+        run: |
+          cd services/${{ matrix.service }}
+          composer install --no-interaction --prefer-dist --no-progress
+      
+      - name: Run PHPStan (${{ matrix.service }})
+        run: |
+          cd services/${{ matrix.service }}
+          composer phpstan

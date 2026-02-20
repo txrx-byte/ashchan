@@ -1,5 +1,6 @@
 # ashchan
 [![PHP Composer](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml/badge.svg)](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml)
+[![PHPStan Level 10](https://img.shields.io/badge/PHPStan-Level%2010-brightgreen.svg?style=flat)](https://phpstan.org/)
 
 Ashchan is a high-performance, privacy-first imageboard built on Hyperf with a distributed microservices architecture. It features an **mTLS ServiceMesh** for zero-trust security, DNS-based service discovery, and runs entirely on **rootless Podman** (no Kubernetes).
 
@@ -77,6 +78,12 @@ make mtls-status
 | Document | Description |
 |----------|-------------|
 | [db/README.md](db/README.md) | Database migrations and schema |
+
+### Development & Code Quality
+| Document | Description |
+|----------|-------------|
+| [PHPSTAN_GUIDE.md](PHPSTAN_GUIDE.md) | **PHPStan Level 10 configuration, usage, and best practices** |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines and standards |
 
 ### Services
 | Service | Port | Description |
@@ -304,6 +311,28 @@ make lint
 cd services/api-gateway
 composer lint
 ```
+
+### Static Analysis (PHPStan Level 10)
+
+The project uses PHPStan at maximum strictness (Level 10) for comprehensive type safety:
+
+```bash
+# Analyze all services and root code
+composer phpstan
+
+# Analyze individual service
+cd services/api-gateway
+composer phpstan
+
+# Analyze all services sequentially
+composer phpstan:all-services
+```
+
+See [PHPSTAN_GUIDE.md](PHPSTAN_GUIDE.md) for complete documentation on:
+- Configuration details
+- Best practices for type-safe code
+- CI/CD integration
+- Troubleshooting common issues
 
 ---
 
