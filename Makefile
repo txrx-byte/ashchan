@@ -1,7 +1,7 @@
 # Ashchan Makefile
 # mTLS ServiceMesh Management
 
-.PHONY: help install up down logs migrate test lint mtls-init mtls-certs mtls-verify mtls-rotate
+.PHONY: help install up down logs migrate test lint phpstan phpstan-all mtls-init mtls-certs mtls-verify mtls-rotate
 
 help:
 	@echo "Ashchan Makefile Commands"
@@ -14,6 +14,8 @@ help:
 	@echo "  migrate    Run database migrations"
 	@echo "  test       Run all service tests"
 	@echo "  lint       Lint all PHP code"
+	@echo "  phpstan    Run PHPStan analysis on all services"
+	@echo "  phpstan-all Run PHPStan on root and all services"
 	@echo ""
 	@echo "mTLS ServiceMesh:"
 	@echo "  mtls-init      Generate Root CA for ServiceMesh"
@@ -59,6 +61,20 @@ lint:
 		echo "Linting $$svc..."; \
 		cd services/$$svc && composer lint; \
 	done
+
+phpstan:
+	@echo "Running PHPStan analysis on all services..."
+	@for svc in api-gateway auth-accounts boards-threads-posts media-uploads search-indexing moderation-anti-spam; do \
+		echo "Analyzing $$svc..."; \
+		cd services/$$svc && composer phpstan || exit 1; \
+	done
+
+phpstan-all:
+	@echo "Running PHPStan (root)..."
+	@composer phpstan
+	@echo ""
+	@echo "Running PHPStan on all services..."
+	@$(MAKE) phpstan
 
 # ─────────────────────────────────────────────────────────────
 # mTLS ServiceMesh Commands
