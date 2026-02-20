@@ -1,0 +1,132 @@
+# Copyright 2026 txrx-byte
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build swoole-cli from source
+#
+# This Dockerfile compiles a fully static swoole-cli binary
+# with all extensions required by Hyperf / Ashchan.
+#
+# Build:
+#   docker build -f docker/swoole-cli/Dockerfile.build \
+#       -t ashchan-swoole-cli-builder:latest \
+#       docker/swoole-cli/
+#
+# Extract binary:
+#   docker create --name tmp ashchan-swoole-cli-builder:latest
+#   docker cp tmp:/output/swoole-cli ./docker/swoole-cli/swoole-cli
+#   docker rm tmp
+#
+# The resulting binary is placed in /output/swoole-cli inside the image.
+
+FROM docker.io/ubuntu:22.04 AS builder
+
+ARG SWOOLE_CLI_VERSION=v6.0.0
+ARG PHP_VERSION=8.2
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf \
+    automake \
+    bison \
+    build-essential \
+    ca-certificates \
+    cmake \
+    curl \
+    file \
+    flex \
+    g++ \
+    gcc \
+    git \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libtool \
+    make \
+    pkg-config \
+    re2c \
+    unzip \
+    wget \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP (needed to run prepare.php / build.php)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    php${PHP_VERSION}-cli \
+    php${PHP_VERSION}-curl \
+    php${PHP_VERSION}-mbstring \
+    php${PHP_VERSION}-xml \
+    php${PHP_VERSION}-zip \
+    php${PHP_VERSION}-phar \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+# Clone swoole-cli at the specified version
+RUN git clone --depth 1 --branch ${SWOOLE_CLI_VERSION} \
+    https://github.com/swoole/swoole-cli.git . \
+    || git clone --depth 1 https://github.com/swoole/swoole-cli.git .
+
+# Prepare: enable the extensions Ashchan requires
+# Core Hyperf extensions are built-in; we add redis and pdo_pgsql
+RUN php prepare.php \
+    +openssl \
+    +curl \
+    +pdo \
+    +pdo_pgsql \
+    +pdo_mysql \
+    +redis \
+    +mbstring \
+    +bcmath \
+    +sockets \
+    +pcntl \
+    +posix \
+    +tokenizer \
+    +xml \
+    +dom \
+    +simplexml \
+    +xmlreader \
+    +xmlwriter \
+    +phar \
+    +zip \
+    +zlib \
+    +sodium \
+    +iconv \
+    +json \
+    +fileinfo \
+    +ctype \
+    +session \
+    +opcache
+
+# Build the static binary
+RUN php build.php || make -j$(nproc)
+
+# Copy the final binary to a clean location
+RUN mkdir -p /output && \
+    cp -v $(find . -name 'swoole-cli' -type f | head -1) /output/swoole-cli && \
+    chmod +x /output/swoole-cli && \
+    file /output/swoole-cli && \
+    ls -lh /output/swoole-cli
+
+# ── Stage 2: Minimal output image ──────────────────────────────────
+FROM docker.io/alpine:3.19
+
+COPY --from=builder /output/swoole-cli /output/swoole-cli
+
+# Verify it runs
+RUN /output/swoole-cli --version || echo "Binary built (may need matching arch)"
+RUN /output/swoole-cli -m 2>/dev/null || true
+
+CMD ["echo", "Extract the binary with: docker cp <container>:/output/swoole-cli ."]

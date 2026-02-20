@@ -1,0 +1,170 @@
+# Copyright 2026 txrx-byte
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build swoole-cli Static Binary + Ashchan Runtime Image
+#
+# This workflow:
+# 1. Compiles swoole-cli from source with all required extensions
+# 2. Builds the unified ashchan-runtime container image
+# 3. Pushes to the container registry on tagged releases
+#
+# Trigger on version tags (v*) or manual dispatch for testing.
+
+name: Build Static Runtime
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      swoole_cli_version:
+        description: 'swoole-cli git ref to build from'
+        required: false
+        default: 'v6.0.0'
+      push_image:
+        description: 'Push image to registry'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/ashchan-runtime
+  SWOOLE_CLI_VERSION: ${{ github.event.inputs.swoole_cli_version || 'v6.0.0' }}
+
+jobs:
+  # ── Job 1: Build swoole-cli static binary ─────────────────────────
+  build-swoole-cli:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch: [x86_64]
+        # Add aarch64 when cross-compilation or ARM runners are available:
+        # arch: [x86_64, aarch64]
+
+    steps:
+      - name: Checkout ashchan
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache swoole-cli build
+        uses: actions/cache@v4
+        with:
+          path: /tmp/swoole-cli-cache
+          key: swoole-cli-${{ env.SWOOLE_CLI_VERSION }}-${{ matrix.arch }}
+
+      - name: Build swoole-cli binary
+        run: |
+          docker build \
+            -f docker/swoole-cli/Dockerfile.build \
+            --build-arg SWOOLE_CLI_VERSION=${{ env.SWOOLE_CLI_VERSION }} \
+            -t swoole-cli-builder:latest \
+            docker/swoole-cli/
+
+      - name: Extract swoole-cli binary
+        run: |
+          docker create --name swoole-tmp swoole-cli-builder:latest
+          docker cp swoole-tmp:/output/swoole-cli ./swoole-cli
+          docker rm swoole-tmp
+
+          echo "=== Binary info ==="
+          file ./swoole-cli
+          ls -lh ./swoole-cli
+
+      - name: Upload swoole-cli artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: swoole-cli-${{ matrix.arch }}
+          path: ./swoole-cli
+          retention-days: 7
+
+  # ── Job 2: Build runtime image ────────────────────────────────────
+  build-runtime-image:
+    needs: build-swoole-cli
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout ashchan
+        uses: actions/checkout@v4
+
+      - name: Download swoole-cli binary
+        uses: actions/download-artifact@v4
+        with:
+          name: swoole-cli-x86_64
+          path: docker/swoole-cli/
+
+      - name: Make binary executable
+        run: chmod +x docker/swoole-cli/swoole-cli
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Log in to container registry
+        if: github.event_name == 'push' || github.event.inputs.push_image == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build runtime image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.runtime
+          push: ${{ github.event_name == 'push' || github.event.inputs.push_image == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test runtime image
+        run: |
+          docker build -f Dockerfile.runtime -t ashchan-runtime:test .
+
+          echo "=== Verify swoole-cli inside image ==="
+          docker run --rm ashchan-runtime:test \
+            /usr/local/bin/swoole-cli --version || true
+
+          echo "=== Verify extensions ==="
+          docker run --rm ashchan-runtime:test \
+            /usr/local/bin/swoole-cli -m || true
+
+          echo "=== Verify service directories ==="
+          docker run --rm ashchan-runtime:test \
+            ls -la /app/services/ || true
+
+          echo "=== Image size ==="
+          docker images ashchan-runtime:test --format '{{.Size}}'

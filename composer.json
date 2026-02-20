@@ -2,7 +2,7 @@
   "name": "txrx-byte/ashchan",
   "description": "Ashchan - Microservices-based imageboard software",
   "type": "project",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "require": {
     "php": "^8.2"
   },

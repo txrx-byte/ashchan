@@ -359,7 +359,20 @@ Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
+
+### Third-Party: SWOOLE-CLI LICENSE
+
+This project uses [swoole-cli](https://github.com/swoole/swoole-cli) to produce
+static PHP binaries. The SWOOLE-CLI LICENSE requires that:
+
+1. Any new project that uses, modifies, or distributes swoole-cli code **must
+   include the full SWOOLE-CLI LICENSE text**.
+2. Projects or products redistributing swoole-cli **must not include the word
+   "swoole" in the project or product name**.
+
+Ashchan does not include "swoole" in its name and ships the SWOOLE-CLI LICENSE
+in [`docker/swoole-cli/SWOOLE-CLI-LICENSE`](docker/swoole-cli/SWOOLE-CLI-LICENSE).
 
 ---
 
