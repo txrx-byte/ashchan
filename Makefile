@@ -70,10 +70,15 @@ logs:
 
 migrate:
 	@echo "Running migrations..."
-	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/001_auth_accounts.sql
-	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/002_boards_threads_posts.sql
-	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/003_media_uploads.sql
-	podman exec -it ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/004_moderation_anti_spam.sql
+	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/001_auth_accounts.sql
+	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/002_boards_threads_posts.sql
+	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/003_media_uploads.sql
+	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/004_moderation_anti_spam.sql
+
+seed:
+	@echo "Seeding boards..."
+	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/seeders/boards.sql
+	@echo "Boards seeded."
 
 test:
 	@echo "Running tests for boards-threads-posts..."

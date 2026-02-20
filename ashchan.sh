@@ -338,37 +338,74 @@ setup_all() {
     info "Running Ashchan initial setup..."
     echo ""
 
-    # mTLS Automation
-    if [[ ! -f "certs/ca/ca.crt" ]]; then
-        info "Initializing mTLS Certificate Authority..."
-        ./scripts/mtls/generate-ca.sh
+    # ── mTLS Certificate Generation ──────────────────────────────
+    info "Configuring mTLS ServiceMesh..."
+
+    if [[ ! -f "${SCRIPT_DIR}/certs/ca/ca.crt" ]]; then
+        info "Generating mTLS Certificate Authority..."
+        bash "${SCRIPT_DIR}/scripts/mtls/generate-ca.sh"
+        echo ""
+    else
+        success "CA certificate already exists"
     fi
 
-    if [[ ! -f "certs/services/gateway/gateway.crt" ]]; then
-        info "Generating ServiceMesh certificates..."
-        ./scripts/mtls/generate-all-certs.sh
-    fi
-    
-    # Copy certificates to named volumes for Podman
-    info "Copying mTLS certificates to named volumes..."
-    podman run --rm -v ashchan_ca_certs:/mnt:rw alpine/git cp "${SCRIPT_DIR}/certs/ca/ca.crt" /mnt/ca.crt
-    
-    local services=("gateway" "auth" "boards" "media" "search" "moderation")
-    for svc in "${services[@]}"; do
-        podman run --rm -v ashchan_${svc}_certs:/mnt:rw alpine/git cp "${SCRIPT_DIR}/certs/services/${svc}/${svc}.crt" /mnt/${svc}.crt
-        podman run --rm -v ashchan_${svc}_certs:/mnt:rw alpine/git cp "${SCRIPT_DIR}/certs/services/${svc}/${svc}.key" /mnt/${svc}.key
+    local all_certs_present=true
+    local cert_services=("gateway" "auth" "boards" "media" "search" "moderation")
+    for svc in "${cert_services[@]}"; do
+        if [[ ! -f "${SCRIPT_DIR}/certs/services/${svc}/${svc}.crt" ]] || \
+           [[ ! -f "${SCRIPT_DIR}/certs/services/${svc}/${svc}.key" ]]; then
+            all_certs_present=false
+            break
+        fi
     done
 
+    if [[ "$all_certs_present" == "false" ]]; then
+        info "Generating service certificates..."
+        bash "${SCRIPT_DIR}/scripts/mtls/generate-all-certs.sh"
+        echo ""
+    else
+        success "All service certificates already exist"
+    fi
+
+    # Verify certificate chain
+    info "Verifying certificate chain..."
+    local cert_ok=true
+    for svc in "${cert_services[@]}"; do
+        local cert="${SCRIPT_DIR}/certs/services/${svc}/${svc}.crt"
+        if ! openssl verify -CAfile "${SCRIPT_DIR}/certs/ca/ca.crt" "${cert}" &>/dev/null; then
+            error "Certificate verification failed for ${svc}"
+            cert_ok=false
+        fi
+    done
+    if [[ "$cert_ok" == "true" ]]; then
+        success "All certificates verified against CA"
+    fi
+
+    # Ensure correct permissions: 644 for certs, 600 for keys
+    info "Setting certificate permissions..."
+    find "${SCRIPT_DIR}/certs" -name "*.crt" -exec chmod 644 {} \;
+    find "${SCRIPT_DIR}/certs" -name "*.key" -exec chmod 600 {} \;
+    success "Certificate permissions set (644 certs, 600 keys)"
+
+    echo ""
+
+    # ── Environment Files ────────────────────────────────────────
     init_env_files
     echo ""
-    
+
+    # ── Build and Start ──────────────────────────────────────────
     info "Building and starting services (this may take a few minutes)..."
     start_services
     echo ""
-    
+
+    # ── Database Migrations ──────────────────────────────────────
+    info "Running database migrations..."
+    run_migrations
+    echo ""
+
     info "Waiting for services to initialize..."
     sleep 10
-    
+
     check_health
 }
 

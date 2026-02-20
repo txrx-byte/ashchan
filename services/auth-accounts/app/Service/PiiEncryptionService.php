@@ -44,7 +44,7 @@ final class PiiEncryptionService
     {
         $this->logger = $loggerFactory->get('pii-encryption');
 
-        $rawKey = env('PII_ENCRYPTION_KEY', '');
+        $rawKey = \Hyperf\Support\env('PII_ENCRYPTION_KEY', '');
         if (!is_string($rawKey) || $rawKey === '') {
             $this->logger->warning('PII_ENCRYPTION_KEY not set — PII will be stored in plaintext');
             $this->encryptionKey = '';

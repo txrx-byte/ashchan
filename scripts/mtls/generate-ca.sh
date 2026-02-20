@@ -46,7 +46,7 @@ echo ""
 
 # Generate CA private key (ECDSA P-256)
 echo "1. Generating CA private key (ECDSA P-256)..."
-openssl ecparam -genkey -name prime256v1 -out "${CA_DIR}/ca.key"
+openssl ecparam -genkey -name prime256v1 -noout -out "${CA_DIR}/ca.key"
 chmod 600 "${CA_DIR}/ca.key"
 echo "   Created: ${CA_DIR}/ca.key"
 

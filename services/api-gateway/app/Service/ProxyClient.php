@@ -24,11 +24,21 @@ use Hyperf\Redis\Redis;
 
 /**
  * Lightweight HTTP client for proxying requests to backend services.
+ * Supports mTLS (mutual TLS) for secure service-to-service communication.
  */
 final class ProxyClient
 {
     /** @var array<string, string> Service name → base URL */
     private array $services;
+
+    /** @var string Path to client certificate for outbound mTLS */
+    private string $clientCert;
+
+    /** @var string Path to client key for outbound mTLS */
+    private string $clientKey;
+
+    /** @var string Path to CA certificate for peer verification */
+    private string $caCert;
 
     public function __construct()
     {
@@ -39,6 +49,10 @@ final class ProxyClient
             'search'     => getenv('SEARCH_SERVICE_URL')     ?: 'http://search-indexing:9505',
             'moderation' => getenv('MODERATION_SERVICE_URL') ?: 'http://moderation-anti-spam:9506',
         ];
+
+        $this->clientCert = getenv('MTLS_CLIENT_CERT_FILE') ?: '/etc/mtls/gateway/gateway.crt';
+        $this->clientKey  = getenv('MTLS_CLIENT_KEY_FILE')  ?: '/etc/mtls/gateway/gateway.key';
+        $this->caCert     = getenv('MTLS_CA_FILE')          ?: '/etc/mtls/ca/ca.crt';
     }
 
         /**
@@ -94,6 +108,19 @@ final class ProxyClient
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_HTTPHEADER     => $this->formatHeaders($headers),
         ]);
+
+        // Configure mTLS for HTTPS service-to-service calls
+        if (str_starts_with($url, 'https://')) {
+            if (is_file($this->caCert)) {
+                curl_setopt($ch, CURLOPT_CAINFO, $this->caCert);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            }
+            if (is_file($this->clientCert) && is_file($this->clientKey)) {
+                curl_setopt($ch, CURLOPT_SSLCERT, $this->clientCert);
+                curl_setopt($ch, CURLOPT_SSLKEY, $this->clientKey);
+            }
+        }
 
         if (in_array(strtoupper($method), ['POST', 'PUT', 'PATCH'])) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);

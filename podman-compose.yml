@@ -41,6 +41,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/migrations:/app/db/migrations:ro
+      - ./db/seeders:/app/db/seeders:ro
     networks:
       - ashchan-mesh
     healthcheck:
@@ -108,8 +109,8 @@ services:
       - ./services/api-gateway/.env
     volumes:
       - ./frontend/static:/app/frontend/static:ro
-      - gateway_certs:/etc/mtls/gateway:ro
-      - ca_certs:/etc/mtls/ca:ro
+      - ./certs/services/gateway:/etc/mtls/gateway:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,8 +137,8 @@ services:
     env_file:
       - ./services/auth-accounts/.env
     volumes:
-      - auth_certs:/etc/mtls/auth:ro
-      - ca_certs:/etc/mtls/ca:ro
+      - ./certs/services/auth:/etc/mtls/auth:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -163,8 +164,8 @@ services:
     env_file:
       - ./services/boards-threads-posts/.env
     volumes:
-      - boards_certs:/etc/mtls/boards:ro
-      - ca_certs:/etc/mtls/ca:ro
+      - ./certs/services/boards:/etc/mtls/boards:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -190,8 +191,8 @@ services:
     env_file:
       - ./services/media-uploads/.env
     volumes:
-      - media_certs:/etc/mtls/media:ro
-      - ca_certs:/etc/mtls/ca:ro
+      - ./certs/services/media:/etc/mtls/media:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -219,8 +220,8 @@ services:
     env_file:
       - ./services/search-indexing/.env
     volumes:
-      - search_certs:/etc/mtls/search:ro
-      - ca_certs:/etc/mtls/ca:ro
+      - ./certs/services/search:/etc/mtls/search:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -246,8 +247,8 @@ services:
     env_file:
       - ./services/moderation-anti-spam/.env
     volumes:
-      - moderation_certs:/etc/mtls/moderation:ro
-      - ca_certs:/etc/mtls/ca:ro
+      - ./certs/services/moderation:/etc/mtls/moderation:ro
+      - ./certs/ca:/etc/mtls/ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -266,10 +267,3 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
-  gateway_certs:
-  ca_certs:
-  auth_certs:
-  boards_certs:
-  media_certs:
-  search_certs:
-  moderation_certs:

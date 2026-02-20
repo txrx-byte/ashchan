@@ -77,7 +77,7 @@ mkdir -p "${SERVICE_DIR}"
 
 # Generate private key
 echo "1. Generating private key..."
-openssl ecparam -genkey -name prime256v1 -out "${SERVICE_DIR}/${SERVICE_NAME}.key"
+openssl ecparam -genkey -name prime256v1 -noout -out "${SERVICE_DIR}/${SERVICE_NAME}.key"
 chmod 600 "${SERVICE_DIR}/${SERVICE_NAME}.key"
 echo "   Created: ${SERVICE_DIR}/${SERVICE_NAME}.key"
 
