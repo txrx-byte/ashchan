@@ -34,7 +34,7 @@ Router::get('/media/{path:.*}', [GatewayController::class, 'proxyMedia']);
 // Staff login/logout
 Router::get('/staff/login', [\App\Controller\Staff\StaffController::class, 'login']);
 Router::post('/staff/login', [\App\Controller\Staff\StaffController::class, 'loginPost']);
-Router::get('/staff/logout', [\App\Controller\Staff\StaffController::class, 'logout']);
+Router::post('/staff/logout', [\App\Controller\Staff\StaffController::class, 'logout']);
 
 // Staff admin dashboard (main admin panel)
 Router::get('/staff', [\App\Controller\Staff\StaffController::class, 'index']);

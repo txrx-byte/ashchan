@@ -29,11 +29,8 @@ class AppExceptionHandler extends ExceptionHandler
             ->withStatus(500)
             ->withHeader('Content-Type', 'application/json')
             ->withBody(new SwooleStream(json_encode([
-                'error' => $throwable->getMessage(),
-                'class' => get_class($throwable),
-                'file' => $throwable->getFile(),
-                'line' => $throwable->getLine(),
-            ]) ?: '{"error":"Unknown error (json_encode failed)"}'));
+                'error' => 'Internal server error',
+            ]) ?: '{"error":"Internal server error"}'));
     }
 
     public function isValid(Throwable $throwable): bool

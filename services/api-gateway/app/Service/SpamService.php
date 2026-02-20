@@ -3,11 +3,19 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use Hyperf\Redis\Redis;
+
 /**
- * SpamService - Stub for spam checking and captcha
+ * SpamService - Spam checking and captcha verification backed by Redis
  */
 final class SpamService
 {
+    private const CAPTCHA_TTL = 300; // 5 minutes
+
+    public function __construct(
+        private Redis $redis,
+    ) {}
+
     /**
      * Check content for spam
      */
@@ -22,23 +30,47 @@ final class SpamService
     }
 
     /**
-     * Generate captcha
+     * Generate captcha - stores answer in Redis with TTL
      */
-    /** @return array{token: string, answer: int} */
+    /** @return array{token: string, question: string} */
     public function generateCaptcha(): array
     {
+        $a = random_int(1, 20);
+        $b = random_int(1, 20);
+        $answer = $a + $b;
+        $token = bin2hex(random_bytes(16));
+
+        $this->redis->setex(
+            "captcha:{$token}",
+            self::CAPTCHA_TTL,
+            (string) $answer
+        );
+
         return [
-            'token' => bin2hex(random_bytes(16)),
-            'answer' => random_int(1, 10),
+            'token' => $token,
+            'question' => "{$a} + {$b} = ?",
         ];
     }
 
     /**
-     * Verify captcha
+     * Verify captcha - checks answer against Redis-stored value, single-use
      */
     public function verifyCaptcha(string $token, string $response): bool
     {
-        // In production, verify against stored captcha
-        return true;
+        if ($token === '' || $response === '') {
+            return false;
+        }
+
+        $key = "captcha:{$token}";
+        $storedAnswer = $this->redis->get($key);
+
+        if (!is_string($storedAnswer)) {
+            return false; // Expired or invalid token
+        }
+
+        // Delete immediately to prevent replay
+        $this->redis->del($key);
+
+        return $response === $storedAnswer;
     }
 }

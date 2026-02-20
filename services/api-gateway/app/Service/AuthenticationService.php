@@ -106,7 +106,7 @@ final class AuthenticationService
         $this->resetFailedAttempts($user['id']);
         
         // Check if password needs rehash (cost increased)
-        if (password_needs_rehash($user['password_hash'], PASSWORD_BCRYPT, ['cost' => self::PASSWORD_COST])) {
+        if (password_needs_rehash($user['password_hash'], PASSWORD_ARGON2ID)) {
             $this->updatePasswordHash($user['id'], $password);
         }
         
@@ -487,7 +487,6 @@ final class AuthenticationService
     private function recordFailedAttempt(string $ipAddress, string $username, string $userAgent): void
     {
         Db::table('login_attempts')->insert([
-            'ip_address' => $ipAddress,
             'ip_address_hash' => hash('sha256', $ipAddress),
             'username_attempted' => $username,
             'success' => false,
@@ -577,7 +576,7 @@ final class AuthenticationService
      */
     private function updatePasswordHash(int $userId, string $password): void
     {
-        $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => self::PASSWORD_COST]);
+        $hash = password_hash($password, PASSWORD_ARGON2ID);
         
         Db::table('staff_users')
             ->where('id', $userId)

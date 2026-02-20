@@ -44,11 +44,17 @@ final class CorsMiddleware implements MiddlewareInterface
 
         if (!$allowOrigin) return $response;
 
-        return $response
+        $response = $response
             ->withHeader('Access-Control-Allow-Origin', $allowOrigin)
             ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Captcha-Token')
-            ->withHeader('Access-Control-Max-Age', '3600')
-            ->withHeader('Access-Control-Allow-Credentials', 'true');
+            ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Captcha-Token, X-CSRF-Token')
+            ->withHeader('Access-Control-Max-Age', '3600');
+
+        // Only send credentials header when origin is explicitly allowed (not wildcard)
+        if ($allowOrigin !== '*') {
+            $response = $response->withHeader('Access-Control-Allow-Credentials', 'true');
+        }
+
+        return $response;
     }
 }

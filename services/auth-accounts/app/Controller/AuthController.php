@@ -31,7 +31,7 @@ final class AuthController
 
         try {
             $remoteAddr = $request->server('remote_addr', '');
-            $ip = $request->getHeaderLine('X-Forwarded-For') ?: (is_string($remoteAddr) ? $remoteAddr : '');
+            $ip = is_string($remoteAddr) ? $remoteAddr : '';
 
             $result = $this->authService->login(
                 $username,
@@ -80,13 +80,15 @@ final class AuthController
     #[RequestMapping(path: 'register', methods: ['POST'])]
     public function register(RequestInterface $request): ResponseInterface
     {
-        // Caller must be admin (checked at gateway level)
+        // Always require admin authentication
         $token = $this->extractToken($request);
-        if ($token !== null) {
-            $caller = $this->authService->validateToken($token);
-            if (!$caller || ($caller['role'] ?? '') !== 'admin') {
-                return $this->response->json(['error' => 'Admin only']);
-            }
+        if ($token === null) {
+            return $this->response->json(['error' => 'Authentication required'])->withStatus(401);
+        }
+
+        $caller = $this->authService->validateToken($token);
+        if (!$caller || ($caller['role'] ?? '') !== 'admin') {
+            return $this->response->json(['error' => 'Admin only'])->withStatus(403);
         }
 
         $username = $request->input('username', '');
@@ -110,6 +112,16 @@ final class AuthController
     #[RequestMapping(path: 'ban', methods: ['POST'])]
     public function ban(RequestInterface $request): ResponseInterface
     {
+        // Require authentication with admin/moderator role
+        $token = $this->extractToken($request);
+        if ($token === null) {
+            return $this->response->json(['error' => 'Authentication required'])->withStatus(401);
+        }
+        $caller = $this->authService->validateToken($token);
+        if (!$caller || !in_array($caller['role'] ?? '', ['admin', 'manager', 'mod'], true)) {
+            return $this->response->json(['error' => 'Insufficient privileges'])->withStatus(403);
+        }
+
         $userId   = $request->input('user_id', 0);
         $reason   = $request->input('reason', '');
         $expires  = $request->input('expires_at');
@@ -130,6 +142,16 @@ final class AuthController
     #[RequestMapping(path: 'unban', methods: ['POST'])]
     public function unban(RequestInterface $request): ResponseInterface
     {
+        // Require authentication with admin/moderator role
+        $token = $this->extractToken($request);
+        if ($token === null) {
+            return $this->response->json(['error' => 'Authentication required'])->withStatus(401);
+        }
+        $caller = $this->authService->validateToken($token);
+        if (!$caller || !in_array($caller['role'] ?? '', ['admin', 'manager', 'mod'], true)) {
+            return $this->response->json(['error' => 'Insufficient privileges'])->withStatus(403);
+        }
+
         $userId = $request->input('user_id');
         if (!is_numeric($userId)) {
             return $this->response->json(['error' => 'Invalid user ID']);
@@ -145,7 +167,7 @@ final class AuthController
     public function recordConsent(RequestInterface $request): ResponseInterface
     {
         $remoteAddr = $request->server('remote_addr', '');
-        $ip = $request->getHeaderLine('X-Forwarded-For') ?: (is_string($remoteAddr) ? $remoteAddr : '');
+        $ip = is_string($remoteAddr) ? $remoteAddr : '';
         $ipHash = hash('sha256', $ip);
         $consented = (bool) $request->input('consented', false);
         $version = $request->input('policy_version', '1.0');

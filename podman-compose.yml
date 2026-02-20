@@ -24,8 +24,6 @@ services:
       POSTGRES_USER: ashchan
       POSTGRES_PASSWORD: ashchan
       POSTGRES_DB: ashchan
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/migrations:/app/db/migrations:ro
@@ -43,14 +41,13 @@ services:
     container_name: ashchan-redis-1
     hostname: redis.ashchan.local
     user: "999:999"  # redis user in official image
-    ports:
-      - "6379:6379"
+    command: redis-server --requirepass "${REDIS_PASSWORD:-changeme}"
     volumes:
       - redis_data:/data
     networks:
       - ashchan-mesh
     healthcheck:
-      test: "redis-cli ping"
+      test: "redis-cli -a \"${REDIS_PASSWORD:-changeme}\" ping"
       interval: 5s
       timeout: 3s
       retries: 5
@@ -65,9 +62,6 @@ services:
     environment:
       MINIO_ROOT_USER: ashchan
       MINIO_ROOT_PASSWORD: ashchan123
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - minio_data:/data
     networks:
@@ -121,8 +115,7 @@ services:
     container_name: ashchan-auth-1
     hostname: auth.ashchan.local
     ports:
-      - "9502:9502"   # HTTP (development only)
-      - "8502:8443"   # Internal mTLS (different host port to avoid conflict)
+      - "8502:8443"   # Internal mTLS
     env_file:
       - ./services/auth-accounts/.env
     volumes:
@@ -149,7 +142,6 @@ services:
     container_name: ashchan-boards-1
     hostname: boards.ashchan.local
     ports:
-      - "9503:9503"   # HTTP (development only)
       - "8503:8443"   # Internal mTLS
     env_file:
       - ./services/boards-threads-posts/.env
@@ -177,7 +169,6 @@ services:
     container_name: ashchan-media-1
     hostname: media.ashchan.local
     ports:
-      - "9504:9504"   # HTTP (development only)
       - "8504:8443"   # Internal mTLS
     env_file:
       - ./services/media-uploads/.env
@@ -207,7 +198,6 @@ services:
     container_name: ashchan-search-1
     hostname: search.ashchan.local
     ports:
-      - "9505:9505"   # HTTP (development only)
       - "8505:8443"   # Internal mTLS
     env_file:
       - ./services/search-indexing/.env
@@ -235,7 +225,6 @@ services:
     container_name: ashchan-moderation-1
     hostname: moderation.ashchan.local
     ports:
-      - "9506:9506"   # HTTP (development only)
       - "8506:8443"   # Internal mTLS
     env_file:
       - ./services/moderation-anti-spam/.env

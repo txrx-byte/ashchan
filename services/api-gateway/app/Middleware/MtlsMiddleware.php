@@ -26,7 +26,7 @@ class MtlsMiddleware implements MiddlewareInterface
 
     public function __construct(ConfigInterface $config)
     {
-        $this->enabled = $config->get('mtls.enabled', false);
+        $this->enabled = $config->get('mtls.enabled', true);
         $this->caFile = $config->get('mtls.ca_file', '/etc/mtls/ca/ca.crt');
         $this->verifyPeer = $config->get('mtls.verify_peer', true);
         $this->minTlsVersion = $config->get('mtls.min_tls_version', 'TLSv1.3');

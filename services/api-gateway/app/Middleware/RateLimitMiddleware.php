@@ -55,10 +55,11 @@ final class RateLimitMiddleware implements MiddlewareInterface
 
     private function getClientIp(ServerRequestInterface $request): string
     {
-        $forwarded = $request->getHeaderLine('X-Forwarded-For');
-        if ($forwarded) {
-            $ips = explode(',', $forwarded);
-            return trim($ips[0]);
+        // Only trust X-Forwarded-For if set by a trusted reverse proxy.
+        // In production behind a load balancer, use X-Real-IP set by the LB.
+        $realIp = $request->getHeaderLine('X-Real-IP');
+        if ($realIp !== '') {
+            return trim($realIp);
         }
         $params = $request->getServerParams();
         $remoteAddr = $params['remote_addr'] ?? '127.0.0.1';

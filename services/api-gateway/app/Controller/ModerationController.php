@@ -94,7 +94,7 @@ final class ModerationController extends AbstractController
 
         // Get reporter info
         $remoteAddr = $request->server('remote_addr', '');
-        $ip = $request->getHeaderLine('X-Forwarded-For') ?: (is_string($remoteAddr) ? $remoteAddr : '');
+        $ip = is_string($remoteAddr) ? $remoteAddr : '';
         $ipHash = hash('sha256', $ip);
 
         // Get request signature for spam filtering

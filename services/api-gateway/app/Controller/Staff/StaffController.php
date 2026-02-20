@@ -82,7 +82,7 @@ final class StaffController
         return $response;
     }
 
-    #[GetMapping(path: 'logout')]
+    #[PostMapping(path: 'logout')]
     public function logout(): ResponseInterface
     {
         $user = $this->getUser();

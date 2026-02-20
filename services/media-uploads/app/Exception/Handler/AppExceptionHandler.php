@@ -29,10 +29,7 @@ class AppExceptionHandler extends ExceptionHandler
             ->withStatus(500)
             ->withHeader('Content-Type', 'application/json')
             ->withBody(new SwooleStream((string) json_encode([
-                'error' => $throwable->getMessage(),
-                'class' => get_class($throwable),
-                'file' => $throwable->getFile(),
-                'line' => $throwable->getLine(),
+                'error' => 'Internal server error',
             ])));
     }
 

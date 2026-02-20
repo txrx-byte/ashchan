@@ -74,9 +74,11 @@ class StaffAuthMiddleware implements MiddlewareInterface
         
         // Check if this is a state-changing request requiring CSRF validation
         if (in_array($request->getMethod(), ['POST', 'PUT', 'DELETE', 'PATCH'])) {
-            $csrfToken = $request->getHeaderLine('X-CSRF-Token') 
-                ?? $request->parsedBody()['_csrf_token'] 
-                ?? null;
+            $headerToken = $request->getHeaderLine('X-CSRF-Token');
+            $parsedBody = $request->getParsedBody();
+            $bodyToken = is_array($parsedBody) ? ($parsedBody['_csrf_token'] ?? null) : null;
+            $csrfToken = ($headerToken !== '' ? $headerToken : null)
+                ?? (is_string($bodyToken) && $bodyToken !== '' ? $bodyToken : null);
             
             if (!$csrfToken) {
                 return $this->response->json([

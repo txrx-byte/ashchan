@@ -61,10 +61,12 @@
                     <span>Site Messages</span>
                 </a>
                 <div class="nav-section">Account</div>
-                <a href="/staff/logout" class="nav-item">
+                <form method="POST" action="/staff/logout" class="nav-item" style="margin:0">
+                    <button type="submit" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0;display:flex;align-items:center;gap:8px;width:100%">
                     <span class="nav-icon">🚪</span>
                     <span>Logout</span>
-                </a>
+                    </button>
+                </form>
             </nav>
         </aside>
         <main class="content">

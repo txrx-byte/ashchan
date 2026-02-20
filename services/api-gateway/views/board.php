@@ -117,11 +117,8 @@ declare(strict_types=1);
           </div>
 
           <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $op['id'] ?? '') ?>">
-            <?= $op['content_html'] ?? htmlspecialchars((string) $op['content'] ?? '') ?>
+            <?= isset($op['content_html']) ? strip_tags((string) $op['content_html'], '<br><a><span><s><b><i><u><pre><wbr><em><strong>') : htmlspecialchars((string) $op['content'] ?? '') ?>
           </blockquote>
-        </div>
-
-        <!-- Mobile post link -->
         <div class="postLink mobile">
           <span class="info"><?= (int)($thread['reply_count'] ?? 0) ?> Replies / <?= (int)($thread['image_count'] ?? 0) ?> Images</span>
           <a href="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread['id']) ?>" class="button">View Thread</a>
@@ -166,13 +163,8 @@ declare(strict_types=1);
           <?php endif; ?>
 
           <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $reply['id']) ?>">
-            <?= $reply['content_html'] ?? htmlspecialchars((string) $reply['content'] ?? '') ?>
+            <?= isset($reply['content_html']) ? strip_tags((string) $reply['content_html'], '<br><a><span><s><b><i><u><pre><wbr><em><strong>') : htmlspecialchars((string) $reply['content'] ?? '') ?>
           </blockquote>
-        </div>
-      </div>
-      <?php endforeach; ?>
-    </div>
-    <hr>
     <?php endforeach; ?>
   </div>
 
