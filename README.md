@@ -261,7 +261,7 @@ podman exec ashchan-gateway-1 getent hosts auth.ashchan.local
 ```
 
 ### See Also
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Detailed troubleshooting guide
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Detailed troubleshooting guide
 
 ---
 
@@ -345,7 +345,7 @@ WantedBy=multi-user.target
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
 
 ### Commit Messages
 Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
