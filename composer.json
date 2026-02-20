@@ -38,18 +38,7 @@
     "install:boards-threads-posts": "cd services/boards-threads-posts && composer install --prefer-dist --no-progress",
     "install:media-uploads": "cd services/media-uploads && composer install --prefer-dist --no-progress",
     "install:search-indexing": "cd services/search-indexing && composer install --prefer-dist --no-progress",
-    "install:moderation-anti-spam": "cd services/moderation-anti-spam && composer install --prefer-dist --no-progress",
-    "phpstan": [
-      "cd services/api-gateway && composer phpstan",
-      "cd services/auth-accounts && composer phpstan",
-      "cd services/boards-threads-posts && composer phpstan",
-      "cd services/media-uploads && composer phpstan",
-      "cd services/search-indexing && composer phpstan",
-      "cd services/moderation-anti-spam && composer phpstan"
-    ],
-    "test": [
-      "cd services/boards-threads-posts && composer test"
-    ]
+    "install:moderation-anti-spam": "cd services/moderation-anti-spam && composer install --prefer-dist --no-progress"
   },
   "config": {
     "sort-packages": true,
