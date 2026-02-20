@@ -32,6 +32,7 @@ final class BoardService
     public function __construct(
         private ContentFormatter $formatter,
         private Redis $redis,
+        private PiiEncryptionService $piiEncryption,
     ) {}
 
     /* ──────────────────────────────────────────────
@@ -407,7 +408,7 @@ final class BoardService
                 'subject'              => $data['subject'] ?? null,
                 'content'              => $data['content'] ?? '',
                 'content_html'         => $contentHtml,
-                'ip_address'           => $data['ip_address'] ?? '',
+                'ip_address'           => $this->piiEncryption->encrypt((string) ($data['ip_address'] ?? '')),
                 'media_url'            => $data['media_url'] ?? null,
                 'thumb_url'            => $data['thumb_url'] ?? null,
                 'media_filename'       => $data['media_filename'] ?? null,
@@ -467,7 +468,7 @@ final class BoardService
                 'subject'              => $data['subject'] ?? null,
                 'content'              => $data['content'] ?? '',
                 'content_html'         => $contentHtml,
-                'ip_address'           => $data['ip_address'] ?? '',
+                'ip_address'           => $this->piiEncryption->encrypt((string) ($data['ip_address'] ?? '')),
                 'media_url'            => $data['media_url'] ?? null,
                 'thumb_url'            => $data['thumb_url'] ?? null,
                 'media_filename'       => $data['media_filename'] ?? null,
@@ -736,6 +737,10 @@ final class BoardService
 
     /**
      * Get IP hashes for posts in a thread (Staff only).
+     *
+     * Decrypts IPs in memory to generate consistent poster IDs,
+     * then immediately wipes the plaintext from memory.
+     *
      * @return array<int, string> Map of post_id => ip_hash
      */
     public function getThreadIps(int $threadId): array
@@ -746,16 +751,44 @@ final class BoardService
             ->get();
 
         $result = [];
-        // Salt for hashing (should be consistent/configurable)
         $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
 
         foreach ($posts as $post) {
-            // Consistent hashing for Same Poster ID
-            $ipAddr = $post->getAttribute('ip_address');
-            $hash = substr(base64_encode(pack('H*', sha1((is_string($ipAddr) ? $ipAddr : '') . $salt))), 0, 8);
+            $encryptedIp = $post->getAttribute('ip_address');
+            $plainIp = is_string($encryptedIp) && $encryptedIp !== ''
+                ? $this->piiEncryption->decrypt($encryptedIp)
+                : '';
+
+            // Generate consistent poster ID hash from decrypted IP
+            $hash = substr(base64_encode(pack('H*', sha1($plainIp . $salt))), 0, 8);
             $result[$post->id] = $hash;
+
+            // Wipe plaintext IP from memory
+            $this->piiEncryption->wipe($plainIp);
         }
 
         return $result;
+    }
+
+    /**
+     * Get a decrypted IP address for a specific post (Staff/Admin only).
+     *
+     * This should be called sparingly and only for moderation purposes.
+     * The caller is responsible for wiping the returned value from memory.
+     */
+    public function getDecryptedIp(int $postId): ?string
+    {
+        /** @var Post|null $post */
+        $post = Post::find($postId);
+        if (!$post) {
+            return null;
+        }
+
+        $encryptedIp = $post->getAttribute('ip_address');
+        if (!is_string($encryptedIp) || $encryptedIp === '') {
+            return null;
+        }
+
+        return $this->piiEncryption->decrypt($encryptedIp);
     }
 }

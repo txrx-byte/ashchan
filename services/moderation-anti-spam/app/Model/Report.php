@@ -196,13 +196,28 @@ class Report extends Model
     }
 
     /**
-     * Get the reporter's IP (decrypted if needed)
+     * Get the reporter's IP (decrypted if needed).
+     *
+     * Uses PiiEncryptionService to decrypt at rest.
+     * Caller is responsible for wiping the returned value.
      */
     public function getReporterIp(): string
     {
-        // In production, this should decrypt the IP
         $ip = $this->getAttribute('ip');
-        return is_string($ip) ? $ip : '';
+        if (!is_string($ip) || $ip === '') {
+            return '';
+        }
+
+        // If encryption service is available in the container, use it
+        try {
+            /** @var \App\Service\PiiEncryptionService $encryption */
+            $encryption = \Hyperf\Context\ApplicationContext::getContainer()
+                ->get(\App\Service\PiiEncryptionService::class);
+            return $encryption->decrypt($ip);
+        } catch (\Throwable $e) {
+            // Fallback: return as-is (not encrypted or service unavailable)
+            return $ip;
+        }
     }
 
     /**

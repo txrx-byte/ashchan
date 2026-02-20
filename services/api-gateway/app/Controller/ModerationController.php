@@ -43,6 +43,7 @@ final class ModerationController extends AbstractController
     public function __construct(
         private ModerationService $modService,
         private SpamService $spamService,
+        private \App\Service\PiiEncryptionService $piiEncryption,
         private HttpResponse $response,
     ) {}
 
@@ -109,10 +110,10 @@ final class ModerationController extends AbstractController
             'host' => '',
         ];
 
-        // Get reporter info
+        // Get reporter info — encrypt IP before storage
         $remoteAddr = $request->server('remote_addr', '');
         $ip = is_string($remoteAddr) ? $remoteAddr : '';
-        $ipHash = hash('sha256', $ip);
+        $encryptedIp = $this->piiEncryption->encrypt($ip);
 
         // Get request signature for spam filtering
         $reqSig = $this->buildRequestSignature($request);
@@ -123,7 +124,7 @@ final class ModerationController extends AbstractController
                 $board,
                 (int) $categoryId,
                 $postData,
-                $ipHash,
+                $encryptedIp,
                 null, // pwd
                 null, // pass_id
                 $reqSig

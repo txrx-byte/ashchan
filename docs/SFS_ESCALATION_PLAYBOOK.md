@@ -69,13 +69,33 @@ This document outlines the strategic roadmap for enhancing Ashchan's moderation 
 
 ## Phase 4: Privacy Hardening (Encryption at Rest)
 **Objective**: Re-introduce privacy by encrypting IP addresses in the database, ensuring they are only visible when necessary (e.g., SFS submission).
-**Status**: [ ] Future
+**Status**: [x] **Implemented** (2026-02-20)
 
 ### 4.1 Encryption Layer
-*   [ ] Implement `Sodium` or `OpenSSL` encryption in `App\Model\Post` and `App\Model\Report`.
-*   [ ] Key Management: Store encryption keys securely (Vault/Secrets Manager), not in code.
-*   [ ] Database columns: Rename `ip_address` to `ip_encrypted` (BYTEA).
+*   [x] Implemented `PiiEncryptionService` using libsodium XChaCha20-Poly1305 AEAD encryption.
+    *   Located in `services/boards-threads-posts/app/Service/PiiEncryptionService.php`
+    *   Copied to `services/moderation-anti-spam/app/Service/PiiEncryptionService.php`
+    *   Copied to `services/api-gateway/app/Service/PiiEncryptionService.php`
+*   [x] Key Management: `PII_ENCRYPTION_KEY` env var, derived via BLAKE2b to fixed-length key.
+*   [x] Encrypted values stored as `enc:<base64(nonce||ciphertext||tag)>` — backward compatible.
+*   [x] Database columns widened to TEXT via migration `20260220000001_pii_encryption_retention.sql`.
 
-### 4.2 Decryption "On-the-Fly"
-*   [ ] Update `StopForumSpamService` to accept encrypted payload, decrypt in memory, and send to SFS.
-*   [ ] Ensure Admins have "View IP" permission which triggers decryption audit log.
+### 4.2 Decryption "On-the-Fly" (SFS Workflow)
+*   [x] `SfsSubmissionService` decrypts IP in-memory on admin approval, sends to SFS, wipes from memory.
+*   [x] `SfsQueueController` provides admin endpoints: list (masked IPs), approve (decrypt+send), reject.
+*   [x] `sfs_audit_log` table records all decrypt/submit actions without logging the IP.
+*   [x] `pii_access_log` table records all PII decryption by staff for accountability.
+
+### 4.3 Automated IP Retention & Deletion
+*   [x] `IpRetentionService` (per-service) runs scheduled cleanup:
+    *   Posts IP: NULL after 30 days
+    *   Reports IP: NULL after 90 days
+    *   Ban IPs: NULL 30 days after ban expiry
+    *   Flood logs: DELETE after 24 hours
+    *   Audit log IPs: NULL after 1 year
+*   [x] `PiiCleanupCommand` (`php bin/hyperf.php pii:cleanup`) for cron scheduling.
+*   [x] `pii_retention_log` table tracks all automated deletions (without PII).
+
+### 4.4 Documentation
+*   [x] `docs/DATA_INVENTORY.md` — Complete data inventory with retention schedules.
+*   [x] `docs/PRIVACY_TOS_DISCLOSURE.md` — ToS language disclosing SFS reporting.

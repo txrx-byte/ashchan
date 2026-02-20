@@ -33,7 +33,7 @@ use Hyperf\DbConnection\Model\Model;
  * @property string|null $subject
  * @property string      $content
  * @property string|null $content_html
- * @property string      $ip_hash
+ * @property string|null $ip_address     Encrypted IP address (enc:base64 or NULL after retention)
  * @property string|null $country_code
  * @property string|null $media_id
  * @property string|null $media_url
@@ -66,7 +66,7 @@ class Post extends Model
      */
     protected array $fillable = [
         'id', 'thread_id', 'is_op', 'author_name', 'tripcode', 'capcode',
-        'email', 'subject', 'content', 'content_html', 'ip_hash',
+        'email', 'subject', 'content', 'content_html', 'ip_address',
         'country_code', 'media_id', 'media_url', 'thumb_url',
         'media_filename', 'media_size', 'media_dimensions', 'media_hash',
         'spoiler_image', 'delete_password_hash',

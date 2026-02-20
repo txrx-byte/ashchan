@@ -36,5 +36,16 @@ This document outlines operational and technical controls for CCPA and GDPR read
 
 ## Security Controls
 - Role-based access for moderation and compliance operations.
-- Encryption at rest for sensitive columns.
+- Encryption at rest for sensitive columns (PII encrypted via XChaCha20-Poly1305).
 - Immutable audit log for DSRs and moderation.
+- PII decryption audit trail (`pii_access_log`).
+- Automated IP retention with audit logging (`pii_retention_log`).
+
+## Implementation References
+- **Data Inventory:** `docs/DATA_INVENTORY.md`
+- **Privacy/ToS Disclosure:** `docs/PRIVACY_TOS_DISCLOSURE.md`
+- **SFS Workflow:** `docs/SFS_ESCALATION_PLAYBOOK.md` (Phase 4)
+- **Encryption Service:** `services/*/app/Service/PiiEncryptionService.php`
+- **Retention Service:** `services/*/app/Service/IpRetentionService.php`
+- **Cron Command:** `services/*/app/Command/PiiCleanupCommand.php`
+- **Migration:** `db/migrations/20260220000001_pii_encryption_retention.sql`
