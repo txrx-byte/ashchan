@@ -29,7 +29,7 @@ class AppExceptionHandler extends ExceptionHandler
 {
     public function handle(Throwable $throwable, ResponseInterface $response): ResponseInterface
     {
-        // Log the full error to stdout so we can see it in docker logs
+        // Log the full error to stdout so we can see it in podman logs
         $msg = sprintf(
             "[AppExceptionHandler] %s: %s in %s:%d\n%s",
             get_class($throwable),

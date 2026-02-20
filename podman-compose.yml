@@ -151,16 +151,16 @@ services:
       timeout: 5s
       retries: 3
     restart: unless-stopped
-    
-      boards-threads-posts:
-        build:
-          context: ./services/boards-threads-posts
-          dockerfile: Dockerfile
-        container_name: ashchan-boards-1
-        hostname: boards.ashchan.local
-        ports:
-          - "8503:8443"   # Internal mTLS
-        env_file:
+
+  boards-threads-posts:
+    build:
+      context: ./services/boards-threads-posts
+      dockerfile: Dockerfile
+    container_name: ashchan-boards-1
+    hostname: boards.ashchan.local
+    ports:
+      - "8503:8443"   # Internal mTLS
+    env_file:
       - ./services/boards-threads-posts/.env
     volumes:
       - boards_certs:/etc/mtls/boards:ro
@@ -172,21 +172,21 @@ services:
         condition: service_healthy
     networks:
       - ashchan-mesh
-        healthcheck:
-          test: "curl -f http://localhost:9503/health || exit 1"
-          interval: 10s
-          timeout: 5s
-          retries: 3
-        restart: unless-stopped
-    
-      media-uploads:
-        build:
-          context: ./services/media-uploads
-          dockerfile: Dockerfile
-        container_name: ashchan-media-1
-        hostname: media.ashchan.local
-        ports:
-          - "8504:8443"   # Internal mTLS
+    healthcheck:
+      test: "curl -f http://localhost:9503/health || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  media-uploads:
+    build:
+      context: ./services/media-uploads
+      dockerfile: Dockerfile
+    container_name: ashchan-media-1
+    hostname: media.ashchan.local
+    ports:
+      - "8504:8443"   # Internal mTLS
     env_file:
       - ./services/media-uploads/.env
     volumes:
@@ -201,21 +201,21 @@ services:
         condition: service_healthy
     networks:
       - ashchan-mesh
-        healthcheck:
-          test: "curl -f http://localhost:9504/health || exit 1"
-          interval: 10s
-          timeout: 5s
-          retries: 3
-        restart: unless-stopped
-    
-      search-indexing:
-        build:
-          context: ./services/search-indexing
-          dockerfile: Dockerfile
-        container_name: ashchan-search-1
-        hostname: search.ashchan.local
-        ports:
-          - "8505:8443"   # Internal mTLS
+    healthcheck:
+      test: "curl -f http://localhost:9504/health || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  search-indexing:
+    build:
+      context: ./services/search-indexing
+      dockerfile: Dockerfile
+    container_name: ashchan-search-1
+    hostname: search.ashchan.local
+    ports:
+      - "8505:8443"   # Internal mTLS
     env_file:
       - ./services/search-indexing/.env
     volumes:
@@ -228,21 +228,21 @@ services:
         condition: service_healthy
     networks:
       - ashchan-mesh
-        healthcheck:
-          test: "curl -f http://localhost:9505/health || exit 1"
-          interval: 10s
-          timeout: 5s
-          retries: 3
-        restart: unless-stopped
-    
-      moderation-anti-spam:
-        build:
-          context: ./services/moderation-anti-spam
-          dockerfile: Dockerfile
-        container_name: ashchan-moderation-1
-        hostname: moderation.ashchan.local
-        ports:
-          - "8506:8443"   # Internal mTLS
+    healthcheck:
+      test: "curl -f http://localhost:9505/health || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  moderation-anti-spam:
+    build:
+      context: ./services/moderation-anti-spam
+      dockerfile: Dockerfile
+    container_name: ashchan-moderation-1
+    hostname: moderation.ashchan.local
+    ports:
+      - "8506:8443"   # Internal mTLS
     env_file:
       - ./services/moderation-anti-spam/.env
     volumes:

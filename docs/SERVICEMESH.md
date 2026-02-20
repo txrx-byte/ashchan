@@ -112,7 +112,7 @@ networks:
         - subnet: 10.90.0.0/24
           gateway: 10.90.0.1
     options:
-      com.docker.network.bridge.name: ashchan-mesh
+      com.podman.network.bridge.name: ashchan-mesh
 ```
 
 ### DNS Resolution

@@ -109,6 +109,6 @@ Expected output should show non-root users (postgres, redis, appuser, minio-user
 ## References
 
 - [Podman Rootless Containers](https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md)
-- [Docker USER Directive](https://docs.docker.com/engine/reference/builder/#user)
+- [Containerfile USER Directive](https://docs.podman.io/en/latest/markdown/podman-build.1.html)
 - [Kubernetes Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
-- [CIS Docker Benchmark](https://www.cisecurity.org/benchmark/docker)
+- [CIS Container Benchmark](https://www.cisecurity.org/benchmark/docker)

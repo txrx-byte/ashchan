@@ -30,7 +30,7 @@ final class TemplateRenderer
 
     public function __construct()
     {
-        // In Docker container: /app/views
+        // In Podman container: /app/views
         // In dev source tree: detect based on directory existence
         $appViews = '/app/views';
         $srcViews = dirname(__DIR__, 2) . '/views';

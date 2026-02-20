@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# docker-compose.runtime.yml
+# podman-compose.runtime.yml
 #
 # Ashchan single-image deployment using swoole-cli static binary.
 # All 6 application services run from the same ashchan-runtime image;
@@ -21,12 +21,12 @@
 # Prerequisites:
 #   1. Build or download the swoole-cli binary into docker/swoole-cli/
 #   2. Build the runtime image:
-#        docker build -f Dockerfile.runtime -t ashchan-runtime:latest .
+#        podman build -f Dockerfile.runtime -t ashchan-runtime:latest .
 #   3. Generate mTLS certificates:
 #        make mtls-init && make mtls-certs
 #
 # Usage:
-#   docker-compose -f docker-compose.runtime.yml up -d
+#   podman-compose -f podman-compose.runtime.yml up -d
 
 version: '2.4'
 
@@ -38,7 +38,7 @@ networks:
 
 services:
   # ─────────────────────────────────────────────────────────────
-  # Infrastructure Services (unchanged from docker-compose.yml)
+  # Infrastructure Services (unchanged from podman-compose.yml)
   # ─────────────────────────────────────────────────────────────
 
   postgres:

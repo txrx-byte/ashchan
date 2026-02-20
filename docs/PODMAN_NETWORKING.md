@@ -13,7 +13,7 @@ This document explains the networking configuration for ashchan's local developm
 1. **Podman Compose handles DNS automatically** - Containers on the same bridge network can resolve each other by service name
 2. **No IP conflicts** - Static IPs can cause allocation errors when containers are recreated
 3. **Simpler configuration** - No need to manage IPAM subnets or track IP assignments
-4. **Standard practice** - This is how docker-compose and podman-compose are designed to work
+4. **Standard practice** - This is how podman-compose is designed to work
 
 ### What Went Wrong with Static IPs
 

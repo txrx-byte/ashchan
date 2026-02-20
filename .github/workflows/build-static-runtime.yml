@@ -65,9 +65,6 @@ jobs:
       - name: Checkout ashchan
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Cache swoole-cli build
         uses: actions/cache@v4
         with:
@@ -76,7 +73,7 @@ jobs:
 
       - name: Build swoole-cli binary
         run: |
-          docker build \
+          podman build \
             -f docker/swoole-cli/Dockerfile.build \
             --build-arg SWOOLE_CLI_VERSION=${{ env.SWOOLE_CLI_VERSION }} \
             -t swoole-cli-builder:latest \
@@ -84,9 +81,9 @@ jobs:
 
       - name: Extract swoole-cli binary
         run: |
-          docker create --name swoole-tmp swoole-cli-builder:latest
-          docker cp swoole-tmp:/output/swoole-cli ./swoole-cli
-          docker rm swoole-tmp
+          podman create --name swoole-tmp swoole-cli-builder:latest
+          podman cp swoole-tmp:/output/swoole-cli ./swoole-cli
+          podman rm swoole-tmp
 
           echo "=== Binary info ==="
           file ./swoole-cli
@@ -117,9 +114,6 @@ jobs:
       - name: Make binary executable
         run: chmod +x docker/swoole-cli/swoole-cli
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -133,38 +127,37 @@ jobs:
 
       - name: Log in to container registry
         if: github.event_name == 'push' || github.event.inputs.push_image == 'true'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
       - name: Build runtime image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.runtime
-          push: ${{ github.event_name == 'push' || github.event.inputs.push_image == 'true' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: |
+          podman build \
+            -f Dockerfile.runtime \
+            -t ${{ steps.meta.outputs.tags }} \
+            --label "${{ steps.meta.outputs.labels }}" \
+            .
+
+      - name: Push runtime image
+        if: github.event_name == 'push' || github.event.inputs.push_image == 'true'
+        run: |
+          podman push ${{ steps.meta.outputs.tags }}
 
       - name: Test runtime image
         run: |
-          docker build -f Dockerfile.runtime -t ashchan-runtime:test .
+          podman build -f Dockerfile.runtime -t ashchan-runtime:test .
 
           echo "=== Verify swoole-cli inside image ==="
-          docker run --rm ashchan-runtime:test \
+          podman run --rm ashchan-runtime:test \
             /usr/local/bin/swoole-cli --version || true
 
           echo "=== Verify extensions ==="
-          docker run --rm ashchan-runtime:test \
+          podman run --rm ashchan-runtime:test \
             /usr/local/bin/swoole-cli -m || true
 
           echo "=== Verify service directories ==="
-          docker run --rm ashchan-runtime:test \
+          podman run --rm ashchan-runtime:test \
             ls -la /app/services/ || true
 
           echo "=== Image size ==="
-          docker images ashchan-runtime:test --format '{{.Size}}'
+          podman images ashchan-runtime:test --format '{{.Size}}'

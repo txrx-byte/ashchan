@@ -27,7 +27,7 @@ error_reporting(E_ALL);
 
 require BASE_PATH . '/vendor/autoload.php';
 
-// Load .env if present (for local dev; docker-compose provides env_file)
+// Load .env if present (for local dev; podman-compose provides env_file)
 if (file_exists(BASE_PATH . '/.env')) {
     (Dotenv\Dotenv::createMutable(BASE_PATH))->safeLoad();
 }

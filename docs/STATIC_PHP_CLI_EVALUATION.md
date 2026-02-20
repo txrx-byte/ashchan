@@ -493,15 +493,15 @@ jobs:
       
       - name: Build runtime image
         run: |
-          docker build -t ashchan-runtime:${{ github.ref_name }} .
-          docker tag ashchan-runtime:${{ github.ref_name }} ashchan-runtime:latest
+          podman build -t ashchan-runtime:${{ github.ref_name }} .
+          podman tag ashchan-runtime:${{ github.ref_name }} ashchan-runtime:latest
       
       - name: Push to registry
         run: |
           echo "${{ secrets.REGISTRY_PASSWORD }}" | \
-            docker login -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
-          docker push ashchan-runtime:${{ github.ref_name }}
-          docker push ashchan-runtime:latest
+            podman login -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+          podman push ashchan-runtime:${{ github.ref_name }}
+          podman push ashchan-runtime:latest
 ```
 
 ### Dockerfile (Runtime Image)
@@ -558,7 +558,7 @@ CMD ["gateway"]
 
 - [ ] Create GitHub Actions workflow
 - [ ] Build multi-arch binaries (x86_64, aarch64)
-- [ ] Create runtime Docker image
+- [ ] Create runtime container image
 - [ ] Test image locally
 
 ### Phase 3: Service Migration (Week 3-4)
@@ -602,7 +602,7 @@ CMD ["gateway"]
 | Container registry storage (6 images × 150MB × 10 versions) | ~$1 |
 | Build time (6 services × 5 min × 10 builds/day) | ~50 CPU-min/day |
 | Network transfer (pulling 6 images per deploy) | ~900MB/deploy |
-| Complexity (maintaining 6 Dockerfiles) | ~2 hours/week |
+| Complexity (maintaining 6 Containerfiles) | ~2 hours/week |
 
 ### Target State Benefits
 
@@ -611,13 +611,13 @@ CMD ["gateway"]
 | **Registry storage** | 6 images → 1 image (83% reduction) |
 | **Build time** | 1 binary build cached, reused by all services |
 | **Network transfer** | 900MB → 50MB per deploy (94% reduction) |
-| **Complexity** | 6 Dockerfiles → 1 Dockerfile + build workflow |
+| **Complexity** | 6 Containerfiles → 1 Containerfile + build workflow |
 | **Security** | Smaller attack surface (single base image) |
 | **Consistency** | All services use identical PHP runtime |
 
 ### ROI
 
-- **Engineering time saved:** ~8 hours/month (Dockerfile maintenance)
+- **Engineering time saved:** ~8 hours/month (Containerfile maintenance)
 - **CI/CD costs saved:** ~40% reduction in build minutes
 - **Deployment speed:** 10× faster image pulls
 
@@ -639,7 +639,7 @@ CMD ["gateway"]
 
 4. **Performance**: Static binaries start faster (no dynamic linker overhead). UPX compression reduces I/O.
 
-5. **Portability**: Run anywhere - Podman, Docker, systemd, bare metal. Same binary.
+5. **Portability**: Run anywhere - Podman, systemd, bare metal. Same binary.
 
 6. **Debugging**: Easier to reproduce issues when runtime is identical everywhere.
 
@@ -648,7 +648,7 @@ CMD ["gateway"]
 1. **Extension Availability**: What if Hyperf needs an extension swoole-cli doesn't include?
    - **Mitigation**: Verify all Hyperf dependencies in Phase 1. swoole-cli supports custom extensions via `prepare.php`.
 
-2. **Build Complexity**: Building static binaries is slower than `docker build`.
+2. **Build Complexity**: Building static binaries is slower than `podman build`.
    - **Mitigation**: Cache the swoole-cli build. Only rebuild when PHP version or extensions change.
 
 3. **Debugging Static Binaries**: Harder to inspect what's inside.
@@ -665,7 +665,7 @@ If I were implementing this:
 
 2. **Use PHAR for service packaging** - Instead of copying source directories, build PHAR archives for each service. Cleaner and more portable.
 
-3. **Keep Dockerfiles for development** - Static binaries for production, traditional Docker for local dev (faster iteration).
+3. **Keep Containerfiles for development** - Static binaries for production, Podman for local dev (faster iteration).
 
 4. **Add binary verification** - SHA256 checksum verification for swoole-cli download in CI/CD.
 

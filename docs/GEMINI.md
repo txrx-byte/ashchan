@@ -20,7 +20,7 @@ The system is composed of several microservices, each running in its own contain
 *   **Language**: PHP 8.x (using Hyperf framework)
 *   **Database**: PostgreSQL (as seen in `db/migrations` and `PostgresConnection` usage).
 *   **Caching**: Redis (used in `BoardService` for caching board lists and threads).
-*   **Containerization**: Docker (each service has a `Dockerfile`).
+*   **Containerization**: Podman (each service has a `Dockerfile`).
 *   **Orchestration**: Kubernetes (`k8s/` directory contains manifests).
 
 ## Key Components

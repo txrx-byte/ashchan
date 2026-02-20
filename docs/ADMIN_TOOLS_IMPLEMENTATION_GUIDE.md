@@ -154,8 +154,8 @@ Use existing account management views as templates.
 
 ```bash
 cd /home/abrookstgz/ashchan/services/api-gateway
-docker build -t ashchan/api-gateway:latest .
-docker restart ashchan-api-gateway
+podman build -t ashchan/api-gateway:latest .
+podman restart ashchan-api-gateway
 ```
 
 ---
@@ -605,14 +605,14 @@ final class SiteMessageController
 ```bash
 # After creating each controller:
 cd /home/abrookstgz/ashchan/services/api-gateway
-docker build -t ashchan/api-gateway:latest .
-docker restart ashchan-api-gateway
+podman build -t ashchan/api-gateway:latest .
+podman restart ashchan-api-gateway
 
 # Test the tool
 curl -s -b /tmp/cookies.txt http://localhost:9501/staff/{tool}
 
 # Check logs for errors
-docker logs ashchan-api-gateway 2>&1 | tail -50
+podman logs ashchan-api-gateway 2>&1 | tail -50
 ```
 
 ---
@@ -622,20 +622,20 @@ docker logs ashchan-api-gateway 2>&1 | tail -50
 ### Issue: "Template not found"
 **Solution:** Copy view templates to container:
 ```bash
-docker cp views/staff/{tool}/ ashchan-api-gateway:/app/views/staff/{tool}/
+podman cp views/staff/{tool}/ ashchan-api-gateway:/app/views/staff/{tool}/
 ```
 
 ### Issue: "Class not found" for controller
 **Solution:** Rebuild container to pick up new files:
 ```bash
-docker build --no-cache -t ashchan/api-gateway:latest .
+podman build --no-cache -t ashchan/api-gateway:latest .
 ```
 
 ### Issue: Database table doesn't exist
 **Solution:** Run migration:
 ```bash
-docker cp db/migrations/004_account_management.sql ashchan-postgres:/tmp/
-docker exec ashchan-postgres psql -U ashchan -d ashchan -f /tmp/004_account_management.sql
+podman cp db/migrations/004_account_management.sql ashchan-postgres:/tmp/
+podman exec ashchan-postgres psql -U ashchan -d ashchan -f /tmp/004_account_management.sql
 ```
 
 ### Issue: CSRF token errors

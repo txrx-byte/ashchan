@@ -32,7 +32,7 @@ help:
 	@echo ""
 	@echo "Static Runtime (swoole-cli):"
 	@echo "  swoole-cli-download  Download pre-built swoole-cli binary"
-	@echo "  swoole-cli-build     Build swoole-cli from source (Docker)"
+	@echo "  swoole-cli-build     Build swoole-cli from source (Podman)"
 	@echo "  runtime-build        Build ashchan-runtime single image"
 	@echo "  runtime-up           Start all services (single image mode)"
 	@echo "  runtime-down         Stop all services (single image mode)"
@@ -59,14 +59,14 @@ install:
 	@echo "Done. Edit .env files as needed."
 
 up:
-	podman-compose down --remove-orphans 2>/dev/null || true
-	podman-compose up -d
+	podman-compose -f podman-compose.yml down --remove-orphans 2>/dev/null || true
+	podman-compose -f podman-compose.yml up -d
 
 down:
-	podman-compose down
+	podman-compose -f podman-compose.yml down
 
 logs:
-	podman-compose logs -f
+	podman-compose -f podman-compose.yml logs -f
 
 migrate:
 	@echo "Running migrations..."
@@ -83,7 +83,7 @@ lint:
 	@echo "Linting PHP code..."
 	@for svc in api-gateway auth-accounts boards-threads-posts media-uploads search-indexing moderation-anti-spam; do \
 		echo "Linting $$svc..."; \
-		cd services/$$svc && composer lint; \
+		(cd services/$$svc && composer lint); \
 	done
 
 # ─────────────────────────────────────────────────────────────
@@ -136,15 +136,15 @@ mtls-status:
 
 rebuild:
 	@echo "Rebuilding all services..."
-	podman-compose build $(BUILD_ARGS)
+	podman-compose -f podman-compose.yml build $(BUILD_ARGS)
 
 rebuild-%:
 	@echo "Rebuilding $* service..."
-	podman-compose build $(BUILD_ARGS) $*
+	podman-compose -f podman-compose.yml build $(BUILD_ARGS) $*
 
 restart:
 	@echo "Restarting all services..."
-	podman-compose restart
+	podman-compose -f podman-compose.yml restart
 
 restart-%:
 	@echo "Restarting $* service..."
@@ -152,8 +152,9 @@ restart-%:
 
 health:
 	@echo "Checking service health..."
-	@for svc in gateway auth boards media search moderation; do \
-		PORT=$$(printf "950%d" $$(($$(echo $$svc | cut -c1-1 | tr 'gabmsm' '012345') + 0))); \
+	@for pair in gateway:9501 auth:9502 boards:9503 media:9504 search:9505 moderation:9506; do \
+		svc=$${pair%%:*}; \
+		PORT=$${pair##*:}; \
 		echo -n "Checking $$svc (port $$PORT)... "; \
 		if curl -s --max-time 2 http://localhost:$$PORT/health > /dev/null 2>&1; then \
 			echo "✓ OK"; \
@@ -164,7 +165,7 @@ health:
 
 clean:
 	@echo "Cleaning up Podman artifacts..."
-	podman-compose down -v
+	podman-compose -f podman-compose.yml down -v
 	podman system prune -f
 
 clean-certs:
@@ -177,7 +178,7 @@ clean-certs:
 # ─────────────────────────────────────────────────────────────
 
 SWOOLE_CLI_VERSION ?= v6.0.0
-RUNTIME_COMPOSE = docker-compose -f docker-compose.runtime.yml
+RUNTIME_COMPOSE = podman-compose -f podman-compose.runtime.yml
 
 swoole-cli-download:
 	@echo "=== Downloading swoole-cli $(SWOOLE_CLI_VERSION) ==="
@@ -185,15 +186,15 @@ swoole-cli-download:
 
 swoole-cli-build:
 	@echo "=== Building swoole-cli from source ==="
-	docker build \
+	podman build \
 		-f docker/swoole-cli/Dockerfile.build \
 		--build-arg SWOOLE_CLI_VERSION=$(SWOOLE_CLI_VERSION) \
 		-t ashchan-swoole-cli-builder:latest \
 		docker/swoole-cli/
 	@echo "=== Extracting binary ==="
-	docker create --name swoole-tmp ashchan-swoole-cli-builder:latest
-	docker cp swoole-tmp:/output/swoole-cli docker/swoole-cli/swoole-cli
-	docker rm swoole-tmp
+	podman create --name swoole-tmp ashchan-swoole-cli-builder:latest
+	podman cp swoole-tmp:/output/swoole-cli docker/swoole-cli/swoole-cli
+	podman rm swoole-tmp
 	chmod +x docker/swoole-cli/swoole-cli
 	@echo "=== Binary ready at docker/swoole-cli/swoole-cli ==="
 	@file docker/swoole-cli/swoole-cli
@@ -202,9 +203,9 @@ swoole-cli-build:
 runtime-build:
 	@echo "=== Building ashchan-runtime image ==="
 	@test -f docker/swoole-cli/swoole-cli || { echo "ERROR: swoole-cli binary not found. Run 'make swoole-cli-download' or 'make swoole-cli-build' first."; exit 1; }
-	docker build -f Dockerfile.runtime -t ashchan-runtime:latest .
+	podman build -f Dockerfile.runtime -t ashchan-runtime:latest .
 	@echo "=== Image built ==="
-	@docker images ashchan-runtime:latest --format 'Size: {{.Size}}'
+	@podman images ashchan-runtime:latest --format 'Size: {{.Size}}'
 
 runtime-up: runtime-build
 	$(RUNTIME_COMPOSE) down --remove-orphans 2>/dev/null || true
@@ -235,6 +236,6 @@ runtime-health:
 
 runtime-clean:
 	$(RUNTIME_COMPOSE) down -v
-	docker rmi ashchan-runtime:latest 2>/dev/null || true
-	docker rmi ashchan-swoole-cli-builder:latest 2>/dev/null || true
+	podman rmi ashchan-runtime:latest 2>/dev/null || true
+	podman rmi ashchan-swoole-cli-builder:latest 2>/dev/null || true
 	rm -f docker/swoole-cli/swoole-cli

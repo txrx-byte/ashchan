@@ -188,7 +188,7 @@ A modernized fork of Tinyboard, a lightweight PHP imageboard. Referenced for sca
 - Static page generation (`smart_build.php`)
 - 4chan-compatible JSON API
 - Moderation panel (`mod.php`)
-- Docker & Kubernetes support
+- Podman & Kubernetes support
 
 **Scaling Reference:**
 See `SCALING_PLAN.md` for strategy to scale to 4chan-level traffic:
@@ -292,7 +292,7 @@ cd OpenYotsuba
 | Architecture | Monolithic PHP | Microservices (Hyperf) | Monolithic PHP |
 | Database | MySQL/MariaDB | PostgreSQL | MySQL |
 | Caching | Redis/APCu/Memcached | Redis | Limited |
-| Deployment | Docker, Helm | Kubernetes, Podman | Traditional LAMP |
+| Deployment | Podman, Helm | Kubernetes, Podman | Traditional LAMP |
 | Frontend | Server-rendered + jQuery→ES6 | REST API + separate frontend | Server-rendered + jQuery |
 | Auth | Session-based | Token-based (planned) | Cookie-based |
 | Scaling | Static file generation | Event-driven, async | Static file generation |

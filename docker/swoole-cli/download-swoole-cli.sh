@@ -74,10 +74,10 @@ if command -v curl &>/dev/null; then
         echo "Check releases at: https://github.com/swoole/swoole-cli/releases"
         echo ""
         echo "Alternative: build from source using:"
-        echo "  docker build -f docker/swoole-cli/Dockerfile.build -t swoole-builder docker/swoole-cli/"
-        echo "  docker create --name tmp swoole-builder"
-        echo "  docker cp tmp:/output/swoole-cli docker/swoole-cli/swoole-cli"
-        echo "  docker rm tmp"
+        echo "  podman build -f docker/swoole-cli/Dockerfile.build -t swoole-builder docker/swoole-cli/"
+        echo "  podman create --name tmp swoole-builder"
+        echo "  podman cp tmp:/output/swoole-cli docker/swoole-cli/swoole-cli"
+        echo "  podman rm tmp"
         exit 1
     }
 elif command -v wget &>/dev/null; then
