@@ -135,6 +135,118 @@ final class BoardService
     }
 
     /* ──────────────────────────────────────────────
+     * Board Management (Admin CRUD)
+     * ────────────────────────────────────────────── */
+
+    /**
+     * List all boards (including archived) for admin.
+     * @return array<int, array<string, mixed>>
+     */
+    public function listAllBoards(): array
+    {
+        return Board::query()
+            ->orderBy('category')
+            ->orderBy('slug')
+            ->get()
+            ->toArray();
+    }
+
+    /**
+     * Create a new board.
+     * @param array<string, mixed> $data
+     */
+    public function createBoard(array $data): Board
+    {
+        // The DB requires 'name' (NOT NULL), use title as name
+        $title = $data['title'] ?? '';
+        
+        $board = new Board();
+        $board->slug = $data['slug'];
+        $board->title = $title;
+        $board->setAttribute('name', $title ?: $data['slug']);
+        $board->subtitle = $data['subtitle'] ?? '';
+        $board->category = $data['category'] ?? '';
+        $board->nsfw = (bool) ($data['nsfw'] ?? false);
+        $board->max_threads = (int) ($data['max_threads'] ?? 200);
+        $board->bump_limit = (int) ($data['bump_limit'] ?? 300);
+        $board->image_limit = (int) ($data['image_limit'] ?? 150);
+        $board->cooldown_seconds = (int) ($data['cooldown_seconds'] ?? 60);
+        $board->text_only = (bool) ($data['text_only'] ?? false);
+        $board->require_subject = (bool) ($data['require_subject'] ?? false);
+        $board->rules = $data['rules'] ?? '';
+        $board->save();
+
+        $this->invalidateBoardCaches();
+        return $board;
+    }
+
+    /**
+     * Update an existing board.
+     * @param array<string, mixed> $data
+     */
+    public function updateBoard(Board $board, array $data): Board
+    {
+        $fillable = [
+            'title', 'subtitle', 'category', 'rules',
+        ];
+        foreach ($fillable as $field) {
+            if (array_key_exists($field, $data)) {
+                $board->{$field} = $data[$field];
+            }
+        }
+
+        // Keep name in sync with title
+        if (array_key_exists('title', $data)) {
+            $board->setAttribute('name', $data['title'] ?: $board->slug);
+        }
+
+        $booleans = ['nsfw', 'text_only', 'require_subject', 'archived'];
+        foreach ($booleans as $field) {
+            if (array_key_exists($field, $data)) {
+                $board->{$field} = (bool) $data[$field];
+            }
+        }
+
+        $integers = ['max_threads', 'bump_limit', 'image_limit', 'cooldown_seconds'];
+        foreach ($integers as $field) {
+            if (array_key_exists($field, $data)) {
+                $board->{$field} = (int) $data[$field];
+            }
+        }
+
+        $board->save();
+        $this->invalidateBoardCaches();
+        return $board;
+    }
+
+    /**
+     * Delete a board (and all its threads/posts via CASCADE).
+     */
+    public function deleteBoard(Board $board): void
+    {
+        $board->delete();
+        $this->invalidateBoardCaches();
+    }
+
+    /**
+     * Invalidate board-related caches.
+     */
+    private function invalidateBoardCaches(): void
+    {
+        try {
+            $this->redis->del('boards:all');
+            // Scan and delete individual board caches
+            /** @var array<int, string>|false $keys */
+            $keys = $this->redis->keys('board:*');
+            if (is_array($keys) && count($keys) > 0) {
+                $this->redis->del(...$keys);
+            }
+        } catch (\Throwable $e) {
+            // Redis unavailable
+        }
+    }
+
+    /* ──────────────────────────────────────────────
      * Threads – Index
      * ────────────────────────────────────────────── */
 

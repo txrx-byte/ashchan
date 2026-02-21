@@ -53,13 +53,13 @@ final class GatewayController
         private HttpResponse $response,
     ) {}
 
-    /** Proxy media requests directly to MinIO */
+    /** Proxy media requests to MinIO, with local disk fallback */
     public function proxyMedia(RequestInterface $request, string $path): ResponseInterface
     {
-        $minioUrl  = getenv('OBJECT_STORAGE_ENDPOINT') ?: 'http://minio:9000';
+        $minioUrl  = getenv('OBJECT_STORAGE_ENDPOINT') ?: 'http://localhost:9000';
         $bucket    = getenv('OBJECT_STORAGE_BUCKET')   ?: 'ashchan';
-        $accessKey = getenv('OBJECT_STORAGE_ACCESS_KEY') ?: 'ashchan';
-        $secretKey = getenv('OBJECT_STORAGE_SECRET_KEY') ?: 'ashchan123';
+        $accessKey = getenv('OBJECT_STORAGE_ACCESS_KEY') ?: 'minioadmin';
+        $secretKey = getenv('OBJECT_STORAGE_SECRET_KEY') ?: 'minioadmin';
         
         $url = rtrim($minioUrl, '/') . '/' . $bucket . '/' . $path;
         $date = gmdate('D, d M Y H:i:s T');
@@ -72,7 +72,8 @@ final class GatewayController
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
-            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_HTTPHEADER     => [
                 "Date: {$date}",
                 "Authorization: AWS {$accessKey}:{$signature}",
@@ -85,16 +86,31 @@ final class GatewayController
         $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         curl_close($ch);
 
-        if ($response === false || $httpCode >= 400) {
-            return $this->response->raw('File not found')->withStatus(404);
+        if ($response !== false && $httpCode >= 200 && $httpCode < 400) {
+            $body = substr((string) $response, $headerSize);
+            return $this->response->raw($body)
+                ->withStatus($httpCode)
+                ->withHeader('Content-Type', $contentType ?: 'application/octet-stream')
+                ->withHeader('Cache-Control', 'public, max-age=86400');
         }
 
-        $body = substr((string) $response, $headerSize);
+        // Fallback: try local disk
+        $localPath = (getenv('LOCAL_STORAGE_PATH') ?: '/workspaces/ashchan/data/media') . '/' . $path;
+        if (is_file($localPath)) {
+            $ext = pathinfo($localPath, PATHINFO_EXTENSION);
+            $mimeTypes = [
+                'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png', 'gif' => 'image/gif',
+                'webp' => 'image/webp',
+            ];
+            $mime = $mimeTypes[$ext] ?? 'application/octet-stream';
+            return $this->response->raw((string) file_get_contents($localPath))
+                ->withStatus(200)
+                ->withHeader('Content-Type', $mime)
+                ->withHeader('Cache-Control', 'public, max-age=86400');
+        }
 
-        return $this->response->raw($body)
-            ->withStatus($httpCode)
-            ->withHeader('Content-Type', $contentType ?: 'application/octet-stream')
-            ->withHeader('Cache-Control', 'public, max-age=86400');
+        return $this->response->raw('File not found')->withStatus(404);
     }
 
     /** Catch-all proxy for /api/v1/* routes */

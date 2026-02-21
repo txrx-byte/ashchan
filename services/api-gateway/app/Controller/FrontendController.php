@@ -302,6 +302,71 @@ final class FrontendController
         return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/thread/{$id}");
     }
 
+    /** POST /{slug}/delete – Delete posts (classic imageboard form) */
+    public function deletePosts(RequestInterface $request, string $slug): ResponseInterface
+    {
+        $all = $request->all();
+        $referer = $request->getHeaderLine('Referer');
+
+        // Extract post IDs from form: checkboxes named by post ID with value "delete"
+        $ids = [];
+        foreach ($all as $key => $value) {
+            if (is_numeric($key) && $value === 'delete') {
+                $ids[] = (int) $key;
+            }
+        }
+
+        if (empty($ids)) {
+            return $this->html('<h1>Error</h1><p>No posts selected for deletion.</p>', 400);
+        }
+
+        $password = is_string($all['pwd'] ?? null) ? $all['pwd'] : '';
+        $imageOnly = isset($all['onlyimgdel']) && $all['onlyimgdel'] === 'on';
+
+        // Check if current user is staff — staff can delete without password
+        $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
+        $isStaff = !empty($staffInfo) && !empty($staffInfo['level']);
+
+        if ($isStaff) {
+            // Staff delete — call staff endpoint for each post
+            $deleted = 0;
+            foreach ($ids as $postId) {
+                $fileOnlyParam = $imageOnly ? '?file_only=1' : '';
+                $result = $this->proxyClient->forward(
+                    'boards',
+                    'DELETE',
+                    "/api/v1/boards/{$slug}/posts/{$postId}{$fileOnlyParam}"
+                );
+                if ($result['status'] < 400) {
+                    $deleted++;
+                }
+            }
+        } else {
+            // User delete — needs password
+            if (empty($password)) {
+                return $this->html('<h1>Error</h1><p>Password is required to delete posts.</p>', 400);
+            }
+
+            $payload = json_encode([
+                'ids' => $ids,
+                'password' => $password,
+                'image_only' => $imageOnly,
+            ]) ?: '{}';
+
+            $result = $this->proxyClient->forward('boards', 'POST', '/api/v1/posts/delete', [
+                'Content-Type' => 'application/json',
+            ], $payload);
+        }
+
+        // Redirect back
+        if ($referer && str_contains($referer, "/{$slug}/")) {
+            /** @var ResponseInterface */
+            return $this->response->withStatus(303)->withHeader('Location', $referer);
+        }
+        /** @var ResponseInterface */
+        return $this->response->withStatus(303)->withHeader('Location', "/{$slug}/");
+    }
+
     /**
      * Handle media upload if present in the request.
      * @return array<string, mixed>|null Media metadata or ['error' => '...']
@@ -545,15 +610,19 @@ final class FrontendController
     private function rewritePostMedia(array $post): array
     {
         $bucket = getenv('OBJECT_STORAGE_BUCKET') ?: 'ashchan';
-        // Internal pattern: http://minio:9000/ashchan/...
-        $search = "http://minio:9000/{$bucket}/";
+        // Match any MinIO hostname pattern and rewrite to /media/ proxy path
+        $patterns = [
+            "http://minio:9000/{$bucket}/",
+            "http://localhost:9000/{$bucket}/",
+            "http://127.0.0.1:9000/{$bucket}/",
+        ];
         $replace = "/media/";
 
         if (!empty($post['media_url'])) {
-            $post['media_url'] = str_replace($search, $replace, (string) $post['media_url']);
+            $post['media_url'] = str_replace($patterns, $replace, (string) $post['media_url']);
         }
         if (!empty($post['thumb_url'])) {
-            $post['thumb_url'] = str_replace($search, $replace, (string) $post['thumb_url']);
+            $post['thumb_url'] = str_replace($patterns, $replace, (string) $post['thumb_url']);
         }
         return $post;
     }

@@ -88,7 +88,7 @@ declare(strict_types=1);
 <hr>
 
 <!-- Threads -->
-<form name="delform" id="delform" action="/api/v1/delete" method="post">
+<form name="delform" id="delform" action="/<?= htmlspecialchars((string) $board_slug) ?>/delete" method="post">
   <div class="board">
     <?php if (empty($threads)): ?>
     <div class="board" style="text-align:center;padding:40px;color:#666;font-size:14px;">

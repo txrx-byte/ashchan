@@ -15,10 +15,10 @@
  */
 
 /**
- * Report Queue JavaScript
- * Ported from OpenYotsuba/reports/js/031d60ebf8d41a9f/reportqueue.js
+ * Report Queue JavaScript — Catalog-style grid layout
+ * Ported from OpenYotsuba/reports/js/reportqueue.js
  * 
- * Handles the report queue interface for janitors and mods
+ * Renders reports as image-board catalog cards instead of a list.
  */
 
 var RQ = {
@@ -26,10 +26,14 @@ var RQ = {
   GLOBAL_THRES: 1500,
   MODE_REPORTS: 0,
   MODE_CONTEXT: 1,
+  MAX_EXCERPT: 160,
   
   syncDelay: 15000,
   syncInterval: null,
   syncEnabled: false,
+  
+  /** Pool of report objects keyed by id (for action lookups) */
+  reportPool: {},
   
   init: function() {
     this.settings = this.getSettings();
@@ -128,6 +132,9 @@ var RQ = {
       this.xhr.reports.abort();
     }
     
+    var container = $.id('items');
+    if (container) container.innerHTML = '<div class="no-reports">Loading&hellip;</div>';
+    
     this.xhr.reports = ajaxGet(url, function(data) {
       self.renderReports(data);
     });
@@ -138,71 +145,153 @@ var RQ = {
     if (!container) return;
     
     container.innerHTML = '';
+    this.reportPool = {};
     
     if (!data.reports || data.reports.length === 0) {
       container.innerHTML = '<div class="no-reports">No reports found</div>';
+      this.updateCounter(0, 0);
       return;
     }
     
     for (var i = 0; i < data.reports.length; i++) {
       var report = data.reports[i];
-      var el = this.createReportElement(report);
-      container.appendChild(el);
+      this.reportPool[report.id] = report;
+      container.appendChild(this.createReportCard(report));
     }
     
     this.currentCount = data.total;
+    this.updateCounter(data.reports.length, data.total);
   },
   
-  createReportElement: function(report) {
-    var div = $.el('div');
-    div.className = 'report-item';
-    div.setAttribute('data-id', report.id);
-    
-    if (report.weight >= this.HIGHLIGHT_THRES) {
-      $.addClass(div, 'highlighted');
+  updateCounter: function(shown, total) {
+    var title = $.id('title');
+    if (title) {
+      title.textContent = 'Reports' + (total > 0 ? ' (' + total + ')' : '');
     }
-    if (report.weight >= this.GLOBAL_THRES) {
-      $.addClass(div, 'unlocked');
+  },
+
+  /* ─────────────────────────────────────────────
+   * Catalog card builder
+   * ───────────────────────────────────────────── */
+  createReportCard: function(report) {
+    var card = $.el('div');
+    card.className = 'report-card';
+    card.setAttribute('data-id', report.id);
+    
+    var isHighlighted = report.weight >= this.HIGHLIGHT_THRES;
+    var isCritical = report.weight >= this.GLOBAL_THRES;
+    
+    if (isHighlighted) $.addClass(card, 'highlighted');
+    if (isCritical) $.addClass(card, 'unlocked');
+    
+    var post = report.post || {};
+    var threadNo = report.is_thread ? report.no : (report.resto || report.no);
+    var postUrl = '/' + report.board + '/thread/' + threadNo + (report.is_thread ? '' : '#p' + report.no);
+    
+    // ── Weight badge ──
+    var badgeClass = 'report-badge';
+    if (isCritical) badgeClass += ' badge-critical';
+    else if (isHighlighted) badgeClass += ' badge-high';
+    
+    var html = '<span class="' + badgeClass + '">' + report.count + '</span>';
+    
+    // ── Thumbnail or placeholder ──
+    html += '<a href="' + postUrl + '" target="_blank">';
+    if (post.thumb_url) {
+      html += '<img class="report-thumb" src="' + escapeHTML(post.thumb_url) + '" alt="" loading="lazy"';
+      if (post.media_url) {
+        html += ' data-full="' + escapeHTML(post.media_url) + '"';
+      }
+      html += '>';
+    } else {
+      html += '<div class="report-thumb-placeholder">' +
+        (report.is_thread ? 'Thread' : 'Reply') +
+        '</div>';
     }
+    html += '</a>';
     
-    var isThread = report.is_thread || (report.resto === 0);
+    // ── Stats line ──
+    html += '<div class="report-stats">' +
+      '<span class="report-board-tag">/' + escapeHTML(report.board) + '/</span> ' +
+      '<b>W:' + report.weight + '</b>' +
+    '</div>';
     
-    div.innerHTML = 
-      '<div class="report-header">' +
-        '<span class="report-board">/' + report.board + '/</span>' +
-        '<span class="report-post">No. <a href="/' + report.board + '/thread/' + report.no + '" target="_blank">' + report.no + '</a></span>' +
-        '<span class="report-weight">Weight: ' + report.weight + ' (' + report.count + ' reports)</span>' +
-      '</div>' +
-      '<div class="report-content">' +
-        (report.post ? this.formatPostContent(report.post) : '') +
-      '</div>' +
-      '<div class="report-meta">' +
-        '<span>Category: ' + (report.cats || 'Unknown') + '</span>' +
-        ' | <span>Reported: ' + formatDate(report.ts) + '</span>' +
-      '</div>' +
-      '<div class="report-actions">' +
-        '<button class="button button-light" data-cmd="clear" data-id="' + report.id + '">Clear</button>' +
-        '<button class="button button-light" data-cmd="delete" data-id="' + report.id + '">Delete</button>' +
-        '<button class="button button-light" data-cmd="ban-request" data-id="' + report.id + '">Ban Request</button>' +
-      '</div>';
+    // ── Post number ──
+    html += '<div class="report-post-link">' +
+      'No. <a href="' + postUrl + '" target="_blank">' + report.no + '</a>' +
+    '</div>';
     
-    return div;
+    // ── Excerpt ──
+    html += '<div class="report-excerpt">';
+    html += this.formatExcerpt(post);
+    html += '</div>';
+    
+    // ── Compact action buttons ──
+    html += '<div class="report-card-actions">' +
+      '<button class="act-clear" data-cmd="clear" data-id="' + report.id + '" title="Clear report">&#10003;</button>' +
+      '<button class="act-delete" data-cmd="delete" data-id="' + report.id + '" title="Delete post">&#10007;</button>' +
+      '<button class="act-ban" data-cmd="ban-request" data-id="' + report.id + '" title="Ban request">B</button>' +
+    '</div>';
+    
+    // ── Hover preview (full comment) ──
+    html += this.buildHoverPreview(report);
+    
+    card.innerHTML = html;
+    return card;
   },
   
-  formatPostContent: function(post) {
+  /**
+   * Truncated excerpt for card display
+   */
+  formatExcerpt: function(post) {
     var html = '';
-    
     if (post.sub) {
-      html += '<div class="report-subject">' + escapeHTML(post.sub) + '</div>';
+      html += '<span class="report-subject">' + escapeHTML(post.sub) + '</span>: ';
     }
-    
     if (post.com) {
-      html += '<div class="report-comment">' + escapeHTML(post.com) + '</div>';
+      var text = post.com.replace(/<[^>]*>/g, ' ').replace(/&[^;]+;/g, ' ').replace(/\s+/g, ' ').trim();
+      if (text.length > RQ.MAX_EXCERPT) {
+        text = text.substring(0, RQ.MAX_EXCERPT) + '\u2026';
+      }
+      html += escapeHTML(text);
     }
-    
+    if (!html) {
+      html = '<span style="color:#aaa">No text</span>';
+    }
     return html;
   },
   
+  /**
+   * Full-content hover preview tooltip
+   */
+  buildHoverPreview: function(report) {
+    var post = report.post || {};
+    var html = '<div class="report-hover-preview">';
+    
+    if (post.sub) {
+      html += '<b>' + escapeHTML(post.sub) + '</b><br>';
+    }
+    if (post.com) {
+      var full = post.com.replace(/<[^>]*>/g, ' ').replace(/&[^;]+;/g, ' ').replace(/\s+/g, ' ').trim();
+      html += escapeHTML(full);
+    } else {
+      html += '<i>No text content</i>';
+    }
+    
+    html += '<div class="preview-meta">' +
+      '/' + escapeHTML(report.board) + '/ &middot; ' +
+      'No. ' + report.no + ' &middot; ' +
+      'Weight: ' + report.weight + ' (' + report.count + ' reports) &middot; ' +
+      formatDate(report.ts) +
+    '</div>';
+    
+    html += '</div>';
+    return html;
+  },
+  
+  /* ─────────────────────────────────────────────
+   * Actions
+   * ───────────────────────────────────────────── */
   onToggleClearedClick: function(btn) {
     RQ.cleared_only = !RQ.cleared_only;
     
@@ -218,7 +307,6 @@ var RQ = {
   onBoardLinkClick: function(btn) {
     var board = btn.getAttribute('data-slug') || null;
     
-    // Update active state
     var items = $.cls('board-slug', $.id('board-menu'));
     for (var i = 0; i < items.length; i++) {
       $.removeClass(items[i], 'active');
@@ -228,7 +316,6 @@ var RQ = {
     RQ.board = board;
     RQ.showReports(board, RQ.cleared_only, RQ.extraFetch);
     
-    // Update hash
     var hash = '#';
     if (board) {
       hash += 'board=' + board;
@@ -252,7 +339,7 @@ var RQ = {
     
     ajaxPost(RQ_CONFIG.apiBase + '/' + id + '/clear', {}, function(data) {
       if (data.status === 'success') {
-        var el = $.cls('report-item').namedItem('data-id', id);
+        var el = document.querySelector('.report-card[data-id="' + id + '"]');
         if (el) {
           $.addClass(el, 'cleared');
         }
@@ -263,13 +350,13 @@ var RQ = {
   onDeleteClick: function(btn) {
     var id = btn.getAttribute('data-id');
     
-    if (!confirm('Delete report #' + id + '? This cannot be undone.')) {
+    if (!confirm('Delete post for report #' + id + '? This cannot be undone.')) {
       return;
     }
     
     ajaxPost(RQ_CONFIG.apiBase + '/' + id + '/delete', {}, function(data) {
       if (data.status === 'success') {
-        var el = document.querySelector('.report-item[data-id="' + id + '"]');
+        var el = document.querySelector('.report-card[data-id="' + id + '"]');
         if (el) {
           el.remove();
         }
@@ -279,10 +366,9 @@ var RQ = {
   
   onBanRequestClick: function(btn) {
     var id = btn.getAttribute('data-id');
-    var reportEl = btn.closest('.report-item');
-    var reportData = this.getReportData(id);
+    var reportData = RQ.reportPool[id] || RQ.getReportData(id);
     
-    this.showPanel('ban-request', this.getBanRequestForm(reportData), 'Ban Request', {
+    RQ.showPanel('ban-request', RQ.getBanRequestForm(reportData), 'Ban Request', {
       'data-report-id': id
     });
   },
@@ -292,8 +378,9 @@ var RQ = {
   },
   
   getBanRequestForm: function(report) {
+    var no = report ? (report.no || '') : '';
     return '<div class="panel-content ban-request-form">' +
-      '<p>Creating ban request for post No. ' + report.no + '</p>' +
+      '<p>Creating ban request for post No. ' + no + '</p>' +
       '<select class="ban-template-select">' +
         '<option value="">Select template...</option>' +
         '<option value="1">Spam</option>' +
@@ -375,13 +462,28 @@ var RQ = {
   
   onFilterSubmit: function(e) {
     e.preventDefault();
-    // Implement filter logic
+    var q = ($.id('search-box').value || '').trim().toLowerCase();
+    if (!q) {
+      RQ.onFilterReset();
+      return;
+    }
+    RQ.activeFilter = q;
+    var cards = $.cls('report-card');
+    for (var i = 0; i < cards.length; i++) {
+      var text = cards[i].textContent.toLowerCase();
+      cards[i].style.display = text.indexOf(q) !== -1 ? '' : 'none';
+    }
+    $.id('reset-btn').classList.remove('hidden');
   },
   
   onFilterReset: function(e) {
     RQ.activeFilter = null;
+    $.id('search-box').value = '';
     $.id('reset-btn').classList.add('hidden');
-    RQ.refreshReports();
+    var cards = $.cls('report-card');
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].style.display = '';
+    }
   },
   
   onSearchFocus: function() {
@@ -392,6 +494,10 @@ var RQ = {
     if (e.keyCode === 27) {
       e.target.blur();
       RQ.onFilterReset();
+    }
+    if (e.keyCode === 13) {
+      e.preventDefault();
+      RQ.onFilterSubmit(e);
     }
   },
   
@@ -420,14 +526,15 @@ var RQ = {
   },
   
   getReportData: function(id) {
-    // Get report data from cache or DOM
-    var el = document.querySelector('.report-item[data-id="' + id + '"]');
+    if (RQ.reportPool[id]) return RQ.reportPool[id];
+    
+    var el = document.querySelector('.report-card[data-id="' + id + '"]');
     if (!el) return null;
     
     return {
       id: id,
-      board: el.querySelector('.report-board')?.textContent || '',
-      no: el.querySelector('.report-post a')?.textContent || ''
+      board: (el.querySelector('.report-board-tag') || {}).textContent || '',
+      no: (el.querySelector('.report-post-link a') || {}).textContent || ''
     };
   },
   
@@ -442,5 +549,7 @@ if (document.readyState === 'loading') {
     RQ.init();
   });
 } else {
+  // DOM already loaded — init and run immediately
   RQ.init();
+  RQ.run();
 }

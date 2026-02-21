@@ -250,6 +250,8 @@ final class MediaService
             CURLOPT_INFILE         => $fp,
             CURLOPT_INFILESIZE     => (int) filesize($localPath),
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => 15,
             CURLOPT_HTTPHEADER     => [
                 "Date: {$date}",
                 "Content-Type: {$contentType}",
@@ -259,11 +261,31 @@ final class MediaService
 
         $response = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_errno($ch);
         curl_close($ch);
         fclose($fp);
 
-        if ($httpCode >= 300) {
-            throw new \RuntimeException("Failed to upload to storage: HTTP {$httpCode}");
+        if ($curlError !== 0 || $httpCode >= 300) {
+            // Fallback: save to local disk if MinIO is unreachable
+            $this->saveToLocalDisk($localPath, $key);
+        }
+    }
+
+    /**
+     * Fallback: save file to local disk when MinIO is unavailable.
+     */
+    private function saveToLocalDisk(string $localPath, string $key): void
+    {
+        $basePath = getenv('LOCAL_STORAGE_PATH') ?: '/workspaces/ashchan/data/media';
+        $destPath = $basePath . '/' . $key;
+        $destDir = dirname($destPath);
+
+        if (!is_dir($destDir)) {
+            mkdir($destDir, 0755, true);
+        }
+
+        if (!copy($localPath, $destPath)) {
+            throw new \RuntimeException("Failed to save file to local disk: {$destPath}");
         }
     }
 

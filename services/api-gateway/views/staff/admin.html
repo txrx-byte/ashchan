@@ -61,6 +61,7 @@
     <?php if ($isManager): ?>
     <ul class="nav-section">
       <li class="nav-header">Management</li>
+      <li><a href="/staff/boards">Board Configuration</a></li>
       <li><a href="/staff/staff-roster">Staff Roster</a></li>
       <li><a href="/staff/add-account">Add Account</a></li>
       <li><a href="/staff/capcodes">Capcodes</a></li>
@@ -169,6 +170,12 @@
           <span class="action-icon">💾</span>
           <span>Check MD5</span>
         </a>
+        <?php if ($isManager): ?>
+        <a href="/staff/boards" class="action-card">
+          <span class="action-icon">📁</span>
+          <span>Board Configuration</span>
+        </a>
+        <?php endif ?>
       </div>
     </div>
     

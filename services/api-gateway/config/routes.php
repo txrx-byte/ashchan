@@ -33,6 +33,7 @@ use App\Controller\Staff\AutopurgeController;
 use App\Controller\Staff\DmcaController;
 use App\Controller\Staff\BlotterController;
 use App\Controller\Staff\SiteMessageController;
+use App\Controller\Staff\BoardConfigController;
 
 // Health check
 Router::get('/health', [HealthController::class, 'check']);
@@ -160,6 +161,14 @@ Router::post('/staff/site-messages/{id:\d+}/update', [\App\Controller\Staff\Site
 Router::post('/staff/site-messages/{id:\d+}/delete', [\App\Controller\Staff\SiteMessageController::class, 'delete']);
 Router::post('/staff/site-messages/preview', [\App\Controller\Staff\SiteMessageController::class, 'preview']);
 
+// Board Configuration (Manager+)
+Router::get('/staff/boards', [\App\Controller\Staff\BoardConfigController::class, 'index']);
+Router::get('/staff/boards/create', [\App\Controller\Staff\BoardConfigController::class, 'create']);
+Router::post('/staff/boards/store', [\App\Controller\Staff\BoardConfigController::class, 'store']);
+Router::get('/staff/boards/{slug}/edit', [\App\Controller\Staff\BoardConfigController::class, 'edit']);
+Router::post('/staff/boards/{slug}/update', [\App\Controller\Staff\BoardConfigController::class, 'update']);
+Router::post('/staff/boards/{slug}/delete', [\App\Controller\Staff\BoardConfigController::class, 'delete']);
+
 // ============== Moderation API Routes ==============
 
 // Public report submission
@@ -202,6 +211,7 @@ Router::get('/{slug}', [FrontendController::class, 'board']);
 // Frontend form submissions (redirect handlers)
 Router::post('/{slug}/threads', [FrontendController::class, 'createThread']);
 Router::post('/{slug}/thread/{id:\d+}/posts', [FrontendController::class, 'createPost']);
+Router::post('/{slug}/delete', [FrontendController::class, 'deletePosts']);
 
 // API proxy – catch-all (must be last)
 Router::addRoute(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

@@ -1,0 +1,184 @@
+/*
+ * Copyright 2026 txrx-byte
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* Board Configuration Styles */
+
+/* Board stats in menu bar */
+.board-stats {
+  display: inline-block;
+  margin-left: 15px;
+  font-size: 12px;
+  color: #666;
+}
+
+.board-stats .stat {
+  margin-right: 10px;
+}
+
+/* Category headers */
+.board-category {
+  margin-bottom: 25px;
+}
+
+.category-header {
+  font-size: 15px;
+  font-weight: bold;
+  color: #333;
+  padding: 8px 0;
+  margin-bottom: 5px;
+  border-bottom: 2px solid #E0E0E0;
+}
+
+.cat-count {
+  font-weight: normal;
+  color: #999;
+  font-size: 12px;
+}
+
+/* Board link */
+.board-link {
+  font-weight: bold;
+  color: #1d8dc4;
+  text-decoration: none;
+}
+
+.board-link:hover {
+  text-decoration: underline;
+}
+
+/* Subtitle in table */
+.subtitle {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* Limit rows */
+.limit-row {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.limit-label {
+  color: #666;
+  font-weight: bold;
+}
+
+/* Archived row */
+.archived-row {
+  opacity: 0.6;
+}
+
+.archived-row:hover {
+  opacity: 1;
+}
+
+/* Column widths */
+.col-slug { width: 80px; }
+.col-title { width: 200px; }
+.col-settings { width: 150px; }
+.col-limits { width: 120px; }
+.col-cooldown { width: 80px; text-align: center; }
+.col-status { width: 80px; text-align: center; }
+.col-actions { width: 60px; text-align: center; }
+
+/* Form styles */
+.board-form {
+  max-width: 900px;
+}
+
+.section-header {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333;
+  padding: 10px 0 5px;
+  margin: 20px 0 10px;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.section-header:first-child {
+  margin-top: 0;
+}
+
+.field-help {
+  font-size: 11px;
+  color: #888;
+  margin-top: 3px;
+}
+
+.form-actions {
+  margin-top: 20px;
+  padding: 15px 0;
+  border-top: 1px solid #E0E0E0;
+}
+
+.form-actions .button {
+  margin-right: 8px;
+}
+
+/* Error banner */
+.error-banner {
+  background-color: #FFEBEE;
+  color: #D32F2F;
+  border: 1px solid #FFCDD2;
+  border-radius: 3px;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  font-size: 13px;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.empty-state p {
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+/* Danger zone */
+.danger-zone {
+  margin-top: 40px;
+  padding: 20px;
+  border: 1px solid #FFCDD2;
+  border-radius: 3px;
+  background-color: #FFF5F5;
+}
+
+.section-danger {
+  color: #D32F2F;
+  border-bottom-color: #FFCDD2;
+}
+
+.danger-zone p {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 15px;
+}
+
+.delete-form {
+  display: inline;
+}
+
+/* Active nav button */
+.button.active {
+  background: linear-gradient(to bottom, #5B9BD5, #4A8BC4);
+  color: #FFF;
+  border-color: #3A7BB4;
+}

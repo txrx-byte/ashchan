@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2026 txrx-byte
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Board Configuration - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/boards.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<header>
+  <h1 id="title">Board Configuration</h1>
+  <div id="staff-info">
+    <span class="username"><?= htmlspecialchars($username) ?></span>
+    <span class="level">(<?= htmlspecialchars(ucfirst($level)) ?>)</span>
+    <form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout-link" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form>
+  </div>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a href="/staff/admin" class="button button-light">Admin</a></li>
+    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
+    <li><a href="/staff/boards" class="button button-light active">Boards</a></li>
+    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
+    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
+  </ul>
+</nav>
+<div id="menu">
+  <ul class="right">
+    <li><a class="button button-primary" href="/staff/boards/create">+ New Board</a></li>
+  </ul>
+  <div class="board-stats">
+    <span class="stat"><?= count($boards) ?> boards</span>
+    <span class="stat"><?= count($categories) ?> categories</span>
+  </div>
+</div>
+<div id="content">
+  <?php foreach ($categories as $catName => $catBoards): ?>
+  <div class="board-category">
+    <h2 class="category-header"><?= htmlspecialchars($catName) ?> <span class="cat-count">(<?= count($catBoards) ?>)</span></h2>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th class="col-slug">Slug</th>
+          <th class="col-title">Title</th>
+          <th class="col-settings">Settings</th>
+          <th class="col-limits">Limits</th>
+          <th class="col-cooldown">Cooldown</th>
+          <th class="col-status">Status</th>
+          <th class="col-actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($catBoards as $board): ?>
+        <tr class="<?= $board['archived'] ? 'archived-row' : '' ?>">
+          <td class="col-slug">
+            <a href="/<?= htmlspecialchars($board['slug']) ?>/" target="_blank" class="board-link">/<?= htmlspecialchars($board['slug']) ?>/</a>
+          </td>
+          <td class="col-title">
+            <strong><?= htmlspecialchars($board['title'] ?? '') ?></strong>
+            <?php if (!empty($board['subtitle'])): ?>
+            <div class="subtitle"><?= htmlspecialchars($board['subtitle']) ?></div>
+            <?php endif ?>
+          </td>
+          <td class="col-settings">
+            <?php if ($board['nsfw']): ?><span class="note note-red">NSFW</span><?php endif ?>
+            <?php if ($board['text_only']): ?><span class="note note-blue">Text Only</span><?php endif ?>
+            <?php if ($board['require_subject']): ?><span class="note">Req. Subject</span><?php endif ?>
+          </td>
+          <td class="col-limits">
+            <div class="limit-row"><span class="limit-label">Threads:</span> <?= $board['max_threads'] ?></div>
+            <div class="limit-row"><span class="limit-label">Bump:</span> <?= $board['bump_limit'] ?></div>
+            <div class="limit-row"><span class="limit-label">Images:</span> <?= $board['image_limit'] ?></div>
+          </td>
+          <td class="col-cooldown"><?= $board['cooldown_seconds'] ?>s</td>
+          <td class="col-status">
+            <?php if ($board['archived']): ?>
+              <span class="note note-red">Archived</span>
+            <?php else: ?>
+              <span class="note note-green">Active</span>
+            <?php endif ?>
+          </td>
+          <td class="col-actions">
+            <a href="/staff/boards/<?= htmlspecialchars($board['slug']) ?>/edit" class="button button-light">Edit</a>
+          </td>
+        </tr>
+        <?php endforeach ?>
+      </tbody>
+    </table>
+  </div>
+  <?php endforeach ?>
+
+  <?php if (empty($boards)): ?>
+  <div class="empty-state">
+    <p>No boards configured yet.</p>
+    <a href="/staff/boards/create" class="button button-primary">Create First Board</a>
+  </div>
+  <?php endif ?>
+</div>
+<footer>
+  <div class="footer-content">
+    Ashchan Staff Interface &copy; <?= date('Y') ?>
+  </div>
+</footer>
+<script type="text/javascript" src="/staff/js/admincore.js"></script>
+</body>
+</html>

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* Report Queue CSS - ported from OpenYotsuba/reports/css/reportqueue.css */
+/* Report Queue CSS - Catalog-style grid layout */
 
 #filter-form {
   margin-right: 5px;
@@ -119,98 +119,214 @@
   display: block;
 }
 
-/* Report items */
+/* ── Catalog Grid ── */
 #items {
-  margin-top: 15px;
+  text-align: center;
+  margin: 10px 0;
+  padding: 0 10px;
 }
 
-.report-item {
-  background: #FFF;
-  border: 1px solid #DDD;
-  border-radius: 3px;
-  padding: 10px;
-  margin-bottom: 10px;
+#items::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+.report-card {
+  display: inline-block;
+  vertical-align: top;
+  margin: 4px;
+  padding: 4px;
   position: relative;
+  text-align: center;
+  word-wrap: break-word;
+  max-width: 180px;
+  overflow: hidden;
+  cursor: default;
 }
 
-.report-item.highlighted {
-  border-color: #FF9800;
-  background: #FFF8E1;
+.report-card:hover {
+  background: rgba(0,0,0,0.04);
+  border-radius: 3px;
 }
 
-.report-item.unlocked {
-  border-color: #4CAF50;
+/* Weight badge overlaid on top-right corner */
+.report-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  line-height: 1.4;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  pointer-events: none;
 }
 
-.report-item.cleared {
-  opacity: 0.6;
-  background: #F5F5F5;
+.report-badge.badge-high {
+  background: #e65100;
 }
 
-.report-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #EEE;
+.report-badge.badge-critical {
+  background: #b71c1c;
+  animation: pulse-badge 1.5s ease-in-out infinite;
 }
 
-.report-board {
-  font-weight: bold;
-  color: #1d8dc4;
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
-.report-weight {
-  font-size: 11px;
-  color: #888;
-}
-
-.report-post {
-  margin-left: 10px;
-}
-
+/* Thumbnail */
 .report-thumb {
-  float: left;
-  margin: 0 10px 10px 0;
-}
-
-.report-thumb img {
+  display: block;
   max-width: 150px;
   max-height: 150px;
+  margin: 0 auto;
+  box-shadow: 0 0 3px rgba(0,0,0,0.3);
+  cursor: pointer;
 }
 
-.report-content {
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.report-comment {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.report-meta {
+.report-thumb-placeholder {
+  width: 150px;
+  height: 100px;
+  margin: 0 auto;
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 11px;
   color: #888;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #EEE;
+  border: 1px dashed #ccc;
 }
 
-.report-actions {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+/* Highlighted / unlocked borders */
+.report-card.highlighted .report-thumb,
+.report-card.highlighted .report-thumb-placeholder {
+  box-shadow: 0 0 0 2px #FF9800, 0 0 5px rgba(255,152,0,0.4);
 }
 
-.report-actions button {
-  margin-left: 3px;
-  padding: 3px 8px;
+.report-card.unlocked .report-thumb,
+.report-card.unlocked .report-thumb-placeholder {
+  box-shadow: 0 0 0 2px #4CAF50, 0 0 5px rgba(76,175,80,0.4);
+}
+
+.report-card.cleared {
+  opacity: 0.45;
+}
+
+/* Stats row: board, reports count */
+.report-stats {
   font-size: 11px;
+  margin-top: 3px;
+  color: #707070;
 }
 
-/* Panel stack */
+.report-stats .report-board-tag {
+  color: #1d8dc4;
+  font-weight: 700;
+}
+
+/* Post number link */
+.report-post-link {
+  font-size: 10px;
+  color: #888;
+}
+
+.report-post-link a {
+  color: #1d8dc4;
+  text-decoration: none;
+}
+
+.report-post-link a:hover {
+  text-decoration: underline;
+}
+
+/* Excerpt / comment */
+.report-excerpt {
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 3px;
+  max-height: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  word-break: break-word;
+}
+
+.report-excerpt .report-subject {
+  font-weight: 700;
+  color: #0f0c5d;
+}
+
+/* Action buttons below each card */
+.report-card-actions {
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.report-card-actions button {
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 10px;
+  cursor: pointer;
+  color: #333;
+}
+
+.report-card-actions button:hover {
+  background: #e0e0e0;
+}
+
+.report-card-actions .act-clear { color: #2e7d32; }
+.report-card-actions .act-delete { color: #c62828; }
+.report-card-actions .act-ban { color: #e65100; }
+
+/* Empty state */
+.no-reports {
+  text-align: center;
+  padding: 40px 20px;
+  color: #888;
+  font-size: 14px;
+}
+
+/* ── Hover preview tooltip ── */
+.report-hover-preview {
+  display: none;
+  position: absolute;
+  z-index: 500;
+  background: #fff;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  padding: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  max-width: 350px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.report-card:hover .report-hover-preview {
+  display: block;
+}
+
+.report-hover-preview .preview-meta {
+  font-size: 10px;
+  color: #888;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #eee;
+}
+
+/* ── Panel stack (side panel) ── */
 #panel-stack {
   position: fixed;
   top: 0;
@@ -285,38 +401,82 @@
   margin: 10px 0;
 }
 
-/* Responsive */
+/* ── Responsive ── */
 @media (max-width: 768px) {
   #board-menu.desktop {
     display: none;
   }
-  
+
   #filter-form {
     position: static;
     margin-bottom: 10px;
   }
-  
+
   #search-box {
     width: 150px;
   }
+
+  .report-card {
+    max-width: 140px;
+  }
+
+  .report-thumb {
+    max-width: 120px;
+    max-height: 120px;
+  }
+
+  .report-thumb-placeholder {
+    width: 120px;
+    height: 80px;
+  }
 }
 
-/* Dark theme */
-body.dark-theme .report-item {
+/* ── Dark theme ── */
+body.dark-theme .report-card:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+body.dark-theme .report-thumb-placeholder {
+  background: #333;
+  border-color: #555;
+  color: #999;
+}
+
+body.dark-theme .report-excerpt {
+  color: #ccc;
+}
+
+body.dark-theme .report-excerpt .report-subject {
+  color: #b8b4e8;
+}
+
+body.dark-theme .report-stats {
+  color: #999;
+}
+
+body.dark-theme .report-post-link a {
+  color: #6db3f2;
+}
+
+body.dark-theme .report-card-actions button {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #ccc;
+}
+
+body.dark-theme .report-card-actions button:hover {
+  background: #4a4a4a;
+}
+
+body.dark-theme .report-hover-preview {
   background: #2a2a2a;
-  border-color: #444;
+  border-color: #555;
+  color: #ddd;
 }
 
-body.dark-theme .report-item.cleared {
-  background: #222;
-}
-
-body.dark-theme .report-header {
-  border-bottom-color: #444;
-}
-
-body.dark-theme .report-meta {
+body.dark-theme .report-hover-preview .preview-meta {
   border-top-color: #444;
+  color: #999;
 }
 
 body.dark-theme #panel-stack {
@@ -331,4 +491,20 @@ body.dark-theme .panel-header {
 
 body.dark-theme .settings-row {
   background: #222;
+}
+
+body.dark-theme #cfg-btn > div {
+  background: #2a2a2a;
+  border-color: #555;
+  color: #ccc;
+}
+
+body.dark-theme #more-slugs > div {
+  background: #2a2a2a;
+  border-color: #555;
+}
+
+body.dark-theme #search-box {
+  background-color: #444;
+  color: #ddd;
 }

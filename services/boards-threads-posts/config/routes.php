@@ -41,9 +41,17 @@ Router::get('/api/v1/boards/{slug}/threads/{id:\d+}/posts', [ThreadController::c
 
 // Post actions
 Router::post('/api/v1/posts/delete', [ThreadController::class, 'deletePost']);
+Router::post('/api/v1/posts/lookup', [ThreadController::class, 'bulkLookup']);
 
 // Staff actions
 Router::delete('/api/v1/boards/{slug}/posts/{id:\d+}', [ThreadController::class, 'staffDeletePost']);
 Router::post('/api/v1/boards/{slug}/threads/{id:\d+}/options', [ThreadController::class, 'staffThreadOptions']);
 Router::post('/api/v1/boards/{slug}/posts/{id:\d+}/spoiler', [ThreadController::class, 'staffSpoiler']);
 Router::get('/api/v1/boards/{slug}/threads/{id:\d+}/ips', [ThreadController::class, 'staffThreadIps']);
+
+// Admin board management
+Router::get('/api/v1/admin/boards', [BoardController::class, 'listAll']);
+Router::post('/api/v1/admin/boards', [BoardController::class, 'store']);
+Router::get('/api/v1/admin/boards/{slug}', [BoardController::class, 'adminShow']);
+Router::post('/api/v1/admin/boards/{slug}', [BoardController::class, 'update']);
+Router::delete('/api/v1/admin/boards/{slug}', [BoardController::class, 'destroy']);

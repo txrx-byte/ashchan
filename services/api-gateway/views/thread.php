@@ -84,7 +84,7 @@ declare(strict_types=1);
 <hr>
 
 <!-- Thread Container -->
-<form name="delform" id="delform" action="/api/v1/delete" method="post">
+<form name="delform" id="delform" action="/<?= htmlspecialchars((string) $board_slug) ?>/delete" method="post">
   <div class="board">
     <div class="thread" id="t<?= htmlspecialchars((string) $thread_id) ?>">
 

@@ -111,9 +111,16 @@ final class ThreadController
             'media_hash'      => $input['media_hash'] ?? null,
         ];
 
-        if (!$board->text_only && empty($data['content']) && empty($data['media_url'])) {
+        // Validate content is not blank (whitespace-only counts as blank)
+        $trimmedContent = trim($data['content']);
+        if (!$board->text_only && $trimmedContent === '' && empty($data['media_url'])) {
             return $this->response->json(['error' => 'A comment or image is required'])->withStatus(400);
         }
+        // Even with media, if text_only board, require actual text
+        if ($board->text_only && $trimmedContent === '') {
+            return $this->response->json(['error' => 'A comment is required'])->withStatus(400);
+        }
+        $data['content'] = $trimmedContent;
 
         try {
             $result = $this->boardService->createThread($board, $data);
@@ -154,6 +161,13 @@ final class ThreadController
             'media_dimensions'=> $input['media_dimensions'] ?? null,
             'media_hash'      => $input['media_hash'] ?? null,
         ];
+
+        // Validate content is not blank (whitespace-only counts as blank)
+        $trimmedContent = trim($data['content']);
+        if ($trimmedContent === '' && empty($data['media_url'])) {
+            return $this->response->json(['error' => 'A comment or image is required'])->withStatus(400);
+        }
+        $data['content'] = $trimmedContent;
 
         try {
             $result = $this->boardService->createPost($thread, $data);
@@ -259,5 +273,69 @@ final class ThreadController
         // Auth check assumed (gateway)
         $data = $this->boardService->getThreadIps($id);
         return $this->response->json($data);
+    }
+
+    /**
+     * POST /api/v1/posts/lookup – Bulk post media lookup for report queue.
+     *
+     * Expects JSON body: { "posts": [ {"board":"b","no":123}, ... ] }
+     * Returns: { "results": { "b:123": { "thumb_url":"...", "media_url":"...", ... }, ... } }
+     */
+    public function bulkLookup(RequestInterface $request): ResponseInterface
+    {
+        $body = json_decode((string) $request->getBody(), true);
+        $posts = $body['posts'] ?? [];
+
+        if (!is_array($posts) || count($posts) === 0) {
+            return $this->response->json(['results' => []]);
+        }
+
+        // Limit to 50 lookups per call
+        $posts = array_slice($posts, 0, 50);
+
+        $results = [];
+        foreach ($posts as $item) {
+            $board = $item['board'] ?? '';
+            $no = (int) ($item['no'] ?? 0);
+            if ($board === '' || $no === 0) {
+                continue;
+            }
+
+            $key = $board . ':' . $no;
+            if (isset($results[$key])) {
+                continue;
+            }
+
+            $post = \App\Model\Post::query()
+                ->join('threads', 'posts.thread_id', '=', 'threads.id')
+                ->join('boards', 'threads.board_id', '=', 'boards.id')
+                ->where('boards.slug', $board)
+                ->where('posts.id', $no)
+                ->select([
+                    'posts.thumb_url',
+                    'posts.media_url',
+                    'posts.media_filename',
+                    'posts.media_dimensions',
+                    'posts.spoiler_image',
+                    'posts.subject',
+                    'posts.content',
+                    'posts.content_html',
+                ])
+                ->first();
+
+            if ($post) {
+                $results[$key] = [
+                    'thumb_url' => $post->getAttribute('thumb_url'),
+                    'media_url' => $post->getAttribute('media_url'),
+                    'media_filename' => $post->getAttribute('media_filename'),
+                    'media_dimensions' => $post->getAttribute('media_dimensions'),
+                    'spoiler_image' => (bool) $post->getAttribute('spoiler_image'),
+                    'sub' => $post->getAttribute('subject') ?: null,
+                    'com' => $post->getAttribute('content') ?: null,
+                ];
+            }
+        }
+
+        return $this->response->json(['results' => $results]);
     }
 }

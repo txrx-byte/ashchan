@@ -22,6 +22,7 @@ namespace App\Controller\Staff;
 
 use App\Controller\AbstractController;
 use App\Service\ModerationService;
+use App\Service\ProxyClient;
 use App\Service\ViewService;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -43,6 +44,7 @@ class StaffReportController extends AbstractController
         private ModerationService $modService,
         private HttpResponse $response,
         private ViewService $viewService,
+        private ProxyClient $proxyClient,
     ) {}
 
     /**
@@ -101,8 +103,88 @@ class StaffReportController extends AbstractController
             $page,
             25
         );
+
+        // Enrich reports with post media data from boards service
+        $data['reports'] = $this->enrichReportsWithMedia($data['reports'] ?? []);
         
         return $this->response->json($data);
+    }
+
+    /**
+     * Fetch real post media (thumb_url, subject, comment) from the boards service
+     * and merge it into the report data so the catalog UI can show thumbnails.
+     *
+     * @param array<int, array<string, mixed>> $reports
+     * @return array<int, array<string, mixed>>
+     */
+    private function enrichReportsWithMedia(array $reports): array
+    {
+        if (count($reports) === 0) {
+            return $reports;
+        }
+
+        // Collect unique board:no pairs
+        $lookups = [];
+        foreach ($reports as $r) {
+            $key = ($r['board'] ?? '') . ':' . ($r['no'] ?? 0);
+            if (!isset($lookups[$key])) {
+                $lookups[$key] = ['board' => $r['board'], 'no' => (int) $r['no']];
+            }
+        }
+
+        // Call the boards service bulk lookup
+        $body = json_encode(['posts' => array_values($lookups)]);
+        if ($body === false) {
+            return $reports;
+        }
+
+        try {
+            $resp = $this->proxyClient->forward(
+                'boards',
+                'POST',
+                '/api/v1/posts/lookup',
+                ['Content-Type' => 'application/json'],
+                $body,
+            );
+
+            if (($resp['status'] ?? 0) !== 200) {
+                return $reports;
+            }
+
+            /** @var array{results?: array<string, array<string, mixed>>} $payload */
+            $payload = json_decode((string) ($resp['body'] ?? '{}'), true);
+            $results = $payload['results'] ?? [];
+        } catch (\Throwable) {
+            return $reports;
+        }
+
+        // Merge media data into each report's post object
+        foreach ($reports as &$report) {
+            $key = ($report['board'] ?? '') . ':' . ($report['no'] ?? 0);
+            if (!isset($results[$key])) {
+                continue;
+            }
+            $media = $results[$key];
+            $post = is_array($report['post'] ?? null) ? $report['post'] : [];
+            $post['thumb_url'] = $media['thumb_url'] ?? null;
+            $post['media_url'] = $media['media_url'] ?? null;
+            $post['media_filename'] = $media['media_filename'] ?? null;
+            $post['media_dimensions'] = $media['media_dimensions'] ?? null;
+            $post['spoiler_image'] = $media['spoiler_image'] ?? false;
+
+            // Use real subject/comment if the stored post_json stub was empty
+            if (empty($post['sub']) && !empty($media['sub'])) {
+                $post['sub'] = $media['sub'];
+            }
+            if (empty($post['com']) && !empty($media['com'])) {
+                $post['com'] = $media['com'];
+            }
+
+            $report['post'] = $post;
+        }
+        unset($report);
+
+        return $reports;
     }
 
     /**

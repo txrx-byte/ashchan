@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2026 txrx-byte
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Edit /<?= htmlspecialchars($board['slug']) ?>/ - Board Configuration - Ashchan Staff</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/boards.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<header>
+  <h1 id="title">Edit Board: /<?= htmlspecialchars($board['slug']) ?>/ - <?= htmlspecialchars($board['title'] ?? '') ?></h1>
+  <div id="staff-info">
+    <span class="username"><?= htmlspecialchars($username) ?></span>
+    <span class="level">(<?= htmlspecialchars(ucfirst($level)) ?>)</span>
+  </div>
+</header>
+<nav id="main-nav">
+  <ul>
+    <li><a href="/staff/admin" class="button button-light">Admin</a></li>
+    <li><a href="/staff/boards" class="button button-light">Boards</a></li>
+    <li><a href="/<?= htmlspecialchars($board['slug']) ?>/" class="button button-light" target="_blank">View Board</a></li>
+  </ul>
+</nav>
+<div id="content">
+  <?php if (!empty($error)): ?>
+  <div class="error-banner"><?= htmlspecialchars($error) ?></div>
+  <?php endif ?>
+
+  <form method="POST" action="/staff/boards/<?= htmlspecialchars($board['slug']) ?>/update" class="form board-form">
+    <h2 class="section-header">Basic Information</h2>
+    <table>
+      <tr>
+        <th>Slug</th>
+        <td>
+          <code>/<?= htmlspecialchars($board['slug']) ?>/</code>
+          <span class="field-help">(cannot be changed)</span>
+        </td>
+      </tr>
+      <tr>
+        <th>Title</th>
+        <td><input type="text" name="title" value="<?= htmlspecialchars($board['title'] ?? '') ?>" maxlength="128"></td>
+      </tr>
+      <tr>
+        <th>Subtitle</th>
+        <td><input type="text" name="subtitle" value="<?= htmlspecialchars($board['subtitle'] ?? '') ?>" maxlength="255"></td>
+      </tr>
+      <tr>
+        <th>Category</th>
+        <td><input type="text" name="category" value="<?= htmlspecialchars($board['category'] ?? '') ?>" maxlength="64"></td>
+      </tr>
+      <tr>
+        <th>Rules</th>
+        <td><textarea name="rules"><?= htmlspecialchars($board['rules'] ?? '') ?></textarea></td>
+      </tr>
+    </table>
+
+    <h2 class="section-header">Board Settings</h2>
+    <table>
+      <tr>
+        <th>NSFW</th>
+        <td>
+          <label><input type="checkbox" name="nsfw" value="1" <?= !empty($board['nsfw']) ? 'checked' : '' ?>> Mark as Not Safe For Work</label>
+        </td>
+      </tr>
+      <tr>
+        <th>Text Only</th>
+        <td>
+          <label><input type="checkbox" name="text_only" value="1" <?= !empty($board['text_only']) ? 'checked' : '' ?>> Disable image uploads</label>
+        </td>
+      </tr>
+      <tr>
+        <th>Require Subject</th>
+        <td>
+          <label><input type="checkbox" name="require_subject" value="1" <?= !empty($board['require_subject']) ? 'checked' : '' ?>> Require subject field for new threads</label>
+        </td>
+      </tr>
+      <tr>
+        <th>Archived</th>
+        <td>
+          <label><input type="checkbox" name="archived" value="1" <?= !empty($board['archived']) ? 'checked' : '' ?>> Archive this board (read-only, hidden from main listing)</label>
+        </td>
+      </tr>
+    </table>
+
+    <h2 class="section-header">Limits & Rate Limiting</h2>
+    <table>
+      <tr>
+        <th>Max Threads</th>
+        <td>
+          <input type="number" name="max_threads" value="<?= (int)($board['max_threads'] ?? 200) ?>" min="1" max="10000">
+          <div class="field-help">Maximum active threads before pruning</div>
+        </td>
+      </tr>
+      <tr>
+        <th>Bump Limit</th>
+        <td>
+          <input type="number" name="bump_limit" value="<?= (int)($board['bump_limit'] ?? 300) ?>" min="1" max="10000">
+          <div class="field-help">Replies after which thread stops being bumped</div>
+        </td>
+      </tr>
+      <tr>
+        <th>Image Limit</th>
+        <td>
+          <input type="number" name="image_limit" value="<?= (int)($board['image_limit'] ?? 150) ?>" min="1" max="10000">
+          <div class="field-help">Max images per thread</div>
+        </td>
+      </tr>
+      <tr>
+        <th>Cooldown (seconds)</th>
+        <td>
+          <input type="number" name="cooldown_seconds" value="<?= (int)($board['cooldown_seconds'] ?? 60) ?>" min="0" max="3600">
+          <div class="field-help">Seconds between posts per IP (0 = no limit)</div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="form-actions">
+      <button type="submit" class="button button-primary">Save Changes</button>
+      <a href="/staff/boards" class="button button-light">Cancel</a>
+    </div>
+  </form>
+
+  <?php if ($isAdmin): ?>
+  <div class="danger-zone">
+    <h2 class="section-header section-danger">Danger Zone</h2>
+    <p>Deleting a board permanently removes all threads, posts, and associated data. This action cannot be undone.</p>
+    <form method="POST" action="/staff/boards/<?= htmlspecialchars($board['slug']) ?>/delete" class="delete-form" onsubmit="return confirm('Are you sure you want to permanently delete /<?= htmlspecialchars($board['slug']) ?>/? This will destroy ALL threads and posts on this board. This cannot be undone.');">
+      <button type="submit" class="button button-deny">Delete Board /<?= htmlspecialchars($board['slug']) ?>/</button>
+    </form>
+  </div>
+  <?php endif ?>
+</div>
+<footer>
+  <div class="footer-content">
+    Ashchan Staff Interface &copy; <?= date('Y') ?>
+  </div>
+</footer>
+<script type="text/javascript" src="/staff/js/admincore.js"></script>
+</body>
+</html>
