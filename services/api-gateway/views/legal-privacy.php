@@ -317,6 +317,7 @@
       <tr><td>IP addresses (bans)</td><td>Legitimate interest (Art. 6(1)(f))</td><td>Enforcing community rules, preventing ban evasion</td></tr>
       <tr><td>Email (optional field)</td><td>Consent</td><td>User voluntarily provides; used for sage/noko only</td></tr>
       <tr><td>Post content &amp; media</td><td>Contract performance</td><td>Core service functionality</td></tr>
+      <tr><td>SFS lookup &amp; reporting</td><td>Consent (by posting)</td><td>User consents to anti-spam checks and potential SFS reporting by submitting a post</td></tr>
       <tr><td>Consent records</td><td>Legal obligation (Art. 6(1)(c))</td><td>GDPR/CCPA record-keeping requirement</td></tr>
       <tr><td>Staff account data</td><td>Contract performance</td><td>Volunteer/staff relationship</td></tr>
       <tr><td>Moderation logs</td><td>Legitimate interest (Art. 6(1)(f))</td><td>Platform safety, legal defense</td></tr>
@@ -345,6 +346,10 @@
 
   <div class="warning-box">
     <strong>Important:</strong> SFS submission is <strong>never automatic</strong>. It requires explicit, manual approval by a site administrator. Your encrypted IP must be actively decrypted for this specific purpose. An audit trail is maintained for all decryption and submission actions. You may object to SFS reporting — see <a href="/legal/rights">Your Privacy Rights</a>.
+  </div>
+
+  <div class="highlight-box">
+    <strong>Consent by posting:</strong> By submitting a post on ashchan, you acknowledge and agree that your IP address may be checked against the SFS database during post submission, and that if your post is confirmed as spam by a site administrator, your IP address and post content may be reported to SFS. This consent is noted on all post forms across the site. If you do not agree, please do not post.
   </div>
 
   <h3>7.2 Law Enforcement</h3>

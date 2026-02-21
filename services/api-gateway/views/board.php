@@ -66,6 +66,7 @@ declare(strict_types=1);
             <li>Read the <a href="/rules">Rules</a> before posting.</li>
             <li>Supported: JPEG, PNG, GIF, WebP. Max file size: 4 MB.</li>
           </ul>
+          <p style="font-size: 9pt; color: #888; margin: 4px 0 0 0;">By posting, you agree to our <a href="/legal/privacy">Privacy Policy</a>. Your IP is encrypted and auto-deleted after 30 days. Spam may be reported to <a href="https://www.stopforumspam.com" target="_blank" rel="noopener">SFS</a>.</p>
         </td>
       </tr>
     </tbody>
