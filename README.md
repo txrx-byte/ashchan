@@ -15,34 +15,60 @@ Ashchan is a high-performance, privacy-first imageboard built on Hyperf with a d
 
 ## Quick Start
 
-### 1. Initialize mTLS Certificates
+### Complete Setup (Production - Rootless)
 
 ```bash
-# Generate Root CA (one-time)
-make mtls-init
+# Complete bootstrap with rootless Podman (recommended)
+make bootstrap
 
-# Generate service certificates
-make mtls-certs
+# Or run directly
+./bootstrap.sh
 ```
 
-### 2. Configure Services
+### Complete Setup (Dev Containers - Rooted)
 
 ```bash
-# Copy .env.example to .env for all services
+# Complete bootstrap with root privileges (dev containers only)
+make bootstrap-rooted
+
+# Or run directly
+./bootstrap.sh --rooted
+```
+
+### Development (Quick Iteration)
+
+```bash
+# Quick restart for development (rootless)
+make dev-quick
+
+# Quick restart for development (rooted - dev containers)
+make dev-quick-rooted
+
+# Or run directly  
+./dev-quick.sh [--rooted]
+```
+
+> **⚠️ Rooted Mode**: The `--rooted` flag uses `sudo podman` for dev container environments where rootless Podman has mount limitations. **Only use this for development/testing**. Production deployments should use rootless mode for security.
+
+### Manual Steps (Advanced)
+
+If you need granular control, you can run individual steps:
+
+```bash
+# 1. Generate mTLS certificates
+make mtls-init && make mtls-certs
+
+# 2. Configure services
 make install
-```
 
-### 3. Start Services
-
-```bash
-# Start all services (PostgreSQL, Redis, MinIO, + 6 services)
+# 3. Start services
 make up
 
-# Or use podman-compose directly
-podman-compose up -d
+# 4. Run migrations and seed
+make migrate && make seed
 ```
 
-### 4. Verify Health
+### Verify Health
 
 ```bash
 # Check mTLS mesh status

@@ -15,20 +15,25 @@
 # Ashchan Makefile
 # mTLS ServiceMesh Management
 
-.PHONY: help install up down logs migrate test lint mtls-init mtls-certs mtls-verify mtls-rotate
+.PHONY: help install up down logs migrate seed test lint bootstrap bootstrap-force bootstrap-rooted bootstrap-rooted-force dev-quick dev-quick-rooted mtls-init mtls-certs mtls-verify mtls-rotate
 .PHONY: swoole-cli-download swoole-cli-build runtime-build runtime-up runtime-down runtime-logs
 
 help:
 	@echo "Ashchan Makefile Commands"
 	@echo ""
 	@echo "Development:"
-	@echo "  install    Copy .env files for all services"
-	@echo "  up         Start all services with podman-compose"
-	@echo "  down       Stop all services"
-	@echo "  logs       Tail logs from all services"
-	@echo "  migrate    Run database migrations"
-	@echo "  test       Run all service tests"
-	@echo "  lint       Lint all PHP code"
+	@echo "  bootstrap        Complete setup (certs, env, services, migrations, seed)"
+	@echo "  bootstrap-rooted Complete setup with root privileges (dev containers)"
+	@echo "  dev-quick        Quick development restart (assumes setup is done)"
+	@echo "  dev-quick-rooted Quick restart with root privileges (dev containers)"
+	@echo "  install          Copy .env files for all services"
+	@echo "  up               Start all services with podman-compose"
+	@echo "  down             Stop all services"
+	@echo "  logs             Tail logs from all services"
+	@echo "  migrate          Run database migrations"
+	@echo "  seed             Seed the database"
+	@echo "  test             Run all service tests"
+	@echo "  lint             Lint all PHP code"
 	@echo ""
 	@echo "Static Runtime (swoole-cli):"
 	@echo "  swoole-cli-download  Download pre-built swoole-cli binary"
@@ -45,11 +50,11 @@ help:
 	@echo "  mtls-rotate    Rotate all service certificates"
 	@echo "  mtls-status    Show certificate status"
 	@echo ""
-	@echo "Quick Start (with mTLS):"
-	@echo "  make mtls-init && make mtls-certs && make install && make up"
+	@echo "Quick Start (production/rootless):"
+	@echo "  make bootstrap"
 	@echo ""
-	@echo "Quick Start (static runtime):"
-	@echo "  make swoole-cli-download && make runtime-build && make install && make runtime-up"
+	@echo "Quick Start (dev containers/rooted):"
+	@echo "  make bootstrap-rooted"
 
 install:
 	@echo "Copying .env.example to .env for all services..."
@@ -90,6 +95,34 @@ lint:
 		echo "Linting $$svc..."; \
 		(cd services/$$svc && composer lint); \
 	done
+
+# ─────────────────────────────────────────────────────────────
+# Bootstrap & Quick Development
+# ─────────────────────────────────────────────────────────────
+
+bootstrap:
+	@echo "=== Complete Ashchan Bootstrap ==="
+	@./bootstrap.sh
+
+bootstrap-force:
+	@echo "=== Force Rebuild Ashchan Bootstrap ==="
+	@./bootstrap.sh --force
+
+bootstrap-rooted:
+	@echo "=== Complete Ashchan Bootstrap (Rooted) ==="
+	@./bootstrap.sh --rooted
+
+bootstrap-rooted-force:
+	@echo "=== Force Rebuild Ashchan Bootstrap (Rooted) ==="
+	@./bootstrap.sh --force --rooted
+
+dev-quick:
+	@echo "=== Quick Development Restart ==="
+	@./dev-quick.sh
+
+dev-quick-rooted:
+	@echo "=== Quick Development Restart (Rooted) ==="
+	@./dev-quick.sh --rooted
 
 # ─────────────────────────────────────────────────────────────
 # mTLS ServiceMesh Commands
