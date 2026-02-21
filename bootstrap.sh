@@ -134,7 +134,7 @@ for svc in "${SERVICES[@]}"; do
     
     if [[ "$FORCE_REBUILD" == "true" ]] || [[ ! -f "$ENV_FILE" ]]; then
         if [[ -f "$ENV_EXAMPLE" ]]; then
-            cp "$ENV_EXAMPLE" "$ENV_FILE"
+            sed "s|__PROJECT_ROOT__|${SCRIPT_DIR}|g" "$ENV_EXAMPLE" > "$ENV_FILE"
             info "Created ${ENV_FILE}"
         else
             warn "No .env.example found for ${svc}"

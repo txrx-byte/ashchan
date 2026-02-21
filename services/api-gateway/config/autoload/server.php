@@ -43,10 +43,10 @@ return [
                 Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
             ],
             'settings' => [
-                'ssl_cert_file' => getenv('MTLS_CERT_FILE') ?: '/etc/mtls/gateway/gateway.crt',
-                'ssl_key_file' => getenv('MTLS_KEY_FILE') ?: '/etc/mtls/gateway/gateway.key',
+                'ssl_cert_file' => getenv('MTLS_CERT_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/services/gateway/gateway.crt',
+                'ssl_key_file' => getenv('MTLS_KEY_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/services/gateway/gateway.key',
                 'ssl_verify_peer' => filter_var(getenv('MTLS_VERIFY_PEER') ?: 'true', FILTER_VALIDATE_BOOLEAN),
-                'ssl_client_cert_file' => getenv('MTLS_CA_FILE') ?: '/etc/mtls/ca/ca.crt',
+                'ssl_client_cert_file' => getenv('MTLS_CA_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/ca/ca.crt',
             ],
         ],
     ],

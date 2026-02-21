@@ -29,7 +29,7 @@ require BASE_PATH . '/vendor/autoload.php';
 
 // Load .env if present (for local dev; podman-compose provides env_file)
 if (file_exists(BASE_PATH . '/.env')) {
-    (Dotenv\Dotenv::createMutable(BASE_PATH))->safeLoad();
+    (Dotenv\Dotenv::createUnsafeMutable(BASE_PATH))->safeLoad();
 }
 
 $container = require BASE_PATH . '/config/container.php';
