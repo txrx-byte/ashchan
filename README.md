@@ -1,5 +1,6 @@
 # ashchan
 [![PHP Composer](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml/badge.svg)](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml)
+![enbyware](https://pride-badges.pony.workers.dev/static/v1?label=enbyware&labelColor=%23555&stripeWidth=8&stripeColors=FCF434%2CFFFFFF%2C9C59D1%2C2C2C2C)
 
 Ashchan is a high-performance, privacy-first imageboard built on **Hyperf/Swoole** with a distributed microservices architecture. It runs natively on **PHP-CLI via Swoole** without containerization dependencies, providing a simpler deployment model with direct process management.
 
