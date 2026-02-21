@@ -253,6 +253,45 @@
   margin-top: 2px;
 }
 
+/** BLOTTER **/
+#blotter {
+  width: 468px;
+  margin: auto;
+}
+
+#blotter td {
+  vertical-align: top;
+  font-size: 11px;
+}
+
+.blotter-date {
+  width: 50px;
+  text-align: center;
+}
+
+#blotter tfoot {
+  text-align: right;
+}
+
+#blotter-msgs s {
+  background-color: inherit !important;
+  color: inherit !important;
+  text-decoration: line-through;
+}
+
+s.blotter-online {
+  text-decoration: none;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+hr.pointed {
+  border: 0;
+  border-top: 1px solid;
+  opacity: 0.3;
+  margin: 5px 0;
+}
+
 .deleteform {
   display: inline;
 }
@@ -776,7 +815,7 @@ table.postForm > tbody > tr > td > input[name="subject"] {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.25);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -784,25 +823,23 @@ table.postForm > tbody > tr > td > input[name="subject"] {
 }
 
 #settingsMenu .extPanel {
-  background: #d6daf0;
-  border: 1px solid #b7c5d9;
   max-width: 500px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.25);
 }
 
 #settingsMenu .panelHeader {
   font-weight: bold;
-  padding: 8px 10px;
+  padding: 5px 8px;
   background: #98e;
   background: linear-gradient(to bottom, #aaf, #98e);
   color: #000;
-  border-bottom: 1px solid #b7c5d9;
+  border-bottom: 1px solid;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 13px;
 }
 
 #settingsMenu .panelCtrl a {
@@ -823,7 +860,7 @@ table.postForm > tbody > tr > td > input[name="subject"] {
 
 #settingsMenu .settings-cat-lbl {
   padding: 8px 0 4px;
-  border-bottom: 1px solid #b7c5d9;
+  border-bottom: 1px solid;
   margin-bottom: 5px;
 }
 
@@ -834,7 +871,7 @@ table.postForm > tbody > tr > td > input[name="subject"] {
 }
 
 #settingsMenu .settings-cat li {
-  padding: 4px 0;
+  padding: 3px 0;
 }
 
 #settingsMenu .settings-cat label {
@@ -845,7 +882,7 @@ table.postForm > tbody > tr > td > input[name="subject"] {
   font-size: 11px;
   color: #666;
   margin-left: 22px;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 #settingsMenu .center {
@@ -853,13 +890,13 @@ table.postForm > tbody > tr > td > input[name="subject"] {
 }
 
 #settingsMenu button {
-  padding: 6px 18px;
+  padding: 5px 15px;
   cursor: pointer;
   margin: 0 5px;
 }
 
 #settingsMenu .settings-off {
-  border-top: 1px solid #b7c5d9;
+  border-top: 1px solid;
   margin-top: 10px;
   padding-top: 10px;
 }
@@ -875,7 +912,7 @@ table.postForm > tbody > tr > td > input[name="subject"] {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.25);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -883,25 +920,23 @@ table.postForm > tbody > tr > td > input[name="subject"] {
 }
 
 #exportSettings .extPanel {
-  background: #d6daf0;
-  border: 1px solid #b7c5d9;
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.25);
 }
 
 #exportSettings .panelHeader {
   font-weight: bold;
-  padding: 8px 10px;
+  padding: 5px 8px;
   background: #98e;
   background: linear-gradient(to bottom, #aaf, #98e);
   color: #000;
-  border-bottom: 1px solid #b7c5d9;
+  border-bottom: 1px solid;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 13px;
 }
 
 #exportSettings .panelCtrl a {

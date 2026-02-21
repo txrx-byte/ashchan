@@ -199,13 +199,13 @@ declare(strict_types=1);
       <input id="bottomReportBtn" type="button" value="Report">
     </span>
     <span class="stylechanger">
-      Style: <select id="styleSelector">
-        <option value="yotsuba">Yotsuba</option>
-        <option value="yotsuba-b" selected>Yotsuba B</option>
-        <option value="futaba">Futaba</option>
-        <option value="burichan">Burichan</option>
-        <option value="photon">Photon</option>
-        <option value="tomorrow">Tomorrow</option>
+      Style: <select id="styleSelectorBot">
+        <option value="Yotsuba">Yotsuba</option>
+        <option value="Yotsuba B" selected>Yotsuba B</option>
+        <option value="Futaba">Futaba</option>
+        <option value="Burichan">Burichan</option>
+        <option value="Photon">Photon</option>
+        <option value="Tomorrow">Tomorrow</option>
       </select>
     </span>
   </div>

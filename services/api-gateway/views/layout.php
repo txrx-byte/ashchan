@@ -104,30 +104,42 @@
 
 <!-- Blotter -->
 <?php if (!empty($blotter)): ?>
-<div id="blotter" class="desktop" style="margin: 10px auto; width: 80%; max-width: 800px;">
-  <table class="blotterTable" style="width: 100%; border-collapse: collapse; font-size: 9pt;">
-    <thead>
-      <tr>
-        <th colspan="2" style="background: #e0e0e0; padding: 2px;">Blotter</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php foreach ($blotter as $entry): ?>
+<div id="blotter" class="desktop">
+  <s id="showBlotter" class="blotter-online pointer" title="Show Blotter" data-cmd="blotter-t">&#9654; Show Blotter</s>
+  <s id="hideBlotter" class="blotter-online pointer" style="display:none" title="Hide Blotter" data-cmd="blotter-t">&#9660; Hide Blotter</s>
+  <div id="blotter-msgs" style="display:none">
+    <table>
+      <tbody>
+        <?php foreach ($blotter as $entry): ?>
         <tr>
-          <td style="padding: 2px; text-align: right; width: 80px; vertical-align: top; color: #666;">
-            <?= date('m/d/y', $entry['created_at']) ?>
-          </td>
-          <td style="padding: 2px; <?= $entry['is_important'] ? 'color: red; font-weight: bold;' : '' ?>">
-            <?= htmlspecialchars((string) $entry['content']) ?>
-          </td>
+          <td class="blotter-date"><?= date('m/d/y', $entry['created_at']) ?></td>
+          <td<?= $entry['is_important'] ? ' class="redtxt"' : '' ?>><?= htmlspecialchars((string) $entry['content']) ?></td>
         </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+    <hr class="pointed">
+  </div>
 </div>
 <?php endif; ?>
 
 <?= $__content ?? '' ?>
+
+<!-- Bottom Board Navigation -->
+<div id="boardNavDesktopFoot" class="boardNav desktop">
+  <span class="boardList">
+    [
+    <?php foreach (($nav_groups ?? []) as $gi => $group): ?>
+      <?php foreach ($group['boards'] as $bi => $b): ?>
+        <a href="/<?= htmlspecialchars((string) $b['slug']) ?>/" title="<?= htmlspecialchars((string) $b['title']) ?>"><?= htmlspecialchars((string) $b['slug']) ?></a>
+        <?php if ($bi < count($group['boards']) - 1): ?> / <?php endif; ?>
+      <?php endforeach; ?>
+      <?php if ($gi < count($nav_groups) - 1): ?> ] [ <?php endif; ?>
+    <?php endforeach; ?>
+    ]
+  </span>
+  <span id="navbotright">[<a href="javascript:void(0);" id="settingsWindowLinkBot">Settings</a>] [<a href="/" target="_top">Home</a>]</span>
+</div>
 
 <!-- Footer -->
 <div id="absbot" class="absBotText">
@@ -144,19 +156,6 @@
 </div>
 
 <div id="bottom"></div>
-
-<!-- Style Selector (Bottom Right) -->
-<div id="styleChanger" class="stylechanger">
-  Style:
-  <select id="styleSelector" data-cmd="style">
-    <option value="Yotsuba">Yotsuba</option>
-    <option value="Yotsuba B" selected>Yotsuba B</option>
-    <option value="Futaba">Futaba</option>
-    <option value="Burichan">Burichan</option>
-    <option value="Photon">Photon</option>
-    <option value="Tomorrow">Tomorrow</option>
-  </select>
-</div>
 
 </body>
 </html>

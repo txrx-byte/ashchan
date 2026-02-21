@@ -84,26 +84,36 @@ var Config = {
   // Monitoring
   threadWatcher: false,
   threadAutoWatcher: false,
+  desktopNotif: false,
   
   // Filters & Post Hiding
   filter: false,
   replyHiding: true,
   threadHiding: true,
   hideStubs: false,
+  recursiveHiding: false,
   
   // Images & Media
-  imageHover: false,
   imageExpansion: true,
   fitToScreenExpansion: false,
+  imageHover: false,
   revealSpoilers: false,
+  revealSpoilerText: false,
   noPictures: false,
-  embedYouTube: true,
-  embedSoundCloud: false,
+  replaceThumbs: false,
+  imageSearch: false,
+  
+  // Menu
+  menuReport: true,
+  menuDelete: true,
+  menuFilter: true,
   
   // Miscellaneous
   linkify: false,
   IDColor: true,
   localTime: true,
+  markYourPosts: true,
+  threadStats: true,
   compactThreads: false,
   centeredThreads: false,
   keyBinds: false,
@@ -577,36 +587,47 @@ var SettingsMenu = {
   // [Name, Description, available on mobile?]
   options: {
     'Quotes &amp; Replying': {
-      quotePreview: ['Quote preview', 'Show post when mousing over post links', true],
+      quotePreview: ['Quote preview', 'Show post on mouse over post link', true],
       backlinks: ['Backlinks', 'Show who has replied to a post', true],
       inlineQuotes: ['Inline quote links', 'Clicking quote links will inline expand the quoted post', false]
     },
     'Monitoring': {
       threadWatcher: ['Thread Watcher', 'Keep track of threads you\'re watching and see when they receive new posts', true],
-      threadAutoWatcher: ['Auto-watch threads you create', '', true]
+      threadAutoWatcher: ['Auto-watch threads you create', '', true],
+      desktopNotif: ['Desktop Notifications', 'Enable desktop notifications for watched threads', false]
     },
     'Filters &amp; Post Hiding': {
       filter: ['Filter and highlight specific threads/posts', 'Enable pattern-based filters', false],
       replyHiding: ['Reply hiding', 'Hide individual replies by clicking the minus button', true],
       threadHiding: ['Thread hiding', 'Hide entire threads by clicking the minus button', true],
-      hideStubs: ['Hide thread stubs', 'Don\'t display stubs of hidden threads', false]
+      hideStubs: ['Hide thread stubs', 'Don\'t display stubs of hidden threads', false],
+      recursiveHiding: ['Recursive hiding', 'Hide replies quoting hidden posts', false]
     },
     'Images &amp; Media': {
       imageExpansion: ['Image expansion', 'Enable inline image expansion, limited to browser width', true],
       fitToScreenExpansion: ['Fit expanded images to screen', 'Limit expanded images to both browser width and height', false],
       imageHover: ['Image hover', 'Mouse over images to view full size, limited to browser size', false],
       revealSpoilers: ['Don\'t spoiler images', 'Show image thumbnail instead of spoiler placeholders', true],
+      revealSpoilerText: ['Reveal spoiler text', 'Show spoiler text without hovering', false],
       noPictures: ['Hide thumbnails', 'Don\'t display thumbnails while browsing', true],
-      embedYouTube: ['Embed YouTube links', 'Embed YouTube player into replies', false],
-      embedSoundCloud: ['Embed SoundCloud links', 'Embed SoundCloud player into replies', false]
+      replaceThumbs: ['Replace thumbnails with filename', '', false],
+      imageSearch: ['Image search', 'Add search links to images', false]
+    },
+    'Menu': {
+      menuReport: ['Report posts', '', true],
+      menuDelete: ['Delete posts', '', true],
+      menuFilter: ['Filter', '', false]
     },
     'Miscellaneous': {
       linkify: ['Linkify URLs', 'Make user-posted links clickable', true],
       IDColor: ['Color user IDs', 'Assign unique colors to user IDs on boards that use them', true],
       localTime: ['Convert dates to local time', 'Convert server time to your local time', true],
+      markYourPosts: ['Mark your posts', 'Add (You) to your own posts', true],
+      threadStats: ['Thread stats', 'Display reply and image count', true],
       compactThreads: ['Force long posts to wrap', 'Long posts will wrap at 75% browser width', false],
       centeredThreads: ['Center threads', 'Align threads to the center of page', false],
-      keyBinds: ['Use keyboard shortcuts', 'Enable handy keyboard shortcuts for common actions', false]
+      keyBinds: ['Use keyboard shortcuts', 'Enable handy keyboard shortcuts for common actions', false],
+      customCSS: ['Custom CSS', 'Apply your own CSS styles to the page', false]
     }
   },
 

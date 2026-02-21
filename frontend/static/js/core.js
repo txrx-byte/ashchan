@@ -56,6 +56,11 @@ var StyleSwitcher = {
     for (var i = 0; i < selects.length; i++) {
       $.on(selects[i], 'change', function() {
         StyleSwitcher.set(this.value);
+        // Sync all selects
+        var allSelects = $.qsa('.stylechanger select, select[data-cmd="style"]');
+        for (var j = 0; j < allSelects.length; j++) {
+          allSelects[j].value = this.value;
+        }
       });
       if (saved) {
         selects[i].value = saved;
@@ -408,6 +413,27 @@ var PostMenu = {
   }
 };
 
+// ---- Blotter Toggle ----
+var Blotter = {
+  init: function() {
+    var showBtn = $.id('showBlotter');
+    var hideBtn = $.id('hideBlotter');
+    var msgs = $.id('blotter-msgs');
+    if (!showBtn || !hideBtn || !msgs) return;
+
+    $.on(showBtn, 'click', function() {
+      msgs.style.display = '';
+      showBtn.style.display = 'none';
+      hideBtn.style.display = '';
+    });
+    $.on(hideBtn, 'click', function() {
+      msgs.style.display = 'none';
+      hideBtn.style.display = 'none';
+      showBtn.style.display = '';
+    });
+  }
+};
+
 // ---- Main Init ----
 function init() {
   StyleSwitcher.init();
@@ -419,6 +445,7 @@ function init() {
   BoardNav.init();
   PostHighlight.init();
   PostMenu.init();
+  Blotter.init();
 }
 
 if (document.readyState === 'loading') {
