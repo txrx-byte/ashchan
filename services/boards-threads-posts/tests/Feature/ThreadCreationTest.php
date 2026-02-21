@@ -24,7 +24,7 @@ namespace Tests\Feature;
 use App\Model\Board;
 use App\Service\BoardService;
 use App\Service\ContentFormatter;
-use App\Service\PiiEncryptionService;
+use App\Service\PiiEncryptionServiceInterface;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
 use PHPUnit\Framework\TestCase;
@@ -38,7 +38,7 @@ final class ThreadCreationTest extends TestCase
     private BoardService $boardService;
     private Mockery\MockInterface $mockRedis;
     private Mockery\MockInterface $mockContentFormatter;
-    private Mockery\MockInterface $mockPiiEncryption;
+    private PiiEncryptionServiceInterface $stubPiiEncryption;
     private Mockery\MockInterface $mockBoard;
     private Mockery\MockInterface $dbMock;
 
@@ -60,14 +60,36 @@ final class ThreadCreationTest extends TestCase
         // Since we are testing a successful, simple creation with a mock board that is not near capacity, `del` should NOT be called.
         // Let's remove the expectation for `del` to be called.
 
-        // Mock PiiEncryptionService
-        $this->mockPiiEncryption = Mockery::mock(PiiEncryptionService::class);
-        $this->mockPiiEncryption->shouldReceive('encrypt')->andReturnUsing(function (string $value): string {
-            return 'encrypted_' . $value;
-        });
+        // Mock PiiEncryptionService using anonymous class implementing the interface
+        $this->stubPiiEncryption = new class implements PiiEncryptionServiceInterface {
+            public function encrypt(string $plaintext): string
+            {
+                return 'encrypted_' . $plaintext;
+            }
+            
+            public function decrypt(string $ciphertext): string
+            {
+                return str_replace('encrypted_', '', $ciphertext);
+            }
+            
+            public function isEnabled(): bool
+            {
+                return true;
+            }
+            
+            public function encryptIfNeeded(string $value): string
+            {
+                return $this->encrypt($value);
+            }
+            
+            public function wipe(string &$value): void
+            {
+                $value = '';
+            }
+        };
 
         // Instantiate the service
-        $this->boardService = new BoardService($this->mockContentFormatter, $this->mockRedis, $this->mockPiiEncryption);
+        $this->boardService = new BoardService($this->mockContentFormatter, $this->mockRedis, $this->stubPiiEncryption);
 
         // Prepare for static mocks of Db
         $this->dbMock = Mockery::mock('alias:Hyperf\DbConnection\Db');
