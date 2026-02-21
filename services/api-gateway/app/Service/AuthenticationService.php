@@ -511,6 +511,7 @@ final class AuthenticationService
     private function recordFailedAttempt(string $ipAddress, string $username, string $userAgent): void
     {
         Db::table('login_attempts')->insert([
+            'ip_address' => $this->piiEncryption->encrypt($ipAddress),
             'ip_address_hash' => hash('sha256', $ipAddress),
             'username_attempted' => $username,
             'success' => false,
