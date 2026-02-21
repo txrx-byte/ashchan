@@ -22,6 +22,33 @@ Ashchan is a high-performance, privacy-first imageboard built on **Hyperf/Swoole
 - Redis 7+
 - MinIO or S3-compatible storage (for media)
 - OpenSSL (for certificate generation)
+- Composer (PHP dependency manager)
+- Make (build tool)
+
+#### Alpine Linux (apk)
+
+```bash
+# PHP 8.4 + required extensions
+sudo apk add --no-cache \
+  php84 php84-openssl php84-pdo php84-pdo_pgsql php84-mbstring \
+  php84-curl php84-pcntl php84-phar php84-iconv php84-dom php84-xml \
+  php84-xmlwriter php84-tokenizer php84-fileinfo php84-ctype \
+  php84-posix php84-session php84-sockets \
+  php84-pecl-swoole php84-pecl-redis \
+  openssl composer postgresql-client redis make
+
+# Create php symlink if not present
+sudo ln -sf $(which php84) /usr/local/bin/php
+```
+
+#### Ubuntu/Debian (apt)
+
+```bash
+sudo apt-get install -y \
+  php8.2 php8.2-cli php8.2-swoole php8.2-pgsql php8.2-redis \
+  php8.2-mbstring php8.2-curl php8.2-xml php8.2-dom \
+  openssl composer postgresql-client redis-server make
+```
 
 ### Installation
 
