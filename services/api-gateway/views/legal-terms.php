@@ -145,7 +145,7 @@
   <h2 id="data">6. Data Collection &amp; Privacy</h2>
   <p>Your use of the Service is also governed by our <a href="/legal/privacy">Privacy Policy</a>, which details:</p>
   <ul>
-    <li>What data we collect (IP addresses, optional email, post content)</li>
+    <li>What data we collect (IP addresses, post content, options field commands)</li>
     <li>How it is encrypted and protected (XChaCha20-Poly1305 authenticated encryption)</li>
     <li>How long it is retained (30 days for post IPs, auto-deleted)</li>
     <li>Third-party sharing (StopForumSpam — manual, admin-approved only)</li>

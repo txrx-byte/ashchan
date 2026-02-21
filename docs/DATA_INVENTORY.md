@@ -39,7 +39,7 @@ the legal basis for collection, retention periods, and encryption requirements.
 | Table | Column | Classification | Purpose | Retention | Encrypted |
 |---|---|---|---|---|---|
 | `posts` | `ip_address` | **PII-Critical** | Moderation, abuse prevention, SFS reporting | **30 days**, then auto-deleted | **Yes (XChaCha20-Poly1305)** |
-| `posts` | `email` | PII-Critical | Sage/noko identification, contact | Post lifetime | **Yes (XChaCha20-Poly1305)** |
+| `posts` | `email` | Operational | Sage/noko commands (not actual email — does not store user email addresses) | 30 days (auto-nullified) | No (plaintext) |
 | `posts` | `author_name` | PII-Sensitive | Attribution (user-provided) | Post lifetime | No |
 | `posts` | `tripcode` | PII-Sensitive | Identity verification | Post lifetime | No |
 | `posts` | `country_code` | PII-Sensitive | Geographic context | Post lifetime | No |
@@ -122,7 +122,7 @@ the legal basis for collection, retention periods, and encryption requirements.
 |---|---|---|
 | IP addresses (posts) | Legitimate interest (Art. 6(1)(f)) | Abuse prevention, spam mitigation, legal compliance |
 | IP addresses (bans) | Legitimate interest | Enforcing community rules, preventing ban evasion |
-| Email (optional field) | Consent | User voluntarily provides; used for sage/noko only |
+| Options field (sage/noko) | Contract performance | Post command functionality (not PII) |
 | Content/media | Contract performance | Core service functionality |
 | Consent records | Legal obligation (Art. 6(1)(c)) | GDPR/CCPA record-keeping requirement |
 | Staff account data | Contract performance | Employment/volunteer relationship |
@@ -138,7 +138,7 @@ the legal basis for collection, retention periods, and encryption requirements.
 |---|---|---|---|
 | IP address (decrypted) | Admin-approved SFS report | Legitimate interest (anti-spam) | Terms of Service disclosure |
 | Username | Admin-approved SFS report | Legitimate interest | Terms of Service disclosure |
-| Email (if provided) | Admin-approved SFS report | Legitimate interest | Terms of Service disclosure |
+| ~~Email~~ *(not collected from users)* | N/A | N/A | N/A |
 | Post content (evidence) | Admin-approved SFS report | Legitimate interest | Terms of Service disclosure |
 
 **Process:** Data is encrypted at rest. An administrator must explicitly decrypt using their

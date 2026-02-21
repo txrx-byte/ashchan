@@ -132,11 +132,12 @@
     <li>Automatically and <strong>irreversibly deleted after 30 days</strong>.</li>
   </ul>
 
-  <h3>Email Address (optional)</h3>
+  <h3>Options Field (sage/noko)</h3>
   <ul>
-    <li>Only collected if you voluntarily type it in the email/options field.</li>
-    <li>Used only for &ldquo;sage&rdquo; and &ldquo;noko&rdquo; functionality.</li>
-    <li>Encrypted at rest. Automatically deleted after 30 days.</li>
+    <li>The post form includes an &ldquo;Options&rdquo; field (historically labelled &ldquo;Email&rdquo;) that supports <code>sage</code> (reply without bumping) and <code>noko</code> (stay on thread after posting) commands.</li>
+    <li>This field does <strong>not</strong> collect email addresses. Any value entered is treated as a command string, not as contact information.</li>
+    <li>Stored as plaintext. Automatically deleted after 30 days.</li>
+    <li>We do <strong>not</strong> collect email addresses from regular users. Only staff accounts have email addresses on file.</li>
   </ul>
 
   <h3>Author Name &amp; Tripcode (optional)</h3>
@@ -226,7 +227,7 @@
     </thead>
     <tbody>
       <tr><td>IP Address</td><td class="pii-critical">PII-Critical</td><td>Moderation, abuse prevention</td><td>30 days</td><td class="encrypted">Encrypted (XChaCha20)</td></tr>
-      <tr><td>Email (optional)</td><td class="pii-critical">PII-Critical</td><td>Sage/noko functionality</td><td>30 days</td><td class="encrypted">Encrypted (XChaCha20)</td></tr>
+      <tr><td>Options field (sage/noko)</td><td>Operational</td><td>Sage/noko post commands</td><td>30 days</td><td>Plaintext (not PII)</td></tr>
       <tr><td>Author Name</td><td>PII-Sensitive</td><td>User-provided attribution</td><td>Post lifetime</td><td>Plaintext (user-provided)</td></tr>
       <tr><td>Tripcode</td><td>PII-Sensitive</td><td>Identity verification</td><td>Post lifetime</td><td>One-way hash</td></tr>
       <tr><td>Country Code</td><td>PII-Sensitive</td><td>Geographic context</td><td>Post lifetime</td><td>Plaintext</td></tr>
@@ -286,7 +287,7 @@
     </thead>
     <tbody>
       <tr><td>Post IP addresses</td><td>30 days</td><td>Automated cron (nullify)</td><td>Permanently and irreversibly deleted</td></tr>
-      <tr><td>Email addresses</td><td>30 days</td><td>Automated cron (nullify)</td><td>Permanently and irreversibly deleted</td></tr>
+      <tr><td>Options field values</td><td>30 days</td><td>Automated cron (nullify)</td><td>Permanently and irreversibly deleted</td></tr>
       <tr><td>Report IPs</td><td>90 days</td><td>Automated cron (nullify)</td><td>Permanently and irreversibly deleted</td></tr>
       <tr><td>Ban IPs</td><td>Ban duration + 30 days</td><td>Automated cron (nullify)</td><td>IP data permanently deleted</td></tr>
       <tr><td>Rate limiting logs</td><td>24 hours</td><td>Automated cron (DELETE)</td><td>Entire record permanently deleted</td></tr>
@@ -315,7 +316,7 @@
     <tbody>
       <tr><td>IP addresses (posts)</td><td>Legitimate interest (Art. 6(1)(f))</td><td>Abuse prevention, spam mitigation, legal compliance</td></tr>
       <tr><td>IP addresses (bans)</td><td>Legitimate interest (Art. 6(1)(f))</td><td>Enforcing community rules, preventing ban evasion</td></tr>
-      <tr><td>Email (optional field)</td><td>Consent</td><td>User voluntarily provides; used for sage/noko only</td></tr>
+      <tr><td>Options field (sage/noko)</td><td>Contract performance</td><td>Post command functionality (not PII — does not contain email addresses)</td></tr>
       <tr><td>Post content &amp; media</td><td>Contract performance</td><td>Core service functionality</td></tr>
       <tr><td>SFS lookup &amp; reporting</td><td>Consent (by posting)</td><td>User consents to anti-spam checks and potential SFS reporting by submitting a post</td></tr>
       <tr><td>Consent records</td><td>Legal obligation (Art. 6(1)(c))</td><td>GDPR/CCPA record-keeping requirement</td></tr>

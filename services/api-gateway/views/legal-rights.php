@@ -182,7 +182,7 @@
     <h3>Right to Access / Right to Know</h3>
     <p>You can request a complete copy of all personal data we hold about you. Your export will include:</p>
     <ul>
-      <li><strong>Account data:</strong> Username, email (if provided), password hash, role, registration IP (encrypted), registration date</li>
+      <li><strong>Account data:</strong> Username, password hash, role, registration IP (encrypted), registration date</li>
       <li><strong>Post data:</strong> All posts attributed to your account, including any associated IP hashes</li>
       <li><strong>Report data:</strong> Any reports you have filed</li>
       <li><strong>Moderation data:</strong> Any bans or warnings issued to your account</li>
@@ -222,7 +222,7 @@
     <h3>Right to Object / Opt-Out</h3>
     <p>You can object to specific types of data processing:</p>
     <ul>
-      <li><strong>Stop Forum Spam (SFS) reporting:</strong> If your IP or email is submitted to SFS as part of our anti-spam measures, you can opt out via your account settings. This takes effect immediately.</li>
+      <li><strong>Stop Forum Spam (SFS) reporting:</strong> If your IP is submitted to SFS as part of our anti-spam measures, you can opt out via your account settings. This takes effect immediately.</li>
       <li><strong>Sale of personal information:</strong> We do <strong>not</strong> sell your personal information and never have. There is nothing to opt out of.</li>
     </ul>
     <p class="applies">Applies under: GDPR Article 21, CCPA &sect;1798.120</p>
@@ -308,7 +308,7 @@
   </table>
 
   <div class="info-box">
-    <strong>What we do NOT store:</strong> We do not collect email addresses (unless you provide one voluntarily), real names, phone numbers, social media profiles, location data, device fingerprints, advertising identifiers, or browsing history. We use <strong>zero</strong> analytics, tracking pixels, or third-party scripts.
+    <strong>What we do NOT store:</strong> We do not collect email addresses from regular users (only staff accounts have email on file), real names, phone numbers, social media profiles, location data, device fingerprints, advertising identifiers, or browsing history. The &ldquo;Options&rdquo; field on the post form (historically labelled &ldquo;Email&rdquo;) is used only for sage/noko commands and does not collect actual email addresses. We use <strong>zero</strong> analytics, tracking pixels, or third-party scripts.
   </div>
 
   <!-- ===== HOW DELETION WORKS ===== -->
@@ -442,7 +442,7 @@
   <div class="right-card">
     <h3>Do Not Sell or Share My Personal Information</h3>
     <p>We do <strong>not</strong> sell your personal information. We do <strong>not</strong> share your personal information for cross-context behavioral advertising. There is no &ldquo;sale&rdquo; or &ldquo;sharing&rdquo; as defined by the CCPA to opt out of.</p>
-    <p>The only third-party data transmission we perform is to <strong>Stop Forum Spam (SFS)</strong> for anti-spam purposes, which involves sending an IP address and/or email of confirmed spammers. This is not a &ldquo;sale&rdquo; under CCPA. Regardless, you can opt out of SFS reporting via your account settings.</p>
+    <p>The only third-party data transmission we perform is to <strong>Stop Forum Spam (SFS)</strong> for anti-spam purposes, which involves sending an IP address of confirmed spammers. This is not a &ldquo;sale&rdquo; under CCPA. Regardless, you can opt out of SFS reporting via your account settings.</p>
   </div>
 
   <div class="right-card">
