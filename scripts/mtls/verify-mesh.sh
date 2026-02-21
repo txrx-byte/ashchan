@@ -105,7 +105,7 @@ for SERVICE in "${SERVICES[@]}"; do
     # Handle different date command versions (GNU vs BSD)
     if date --version >/dev/null 2>&1; then
         # GNU date
-        EXPIRY_EPOCH=$(date -d "${EXPIRY}" +%s)
+        EXPIRY_EPOCH=$(date -d "${EXPIRY}" +%s 2>/dev/null || echo "0")
     else
         # BSD date (macOS)
         EXPIRY_EPOCH=$(date -j -f "%b %d %H:%M:%S %Y %Z" "${EXPIRY}" +%s 2>/dev/null || echo "0")
@@ -121,7 +121,7 @@ for SERVICE in "${SERVICES[@]}"; do
             echo -e "${GREEN}  ✓ Certificate expires in ${DAYS_LEFT} days (${EXPIRY})${NC}"
         fi
     else
-        echo "     Expiry: ${EXPIRY}"
+        echo -e "${YELLOW}  ⚠ Could not parse expiry date: ${EXPIRY}${NC}"
     fi
     
     # Check key matches certificate

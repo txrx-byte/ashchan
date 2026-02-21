@@ -366,13 +366,17 @@ mtls-status:
 			echo "Service: $$svc"; \
 			openssl x509 -in "$$CERT_FILE" -noout -subject -dates | sed 's/^/  /'; \
 			EXPIRY=$$(openssl x509 -in "$$CERT_FILE" -noout -enddate | cut -d= -f2); \
-			EXPIRY_EPOCH=$$(date -d "$$EXPIRY" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$$EXPIRY" +%s 2>/dev/null); \
+			EXPIRY_EPOCH=$$(date -d "$$EXPIRY" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$$EXPIRY" +%s 2>/dev/null || echo 0); \
 			NOW_EPOCH=$$(date +%s); \
-			DAYS_LEFT=$$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 )); \
-			if [ $$DAYS_LEFT -lt 30 ]; then \
-				echo "  ⚠ Expires in $$DAYS_LEFT days"; \
+			if [ "$$EXPIRY_EPOCH" -gt 0 ] 2>/dev/null; then \
+				DAYS_LEFT=$$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 )); \
+				if [ $$DAYS_LEFT -lt 30 ]; then \
+					echo "  ⚠ Expires in $$DAYS_LEFT days"; \
+				else \
+					echo "  ✓ Expires in $$DAYS_LEFT days"; \
+				fi; \
 			else \
-				echo "  ✓ Expires in $$DAYS_LEFT days"; \
+				echo "  Expiry: $$EXPIRY"; \
 			fi; \
 			echo ""; \
 		else \

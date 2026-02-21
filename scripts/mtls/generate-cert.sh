@@ -76,6 +76,7 @@ SERVICE_DIR="${SERVICES_DIR}/${SERVICE_NAME}"
 mkdir -p "${SERVICE_DIR}"
 
 # Generate private key
+# Use mode 600 (owner read/write only) for secure private key storage
 echo "1. Generating private key..."
 openssl ecparam -genkey -name prime256v1 -noout -out "${SERVICE_DIR}/${SERVICE_NAME}.key"
 chmod 600 "${SERVICE_DIR}/${SERVICE_NAME}.key"

@@ -97,7 +97,7 @@ Error: Cannot read /path/to/certs/...
 ```bash
 # Fix certificate permissions
 chmod 644 certs/ca/ca.crt
-chmod 644 certs/services/*//*.crt
+chmod 644 certs/services/*/*.crt
 chmod 600 certs/services/*/*.key
 
 # Fix ownership (if needed)

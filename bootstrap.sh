@@ -92,7 +92,7 @@ REQUIRED_EXTENSIONS=("swoole" "openssl" "pdo" "pdo_pgsql" "redis" "mbstring" "js
 MISSING_EXTENSIONS=()
 
 for ext in "${REQUIRED_EXTENSIONS[@]}"; do
-    if ! php -m | grep -qi "^${ext}$"; then
+    if ! php -m | grep -qiE "^${ext}\$"; then
         MISSING_EXTENSIONS+=("$ext")
     fi
 done
@@ -203,8 +203,12 @@ fi
 # Step 6: Start all services
 step "6/7 Starting all services..."
 
-# Stop any existing services first
+# Stop any existing services first (graceful shutdown)
+info "Stopping any existing services..."
 make down 2>/dev/null || true
+
+# Brief pause to ensure processes have terminated
+sleep 2
 
 # Start services
 make up
