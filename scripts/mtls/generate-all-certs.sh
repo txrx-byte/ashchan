@@ -15,7 +15,7 @@
 # limitations under the License.
 
 #
-# Generate all service certificates for Ashchan ServiceMesh
+# Generate all service certificates for Ashchan mTLS
 # This script generates certificates for all services at once
 #
 
@@ -24,7 +24,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-echo "=== Ashchan ServiceMesh - Generate All Certificates ==="
+echo "=== Ashchan mTLS - Generate All Certificates ==="
 echo ""
 
 # Check if CA exists
@@ -36,14 +36,15 @@ if [[ ! -f "${CA_DIR}/ca.crt" ]] || [[ ! -f "${CA_DIR}/ca.key" ]]; then
     echo ""
 fi
 
-# Define all services
+# Define all services with their DNS names
+# Using localhost as the primary name for native deployment
 declare -A SERVICES=(
-    ["gateway"]="gateway.ashchan.local"
-    ["auth"]="auth.ashchan.local"
-    ["boards"]="boards.ashchan.local"
-    ["media"]="media.ashchan.local"
-    ["search"]="search.ashchan.local"
-    ["moderation"]="moderation.ashchan.local"
+    ["gateway"]="localhost"
+    ["auth"]="localhost"
+    ["boards"]="localhost"
+    ["media"]="localhost"
+    ["search"]="localhost"
+    ["moderation"]="localhost"
 )
 
 echo "Generating certificates for ${#SERVICES[@]} services..."
@@ -64,14 +65,13 @@ echo "Certificate bundle location: ${PROJECT_ROOT}/certs/services/"
 echo ""
 echo "Services:"
 for SERVICE_NAME in "${!SERVICES[@]}"; do
-    echo "  ✓ ${SERVICE_NAME} (${SERVICES[$SERVICE_NAME]})"
+    echo "  ✓ ${SERVICE_NAME}"
 done
 echo ""
 echo "Next steps:"
 echo "  1. Review certificates: ls -la ${PROJECT_ROOT}/certs/services/"
-echo "  2. Update podman-compose.yml to mount certificates"
-echo "  3. Update service .env files with mTLS URLs"
-echo "  4. Start services: podman-compose up -d"
+echo "  2. Update service .env files with mTLS paths"
+echo "  3. Start services: make up"
 echo ""
 echo "To verify a certificate:"
 echo "  openssl x509 -in ${PROJECT_ROOT}/certs/services/gateway/gateway.crt -text -noout"

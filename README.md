@@ -1,80 +1,67 @@
 # ashchan
 [![PHP Composer](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml/badge.svg)](https://github.com/txrx-byte/ashchan/actions/workflows/php.yml)
 
-Ashchan is a high-performance, privacy-first imageboard built on Hyperf with a distributed microservices architecture. It features an **mTLS ServiceMesh** for zero-trust security, DNS-based service discovery, and runs entirely on **rootless Podman** (or you could deploy it to Kubernetes... but I'm not testing it soon :joy: ).
+Ashchan is a high-performance, privacy-first imageboard built on **Hyperf/Swoole** with a distributed microservices architecture. It runs natively on **PHP-CLI via Swoole** without containerization dependencies, providing a simpler deployment model with direct process management.
 
 ## Features
 
-- **mTLS ServiceMesh**: All service-to-service communication encrypted and authenticated via mutual TLS
-- **DNS-Based Discovery**: Services addressed by name (`auth.ashchan.local`, `boards.ashchan.local`, etc.)
-- **Rootless Podman**: No root required, simpler deployment than Kubernetes (in my opinion...)
+- **Native PHP-CLI**: Direct Swoole-based PHP processes without container overhead
+- **mTLS Security**: Service-to-service communication secured via mutual TLS certificates
 - **Privacy-First**: Minimal data retention, IP hashing, compliance-ready (GDPR/CCPA)
 - **Horizontal Scale**: Designed for traffic spikes and high availability
+- **Systemd Integration**: Production-ready service management
 
 ---
 
 ## Quick Start
 
-### Complete Setup (Production - Rootless)
+### Requirements
+
+- PHP 8.2+ with Swoole extension
+- PostgreSQL 16+
+- Redis 7+
+- MinIO or S3-compatible storage (for media)
+- OpenSSL (for certificate generation)
+
+### Installation
 
 ```bash
-# Complete bootstrap with rootless Podman (recommended)
-make bootstrap
-
-# Or run directly
-./bootstrap.sh
-```
-
-### Complete Setup (Dev Containers - Rooted)
-
-```bash
-# Complete bootstrap with root privileges (dev containers only)
-make bootstrap-rooted
-
-# Or run directly
-./bootstrap.sh --rooted
-```
-
-### Development (Quick Iteration)
-
-```bash
-# Quick restart for development (rootless)
-make dev-quick
-
-# Quick restart for development (rooted - dev containers)
-make dev-quick-rooted
-
-# Or run directly  
-./dev-quick.sh [--rooted]
-```
-
-> **⚠️ Rooted Mode**: The `--rooted` flag uses `sudo podman` for dev container environments where rootless Podman has mount limitations. **Only use this for development/testing**. Production deployments should use rootless mode for security.
-
-### Manual Steps (Advanced)
-
-If you need granular control, you can run individual steps:
-
-```bash
-# 1. Generate mTLS certificates
-make mtls-init && make mtls-certs
-
-# 2. Configure services
+# 1. Install PHP dependencies for all services
 make install
 
-# 3. Start services
+# 2. Generate mTLS certificates
+make mtls-init && make mtls-certs
+
+# 3. Configure services (edit .env files as needed)
+# Each service has its own .env file in services/<service-name>/.env
+
+# 4. Start all services
 make up
 
-# 4. Run migrations and seed
-make migrate && make seed
+# 5. Run database migrations
+make migrate
+
+# 6. Seed the database
+make seed
+```
+
+### Quick Development Start
+
+```bash
+# Complete bootstrap (installs deps, generates certs, starts services)
+make bootstrap
+
+# Or for quick restart during development
+make dev-quick
 ```
 
 ### Verify Health
 
 ```bash
-# Check mTLS mesh status
-make mtls-verify
+# Check all services
+make health
 
-# Check service health
+# Check individual service
 curl http://localhost:9501/health
 
 # Check certificate status
@@ -116,7 +103,7 @@ make mtls-status
 
 ---
 
-## Service Mesh Architecture
+## Architecture
 
 ```
                                     ┌─────────────────┐
@@ -132,34 +119,32 @@ make mtls-status
          │                   │               │               │                   │
 ┌────────▼────────┐ ┌────────▼────────┐ ┌───▼─────────┐ ┌───▼─────────┐ ┌───────▼───────┐
 │ Auth/Accounts   │ │Boards/Threads   │ │ Media/      │ │ Search/     │ │ Moderation/   │
-│ mtls:8443       │ │ mtls:8443       │ │ Uploads     │ │ Indexing    │ │ Anti-Spam     │
+│ (Port 9502)     │ │ (Port 9503)     │ │ Uploads     │ │ Indexing    │ │ Anti-Spam     │
+│ mTLS:8443       │ │ mTLS:8443       │ │ (Port 9504) │ │ (Port 9505) │ │ (Port 9506)   │
 └────────┬────────┘ └────────┬────────┘ └──────┬──────┘ └──────┬──────┘ └───────┬───────┘
          │                   │                 │               │                 │
          └───────────────────┴─────────────────┴───────────────┴─────────────────┘
-                                    │
-                        ┌───────────┴───────────┐
-                        │   ServiceMesh Network │
-                        │    10.90.0.0/24       │
-                        │   DNS: ashchan.local  │
-                        └───────────┬───────────┘
                                     │
               ┌─────────────────────┼─────────────────────┐
               │                     │                     │
      ┌────────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
      │   PostgreSQL    │  │     Redis       │  │     MinIO       │
+     │   (Port 5432)   │  │   (Port 6379)   │  │   (Port 9000)   │
      └─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
-### Service DNS Names
+### Service Communication
 
-| Service | DNS Name | Internal URL |
-|---------|----------|--------------|
-| API Gateway | `gateway.ashchan.local` | `https://gateway.ashchan.local:8443` |
-| Auth/Accounts | `auth.ashchan.local` | `https://auth.ashchan.local:8443` |
-| Boards/Threads/Posts | `boards.ashchan.local` | `https://boards.ashchan.local:8443` |
-| Media/Uploads | `media.ashchan.local` | `https://media.ashchan.local:8443` |
-| Search/Indexing | `search.ashchan.local` | `https://search.ashchan.local:8443` |
-| Moderation/Anti-Spam | `moderation.ashchan.local` | `https://moderation.ashchan.local:8443` |
+Services communicate via HTTP/HTTPS over localhost or configured host addresses. For production deployments with mTLS:
+
+| Service | HTTP Port | mTLS Port | Address |
+|---------|-----------|-----------|---------|
+| API Gateway | 9501 | 8443 | localhost or configured host |
+| Auth/Accounts | 9502 | 8443 | localhost or configured host |
+| Boards/Threads/Posts | 9503 | 8443 | localhost or configured host |
+| Media/Uploads | 9504 | 8443 | localhost or configured host |
+| Search/Indexing | 9505 | 8443 | localhost or configured host |
+| Moderation/Anti-Spam | 9506 | 8443 | localhost or configured host |
 
 ---
 
@@ -167,32 +152,40 @@ make mtls-status
 
 ### Development
 ```bash
-make install      # Copy .env files for all services
-make up           # Start all services
+make install      # Copy .env.example to .env for all services
+make up           # Start all services (native PHP processes)
 make down         # Stop all services
-make logs         # Tail logs from all services
+make logs         # View combined logs
 make migrate      # Run database migrations
+make seed         # Seed the database
 make test         # Run all service tests
 make lint         # Lint all PHP code
+make phpstan      # Run PHPStan static analysis
 ```
 
-### mTLS ServiceMesh
+### Bootstrap & Quick Start
 ```bash
-make mtls-init      # Generate Root CA for ServiceMesh
-make mtls-certs     # Generate all service certificates
-make mtls-verify    # Verify mTLS mesh configuration
-make mtls-rotate    # Rotate all service certificates
-make mtls-status    # Show certificate status
+make bootstrap    # Complete setup (deps, certs, services, migrations, seed)
+make dev-quick    # Quick restart for development iteration
 ```
 
-### Helpers
+### mTLS Certificates
 ```bash
-make rebuild        # Rebuild all service images
-make rebuild-<svc>  # Rebuild specific service
-make restart        # Restart all services
-make health         # Check service health
-make clean          # Clean up Podman artifacts
-make clean-certs    # Remove all generated certificates
+make mtls-init    # Generate Root CA for ServiceMesh
+make mtls-certs   # Generate all service certificates
+make mtls-verify  # Verify mTLS configuration
+make mtls-rotate  # Rotate all service certificates
+make mtls-status  # Show certificate expiration status
+```
+
+### Service Management
+```bash
+make start-<svc>  # Start a specific service
+make stop-<svc>   # Stop a specific service
+make restart      # Restart all services
+make health       # Check health of all services
+make clean        # Clean runtime artifacts
+make clean-certs  # Remove all generated certificates
 ```
 
 ---
@@ -209,7 +202,7 @@ make clean-certs    # Remove all generated certificates
 ./scripts/mtls/generate-all-certs.sh
 
 # Generate single service certificate
-./scripts/mtls/generate-cert.sh gateway gateway.ashchan.local
+./scripts/mtls/generate-cert.sh gateway localhost
 ```
 
 ### Verify Certificates
@@ -223,16 +216,6 @@ openssl x509 -in certs/services/gateway/gateway.crt -text -noout
 
 # Verify certificate chain
 openssl verify -CAfile certs/ca/ca.crt certs/services/gateway/gateway.crt
-```
-
-### Rotate Certificates
-
-```bash
-# Rotate all certificates (with rolling restart)
-./scripts/mtls/rotate-certs.sh
-
-# Or use make
-make mtls-rotate
 ```
 
 ### Certificate Locations
@@ -256,56 +239,16 @@ certs/
 
 ---
 
-## Troubleshooting
-
-### Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| Certificate verification failed | Run `make mtls-verify` to diagnose |
-| DNS resolution fails | Check Podman network: `podman network inspect ashchan-mesh` |
-| Service won't start | Check logs: `podman-compose logs <service>` |
-| mTLS handshake fails | Verify certificates match: `make mtls-status` |
-
-### Debug Commands
-
-```bash
-# Check service status
-podman ps
-
-# View service logs
-podman-compose logs -f api-gateway
-
-# Test mTLS connection
-curl --cacert certs/ca/ca.crt \
-     --cert certs/services/gateway/gateway.crt \
-     --key certs/services/gateway/gateway.key \
-     https://gateway.ashchan.local:8443/health
-
-# Check DNS resolution
-podman exec ashchan-gateway-1 getent hosts auth.ashchan.local
-```
-
-### See Also
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Detailed troubleshooting guide
-
----
-
 ## Development
 
-### Requirements
-- Podman 4.0+
-- Podman Compose 2.0+
-- OpenSSL (for certificate generation)
-- PHP 8.2+ (for local development)
-
-### Local Development Without Containers
+### Running Individual Services
 
 ```bash
+# Start a single service for development
 cd services/api-gateway
 composer install
 cp .env.example .env
-# Edit .env to use localhost for DB, Redis
+# Edit .env to configure DB, Redis, etc.
 php bin/hyperf.php start
 ```
 
@@ -316,8 +259,11 @@ php bin/hyperf.php start
 make test
 
 # Run single service tests
-cd services/api-gateway
+cd services/boards-threads-posts
 composer test
+
+# Run with coverage
+composer test -- --coverage-html coverage/
 ```
 
 ### Code Style
@@ -326,46 +272,94 @@ composer test
 # Lint all services
 make lint
 
-# Lint single service
+# Run PHPStan
+make phpstan
+
+# Fix code style (per service)
 cd services/api-gateway
-composer lint
+composer cs-fix
 ```
 
 ---
 
 ## Deployment
 
-### Production Checklist
+### Production Requirements
 
-- [ ] Generate production CA (separate from dev)
-- [ ] Configure firewall rules
-- [ ] Set up log aggregation
-- [ ] Configure backup strategy
-- [ ] Set up monitoring and alerts
-- [ ] Test certificate rotation
-- [ ] Document runbooks
+- **PHP 8.2+** with extensions: swoole, openssl, curl, pdo, pdo_pgsql, redis, mbstring, json, pcntl
+- **PostgreSQL 16+** for persistent storage
+- **Redis 7+** for caching, rate limiting, and queues
+- **MinIO** or S3-compatible storage for media files
+- **Systemd** for process management (recommended)
 
-### Systemd Service (Production)
+### Systemd Service Example
 
 ```ini
 # /etc/systemd/system/ashchan-gateway.service
 [Unit]
 Description=Ashchan API Gateway
-After=network.target ashchan-postgres.service
+After=network.target postgresql.service redis.service
 
 [Service]
 Type=simple
 User=ashchan
-ExecStart=/usr/bin/podman run --rm \
-  --name ashchan-gateway \
-  --network ashchan-mesh \
-  -v /etc/ashchan/certs:/etc/mtls:ro \
-  ashchan-gateway:latest
+Group=ashchan
+WorkingDirectory=/opt/ashchan/services/api-gateway
+Environment=APP_ENV=production
+ExecStart=/usr/bin/php bin/hyperf.php start
 Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+### Production Checklist
+
+- [ ] Generate production CA (separate from dev)
+- [ ] Configure firewall rules for service ports
+- [ ] Set up log aggregation (e.g., journald → Loki)
+- [ ] Configure backup strategy for PostgreSQL
+- [ ] Set up monitoring and alerts (e.g., Prometheus)
+- [ ] Test certificate rotation procedure
+- [ ] Document runbooks for common operations
+- [ ] Configure rate limiting per your traffic expectations
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| Service won't start | Check logs: `journalctl -u ashchan-<service>` |
+| Database connection error | Verify PostgreSQL is running and `.env` is correct |
+| Redis connection error | Verify Redis is running and password matches |
+| mTLS handshake fails | Regenerate certs: `make mtls-certs` |
+| Port already in use | Check for existing processes: `lsof -i :<port>` |
+
+### Debug Commands
+
+```bash
+# Check service status
+systemctl status ashchan-gateway
+
+# View service logs
+journalctl -u ashchan-gateway -f
+
+# Test mTLS connection
+curl --cacert certs/ca/ca.crt \
+     --cert certs/services/gateway/gateway.crt \
+     --key certs/services/gateway/gateway.key \
+     https://localhost:8443/health
+
+# Check PHP extensions
+php -m | grep -E 'swoole|openssl|pdo|redis'
+```
+
+### See Also
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Detailed troubleshooting guide
 
 ---
 
@@ -379,7 +373,7 @@ Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
 ### Code Style
 - PSR-12 compliance
 - Type hints required (`declare(strict_types=1);`)
-- PHPStan static analysis
+- PHPStan Level 10 static analysis
 
 ---
 
@@ -387,32 +381,17 @@ Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
 
-### Third-Party: SWOOLE-CLI LICENSE
-
-This project uses [swoole-cli](https://github.com/swoole/swoole-cli) to produce
-static PHP binaries. The SWOOLE-CLI LICENSE requires that:
-
-1. Any new project that uses, modifies, or distributes swoole-cli code **must
-   include the full SWOOLE-CLI LICENSE text**.
-2. Projects or products redistributing swoole-cli **must not include the word
-   "swoole" in the project or product name**.
-
-Ashchan does not include "swoole" in its name and ships the SWOOLE-CLI LICENSE
-in [`docker/swoole-cli/SWOOLE-CLI-LICENSE`](docker/swoole-cli/SWOOLE-CLI-LICENSE).
-
 ---
 
 ## Status
 
-✅ mTLS ServiceMesh architecture complete
-✅ Certificate generation and rotation scripts
-✅ DNS-based service discovery
-✅ Rootless Podman deployment
-✅ Service scaffolding and migrations
-✅ OpenAPI contracts
-✅ Event schemas
-✅ Moderation system (ported from OpenYotsuba)
+✅ mTLS certificate generation and rotation scripts  
+✅ Service scaffolding and migrations  
+✅ OpenAPI contracts  
+✅ Event schemas  
+✅ Moderation system (ported from OpenYotsuba)  
+✅ Native PHP-CLI deployment model  
 
-🚧 Domain logic implementation
-🚧 Event publishing/consumption
+🚧 Domain logic implementation  
+🚧 Event publishing/consumption  
 🚧 Integration tests

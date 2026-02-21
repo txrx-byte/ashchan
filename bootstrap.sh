@@ -18,21 +18,20 @@
 # Ashchan Bootstrap Script
 # 
 # This script performs a complete setup of the Ashchan development environment:
+# - Verifies PHP and required extensions
 # - Initializes mTLS certificates
-# - Configures Podman registries
 # - Sets up service environment files
-# - Starts all services
+# - Installs composer dependencies
 # - Runs database migrations
 # - Seeds the database
-# - Verifies the installation
+# - Starts all services
 #
-# Usage: ./bootstrap.sh [--force] [--rooted]
+# Usage: ./bootstrap.sh [--force]
 #
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="${SCRIPT_DIR}/podman-compose.yml"
 
 # Colors for output
 RED='\033[0;31m'
@@ -51,7 +50,6 @@ step() { echo -e "${CYAN}[STEP]${NC} $1"; }
 
 # Parse command line arguments
 FORCE_REBUILD=false
-ROOTED_MODE=false
 
 for arg in "$@"; do
     case $arg in
@@ -59,28 +57,13 @@ for arg in "$@"; do
             FORCE_REBUILD=true
             warn "Force rebuild mode enabled"
             ;;
-        --rooted)
-            ROOTED_MODE=true
-            warn "Rooted mode enabled (for dev containers/testing)"
-            ;;
         *)
             error "Unknown argument: $arg"
-            echo "Usage: $0 [--force] [--rooted]"
+            echo "Usage: $0 [--force]"
             exit 1
             ;;
     esac
 done
-
-# Set podman command prefix based on mode
-if [[ "$ROOTED_MODE" == "true" ]]; then
-    PODMAN_CMD="sudo podman"
-    PODMAN_COMPOSE_CMD="sudo podman-compose"
-    warn "Using rooted Podman (sudo) - only use for dev containers!"
-else
-    PODMAN_CMD="podman"
-    PODMAN_COMPOSE_CMD="podman-compose"
-    info "Using rootless Podman (recommended for production)"
-fi
 
 # Show header
 echo
@@ -89,33 +72,44 @@ echo " ▄▀█ █▀ █░█ █▀▀ █░█ █▀█ █▄░█"
 echo " █▀█ ▄█ █▀█ █▄▄ █▀█ █▀█ █░▀█"
 echo "=================================================="
 echo "         Bootstrap Development Environment"
+echo "           (Native PHP-CLI via Swoole)"
 echo "=================================================="
 echo
 
-# Step 1: Configure Podman registries
-step "1/8 Configuring Podman registries..."
-CONFIG_DIR="$HOME/.config/containers"
-CONFIG_FILE="$CONFIG_DIR/registries.conf"
+# Step 1: Verify PHP and required extensions
+step "1/7 Verifying PHP environment..."
 
-mkdir -p "$CONFIG_DIR"
-cat << 'EOF' > "$CONFIG_FILE"
-[registries.search]
-registries = ["docker.io", "registry.redhat.io", "quay.io"]
+if ! command -v php &> /dev/null; then
+    error "PHP is not installed. Please install PHP 8.2+ with Swoole extension."
+    exit 1
+fi
 
-[registries.insecure]
-registries = []
+PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+info "PHP Version: $PHP_VERSION"
 
-[registries.block]
-registries = []
+# Check for required extensions
+REQUIRED_EXTENSIONS=("swoole" "openssl" "pdo" "pdo_pgsql" "redis" "mbstring" "json" "curl" "pcntl")
+MISSING_EXTENSIONS=()
 
-[registries.mirrors."docker.io"]
-mirror = ["https://mirror.gcr.io", "https://registry-1.docker.io"]
-EOF
+for ext in "${REQUIRED_EXTENSIONS[@]}"; do
+    if ! php -m | grep -qi "^${ext}$"; then
+        MISSING_EXTENSIONS+=("$ext")
+    fi
+done
 
-success "Podman registries configured"
+if [ ${#MISSING_EXTENSIONS[@]} -gt 0 ]; then
+    error "Missing PHP extensions: ${MISSING_EXTENSIONS[*]}"
+    echo ""
+    echo "Install missing extensions:"
+    echo "  Ubuntu/Debian: sudo apt-get install php-swoole php-pgsql php-redis"
+    echo "  Or via PECL:   pecl install swoole redis"
+    exit 1
+fi
+
+success "PHP environment verified"
 
 # Step 2: Initialize mTLS certificates
-step "2/8 Initializing mTLS ServiceMesh..."
+step "2/7 Initializing mTLS certificates..."
 CERTS_DIR="${SCRIPT_DIR}/certs"
 
 if [[ "$FORCE_REBUILD" == "true" ]] || [[ ! -f "${CERTS_DIR}/ca/ca.crt" ]]; then
@@ -131,7 +125,7 @@ else
 fi
 
 # Step 3: Set up service environment files
-step "3/8 Setting up service configurations..."
+step "3/7 Setting up service configurations..."
 SERVICES=("api-gateway" "auth-accounts" "boards-threads-posts" "media-uploads" "search-indexing" "moderation-anti-spam")
 
 for svc in "${SERVICES[@]}"; do
@@ -152,137 +146,77 @@ done
 
 success "Service configurations ready"
 
-# Step 4: Stop any existing services
-step "4/8 Cleaning up existing services..."
-$PODMAN_COMPOSE_CMD -f "$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
-success "Existing services stopped"
+# Step 4: Install composer dependencies
+step "4/7 Installing composer dependencies..."
 
-# Step 5: Start all services
-step "5/8 Starting all services..."
-info "Starting infrastructure (PostgreSQL, Redis, MinIO)..."
-info "Starting microservices (API Gateway, Auth, Boards, Media, Search, Moderation)..."
+for svc in "${SERVICES[@]}"; do
+    info "Installing dependencies for ${svc}..."
+    (cd "services/${svc}" && composer install --no-interaction --quiet) || warn "Failed to install deps for ${svc}"
+done
 
-$PODMAN_COMPOSE_CMD -f "$COMPOSE_FILE" up -d
+success "Composer dependencies installed"
 
-# Wait for services to be ready
+# Step 5: Verify database connectivity (if psql available)
+step "5/7 Checking database connectivity..."
+
+if command -v psql &> /dev/null; then
+    DB_HOST="${DB_HOST:-localhost}"
+    DB_USER="${DB_USER:-ashchan}"
+    DB_NAME="${DB_NAME:-ashchan}"
+    
+    if psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
+        success "PostgreSQL connection verified"
+        
+        # Run migrations
+        step "5b/7 Running database migrations..."
+        for migration in db/migrations/*.sql; do
+            if [ -f "$migration" ]; then
+                MIGRATION_NAME=$(basename "$migration")
+                info "Running migration: ${MIGRATION_NAME}"
+                psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -f "$migration" 2>/dev/null || \
+                    warn "Migration may have already been applied: ${MIGRATION_NAME}"
+            fi
+        done
+        success "Database migrations completed"
+        
+        # Seed database
+        step "5c/7 Seeding database..."
+        for seeder in db/seeders/*.sql; do
+            if [ -f "$seeder" ]; then
+                SEEDER_NAME=$(basename "$seeder")
+                info "Running seeder: ${SEEDER_NAME}"
+                psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -f "$seeder" 2>/dev/null || \
+                    warn "Seeder may have already been applied: ${SEEDER_NAME}"
+            fi
+        done
+        success "Database seeding completed"
+    else
+        warn "Cannot connect to PostgreSQL. Skipping migrations."
+        warn "Ensure PostgreSQL is running and accessible:"
+        warn "  Host: $DB_HOST, User: $DB_USER, Database: $DB_NAME"
+    fi
+else
+    warn "psql not found. Skipping database setup."
+    warn "Install PostgreSQL client: apt-get install postgresql-client"
+fi
+
+# Step 6: Start all services
+step "6/7 Starting all services..."
+
+# Stop any existing services first
+make down 2>/dev/null || true
+
+# Start services
+make up
+
+# Wait for services to start
 info "Waiting for services to start..."
-sleep 10
+sleep 5
 
-# Check if PostgreSQL is ready
-info "Waiting for PostgreSQL to be ready..."
-for i in {1..30}; do
-    if $PODMAN_CMD exec ashchan-postgres-1 pg_isready -U ashchan -d ashchan >/dev/null 2>&1; then
-        success "PostgreSQL is ready"
-        break
-    fi
-    if [[ $i -eq 30 ]]; then
-        error "PostgreSQL failed to start within 30 seconds"
-        exit 1
-    fi
-    sleep 1
-done
+success "Services started"
 
-success "All services started"
-
-# Step 6: Run database migrations
-step "6/8 Running database migrations..."
-
-# SQL migrations
-SQL_MIGRATIONS=(
-    "001_auth_accounts.sql"
-    "001_moderation_system.sql"
-    "002_boards_threads_posts.sql"
-    "002_staff_auth_security.sql"
-    "003_additional_logs.sql"
-    "003_media_uploads.sql"
-    "004_account_management.sql"
-    "004_moderation_anti_spam.sql"
-    "005_blotter.sql"
-    "006_fix_media_objects.sql"
-    "007_add_archived_to_boards.sql"
-    "008_janitor_stats.sql"
-    "20260219000000_boards_add_ip_address.sql"
-    "20260219000001_add_sfs_pending_reports.sql"
-    "20260220000001_pii_encryption_retention.sql"
-    "20260220000002_create_site_settings.sql"
-    "20260221000001_ip_encryption_hash_columns.sql"
-)
-
-for migration in "${SQL_MIGRATIONS[@]}"; do
-    if [[ -f "db/migrations/${migration}" ]]; then
-        info "Running migration: ${migration}"
-        $PODMAN_CMD exec ashchan-postgres-1 psql -U ashchan -d ashchan -f "/app/db/migrations/${migration}"
-    else
-        warn "Migration file not found: ${migration}"
-    fi
-done
-
-# PHP migrations (using Hyperf/Phinx if available)
-PHP_MIGRATIONS=(
-    "20260218000001_create_reports_table.php"
-    "20260218000002_create_report_categories_table.php"
-    "20260218000003_create_ban_templates_table.php"
-    "20260218000004_create_banned_users_table.php"
-    "20260218000005_create_ban_requests_table.php"
-    "20260218000006_create_report_clear_log_table.php"
-    "20260218000007_create_janitor_stats_table.php"
-)
-
-# Check if we have Hyperf migration command available
-if $PODMAN_CMD exec ashchan-boards-1 php /app/bin/hyperf.php migrate:status >/dev/null 2>&1; then
-    info "Running PHP migrations via Hyperf..."
-    $PODMAN_CMD exec ashchan-boards-1 php /app/bin/hyperf.php migrate
-else
-    warn "Hyperf migration command not available, skipping PHP migrations"
-fi
-
-success "Database migrations completed"
-
-# Step 7: Seed the database
-step "7/8 Seeding the database..."
-
-# Run SQL seeders
-SQL_SEEDERS=(
-    "boards.sql"
-)
-
-for seeder in "${SQL_SEEDERS[@]}"; do
-    if [[ -f "db/seeders/${seeder}" ]]; then
-        info "Running seeder: ${seeder}"
-        $PODMAN_CMD exec ashchan-postgres-1 psql -U ashchan -d ashchan -f "/app/db/seeders/${seeder}"
-    else
-        warn "Seeder file not found: ${seeder}"
-    fi
-done
-
-# Run PHP seeders if available
-PHP_SEEDERS=(
-    "BanTemplateSeeder.php"
-    "ReportCategorySeeder.php"
-)
-
-if $PODMAN_CMD exec ashchan-boards-1 php /app/bin/hyperf.php db:seed --help >/dev/null 2>&1; then
-    info "Running PHP seeders via Hyperf..."
-    for seeder in "${PHP_SEEDERS[@]}"; do
-        seeder_class=$(basename "$seeder" .php)
-        if $PODMAN_CMD exec ashchan-boards-1 php /app/bin/hyperf.php db:seed --class="$seeder_class" 2>/dev/null; then
-            info "Seeded: ${seeder_class}"
-        else
-            warn "Seeder not found or failed: ${seeder_class}"
-        fi
-    done
-else
-    warn "Hyperf seeder command not available, skipping PHP seeders"
-fi
-
-success "Database seeding completed"
-
-# Step 8: Verify installation
-step "8/8 Verifying installation..."
-
-# Check service health
-info "Checking service health..."
-sleep 5  # Give services a moment to fully start
+# Step 7: Verify health
+step "7/7 Verifying service health..."
 
 HEALTH_CHECKS=(
     "http://localhost:9501/health:API Gateway"
@@ -304,12 +238,12 @@ for check in "${HEALTH_CHECKS[@]}"; do
     fi
 done
 
-# Check mTLS mesh
-info "Verifying mTLS ServiceMesh..."
+# Verify mTLS certificates
+info "Verifying mTLS certificates..."
 if make mtls-verify >/dev/null 2>&1; then
-    success "✓ mTLS ServiceMesh is operational"
+    success "✓ mTLS certificates are valid"
 else
-    warn "✗ mTLS verification failed (services may still be starting)"
+    warn "✗ mTLS verification failed (check certificate configuration)"
 fi
 
 # Final status
@@ -326,25 +260,19 @@ echo "  • Media Service:  http://localhost:9504"
 echo "  • Search Service: http://localhost:9505"
 echo "  • Moderation:     http://localhost:9506"
 echo
-info "Infrastructure services:"
-echo "  • PostgreSQL:     localhost:5432 (ashchan/ashchan)"
+info "Infrastructure services (required separately):"
+echo "  • PostgreSQL:     localhost:5432"
 echo "  • Redis:          localhost:6379"
 echo "  • MinIO:          localhost:9000"
 echo
 info "Useful commands:"
-if [[ "$ROOTED_MODE" == "true" ]]; then
-echo "  • View logs:      sudo podman-compose logs -f"
-echo "  • Stop services:  sudo podman-compose down"
-echo "  • Restart:        ./bootstrap.sh --force --rooted"
-else
-echo "  • View logs:      podman-compose logs -f"
-echo "  • Stop services:  podman-compose down"
-echo "  • Restart:        ./bootstrap.sh --force"
-fi
+echo "  • View logs:      make logs"
+echo "  • Stop services:  make down"
+echo "  • Check health:   make health"
+echo "  • Restart:        make restart"
 echo
 info "Flags:"
 echo "  • --force         Force rebuild (regenerate certs, recreate .env files)"
-echo "  • --rooted        Use sudo podman (dev containers only, not production)"
 echo
 info "Check the README.md for more information!"
 echo

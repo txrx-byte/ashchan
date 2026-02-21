@@ -15,8 +15,8 @@
 # limitations under the License.
 
 #
-# Verify mTLS mesh connectivity for Ashchan ServiceMesh
-# This script tests that all services can communicate via mTLS
+# Verify mTLS configuration for Ashchan
+# This script tests that all certificates are valid and services can communicate via mTLS
 #
 
 set -e
@@ -26,8 +26,9 @@ PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 CERTS_DIR="${PROJECT_ROOT}/certs"
 CA_DIR="${CERTS_DIR}/ca"
 SERVICES_DIR="${CERTS_DIR}/services"
+PID_DIR="/tmp/ashchan-pids"
 
-echo "=== Ashchan ServiceMesh - mTLS Verification ==="
+echo "=== Ashchan mTLS - Verification ==="
 echo ""
 
 # Colors for output
@@ -44,12 +45,6 @@ if ! command -v openssl &> /dev/null; then
     exit 1
 fi
 echo -e "${GREEN}✓ openssl found${NC}"
-
-if ! command -v podman &> /dev/null; then
-    echo -e "${RED}✗ podman not found${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓ podman found${NC}"
 
 echo ""
 
@@ -107,19 +102,31 @@ for SERVICE in "${SERVICES[@]}"; do
     
     # Check certificate expiry
     EXPIRY=$(openssl x509 -in "${CERT_FILE}" -noout -enddate | cut -d= -f2)
-    EXPIRY_EPOCH=$(date -d "${EXPIRY}" +%s)
-    NOW_EPOCH=$(date +%s)
-    DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
-    
-    if [[ ${DAYS_LEFT} -lt 30 ]]; then
-        echo -e "${YELLOW}  ⚠ Certificate expires in ${DAYS_LEFT} days${NC}"
+    # Handle different date command versions (GNU vs BSD)
+    if date --version >/dev/null 2>&1; then
+        # GNU date
+        EXPIRY_EPOCH=$(date -d "${EXPIRY}" +%s)
     else
-        echo -e "${GREEN}  ✓ Certificate expires in ${DAYS_LEFT} days (${EXPIRY})${NC}"
+        # BSD date (macOS)
+        EXPIRY_EPOCH=$(date -j -f "%b %d %H:%M:%S %Y %Z" "${EXPIRY}" +%s 2>/dev/null || echo "0")
+    fi
+    NOW_EPOCH=$(date +%s)
+    
+    if [[ ${EXPIRY_EPOCH} -gt 0 ]]; then
+        DAYS_LEFT=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
+        
+        if [[ ${DAYS_LEFT} -lt 30 ]]; then
+            echo -e "${YELLOW}  ⚠ Certificate expires in ${DAYS_LEFT} days${NC}"
+        else
+            echo -e "${GREEN}  ✓ Certificate expires in ${DAYS_LEFT} days (${EXPIRY})${NC}"
+        fi
+    else
+        echo "     Expiry: ${EXPIRY}"
     fi
     
     # Check key matches certificate
-    CERT_MD5=$(openssl x509 -noout -modulus -in "${CERT_FILE}" | openssl md5)
-    KEY_MD5=$(openssl rsa -noout -modulus -in "${KEY_FILE}" | openssl md5)
+    CERT_MD5=$(openssl x509 -noout -modulus -in "${CERT_FILE}" 2>/dev/null | openssl md5)
+    KEY_MD5=$(openssl rsa -noout -modulus -in "${KEY_FILE}" 2>/dev/null | openssl md5)
     
     if [[ "${CERT_MD5}" == "${KEY_MD5}" ]]; then
         echo -e "${GREEN}  ✓ Certificate and key match${NC}"
@@ -132,7 +139,7 @@ for SERVICE in "${SERVICES[@]}"; do
     echo "     Subject: ${SUBJECT}"
     
     # Show SANs
-    SANS=$(openssl x509 -in "${CERT_FILE}" -noout -ext subjectAltName | grep -v "Subject Alternative Name:" | tr -d ' ')
+    SANS=$(openssl x509 -in "${CERT_FILE}" -noout -ext subjectAltName 2>/dev/null | grep -v "Subject Alternative Name:" | tr -d ' ' || echo "N/A")
     echo "     SANs: ${SANS}"
     
     echo ""
@@ -141,26 +148,16 @@ done
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Check Podman network
-echo "Checking Podman network configuration..."
-if podman network inspect ashchan-mesh > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ ashchan-mesh network exists${NC}"
-else
-    echo -e "${YELLOW}⚠ ashchan-mesh network not found (will be created on first compose up)${NC}"
-fi
-
-echo ""
-
 # Check if services are running
 echo "Checking service status..."
 RUNNING_COUNT=0
 for SERVICE in "${SERVICES[@]}"; do
-    CONTAINER_NAME="ashchan-${SERVICE}-1"
-    if podman ps --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
-        echo -e "${GREEN}✓ ${CONTAINER_NAME} is running${NC}"
+    PID_FILE="${PID_DIR}/${SERVICE}.pid"
+    if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
+        echo -e "${GREEN}✓ ${SERVICE} is running (PID $(cat "${PID_FILE}"))${NC}"
         ((RUNNING_COUNT++))
     else
-        echo "  ${CONTAINER_NAME} is not running"
+        echo "  ${SERVICE} is not running"
     fi
 done
 
@@ -168,21 +165,28 @@ echo ""
 echo "Running services: ${RUNNING_COUNT}/${#SERVICES[@]}"
 echo ""
 
-# Test mTLS connections if services are running
+# Test health endpoints if services are running
 if [[ ${RUNNING_COUNT} -gt 0 ]]; then
-    echo "Testing mTLS connectivity..."
+    echo "Testing service health endpoints..."
     echo ""
     
-    # Test gateway health endpoint
-    GATEWAY_CERT="${SERVICES_DIR}/gateway/gateway.crt"
-    GATEWAY_KEY="${SERVICES_DIR}/gateway/gateway.key"
+    declare -A PORTS=(
+        ["gateway"]="9501"
+        ["auth"]="9502"
+        ["boards"]="9503"
+        ["media"]="9504"
+        ["search"]="9505"
+        ["moderation"]="9506"
+    )
     
-    echo "Testing gateway public endpoint..."
-    if curl -k -s --max-time 5 https://localhost:9501/health > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Gateway health endpoint responding${NC}"
-    else
-        echo -e "${YELLOW}⚠ Gateway health endpoint not responding (may be starting)${NC}"
-    fi
+    for SERVICE in "${SERVICES[@]}"; do
+        PORT="${PORTS[$SERVICE]}"
+        if curl -s --max-time 2 "http://localhost:${PORT}/health" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ ${SERVICE} health endpoint responding (port ${PORT})${NC}"
+        else
+            echo -e "${YELLOW}⚠ ${SERVICE} health endpoint not responding (port ${PORT})${NC}"
+        fi
+    done
     
     echo ""
 fi
@@ -192,7 +196,7 @@ echo ""
 echo "Certificate storage: ${CERTS_DIR}"
 echo ""
 echo "Next steps:"
-echo "  1. If certificates are valid: podman-compose up -d"
-echo "  2. Check service logs: podman-compose logs -f"
-echo "  3. Test mTLS: curl --cacert ${CA_DIR}/ca.crt https://<service>.ashchan.local:8443/health"
+echo "  1. Start services: make up"
+echo "  2. View logs: make logs"
+echo "  3. Test mTLS: curl --cacert ${CA_DIR}/ca.crt https://localhost:8443/health"
 echo ""

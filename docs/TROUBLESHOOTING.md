@@ -1,171 +1,418 @@
 # Ashchan Troubleshooting Guide
 
-Common issues and solutions for running Ashchan with Podman.
+Common issues and solutions for running Ashchan with native PHP-CLI.
 
 ---
 
-## DNS Resolution Errors in Containers
+## PHP Environment Issues
 
-### Symptom
-
-You see errors like this in your service logs:
+### Symptom: Swoole extension not loaded
 
 ```
-RedisException: DNS Lookup resolve failed in /app/vendor/hyperf/redis/src/RedisConnection.php:318
+Fatal error: Class 'Swoole\Server' not found
 ```
 
-Or similar errors for PostgreSQL, other services, or inter-service communication.
+**Solution:**
 
-### Root Cause
+1. **Install Swoole extension:**
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install php-swoole
 
-**Podman Compose v2 network configuration issue**: When using `podman-compose` with version `'2.4'`, containers may not automatically connect to a shared network that enables DNS resolution between services.
+   # Or via PECL
+   pecl install swoole
+   
+   # Enable in php.ini
+   echo "extension=swoole.so" | sudo tee /etc/php/8.2/cli/conf.d/20-swoole.ini
+   ```
 
-The issue occurs because:
+2. **Verify installation:**
+   ```bash
+   php -m | grep swoole
+   php -r "echo Swoole\Constant::VERSION;"
+   ```
 
-1. Podman creates containers on isolated networks by default
-2. Without an explicit shared network definition, each container cannot resolve hostnames like `redis`, `postgres`, or service names
-3. The Hyperf framework tries to connect to `REDIS_HOST=redis` but DNS lookup fails
+### Symptom: Missing PHP extensions
 
-### Solution
-
-Add an explicit network configuration to `podman-compose.yml`:
-
-```yaml
-version: '2.4'
-
-# Add this networks block at the top
-networks:
-  ashchan:
-    driver: bridge
-    ipam:
-      driver: host-local
-      config:
-        - subnet: 10.89.0.0/24
-
-services:
-  postgres:
-    # ... your config ...
-    networks:
-      - ashchan  # Add this to EVERY service
-
-  redis:
-    # ... your config ...
-    networks:
-      - ashchan  # Add this to EVERY service
-
-  # ... all other services need the networks: - ashchan line ...
+```
+Class 'PDO' not found
+Class 'Redis' not found
 ```
 
-### Steps to Fix
-
-1. **Stop all running containers:**
-   ```bash
-   ./ashchan.sh down
-   ```
-
-2. **Update `podman-compose.yml`** with the network configuration (see above)
-
-3. **Remove old networks** (if they exist):
-   ```bash
-   podman network rm ashchan-network ashchan_default 2>/dev/null || true
-   ```
-
-4. **Restart services:**
-   ```bash
-   ./ashchan.sh up
-   ```
-
-5. **Verify DNS resolution works:**
-   ```bash
-   podman exec ashchan-api-gateway ping -c 2 redis
-   # Should resolve and ping successfully
-   ```
-
-### Verification
-
-After applying the fix, test connectivity:
+**Solution:**
 
 ```bash
-# Check all containers are on the same network
-podman network inspect ashchan
+# Install required extensions
+sudo apt-get install php-pdo php-pgsql php-redis php-mbstring php-curl php-xml
 
-# Test DNS resolution from inside a container
-podman exec ashchan-api-gateway getent hosts redis
-podman exec ashchan-api-gateway getent hosts postgres
-
-# Check service health
-./ashchan.sh health
+# Verify
+php -m | grep -E 'pdo|pgsql|redis|mbstring|curl'
 ```
 
 ---
 
-## Other Common Issues
+## Service Startup Issues
 
-### Container Won't Start
+### Symptom: Service won't start
 
-**Check logs:**
+**Check 1: View logs**
 ```bash
-./ashchan.sh logs <service-name>
+# View service log
+cat /tmp/ashchan-gateway.log
+
+# Tail logs for all services
+make logs
 ```
 
-**Common causes:**
-- Missing `.env` file - run `./ashchan.sh setup`
-- Database not ready - wait for health check to pass
-- Port already in use - check with `podman ps`
-
-### Database Connection Errors
-
-**Wait for PostgreSQL to be ready:**
+**Check 2: Verify PHP syntax**
 ```bash
-podman exec ashchan-postgres pg_isready -U ashchan
+cd services/api-gateway
+php -l bin/hyperf.php
 ```
 
-**Check database exists:**
+**Check 3: Check port availability**
 ```bash
-podman exec -it ashchan-postgres psql -U ashchan -c '\l'
+# Check if port is in use
+lsof -i :9501
+
+# Kill process using the port (if safe to do so)
+# Get PID from lsof output and: kill <PID>
 ```
 
-### MinIO Connection Issues
-
-**Check MinIO is healthy:**
+**Check 4: Verify .env file exists**
 ```bash
-curl http://localhost:9000/minio/health/live
+ls -la services/api-gateway/.env
+# If missing, copy from example
+cp services/api-gateway/.env.example services/api-gateway/.env
 ```
 
-**Access MinIO Console:**
+### Symptom: Permission denied errors
+
 ```
-http://localhost:9001
-Username: ashchan
-Password: ashchan123
+Error: Cannot read /path/to/certs/...
 ```
 
-### Permission Denied on Volumes
+**Solution:**
 
-**Fix volume permissions:**
 ```bash
-podman unshare chown -R 1000:1000 ~/.local/share/containers/storage/volumes/
+# Fix certificate permissions
+chmod 644 certs/ca/ca.crt
+chmod 644 certs/services/*//*.crt
+chmod 600 certs/services/*/*.key
+
+# Fix ownership (if needed)
+chown -R $(whoami):$(whoami) certs/
 ```
 
 ---
 
-## Management Commands
+## Database Connection Issues
 
-Use the `./ashchan.sh` script for common operations:
+### Symptom: PostgreSQL connection refused
 
-| Command | Description |
-|---------|-------------|
-| `./ashchan.sh setup` | Initial setup (creates .env files, starts services) |
-| `./ashchan.sh up` | Start all services |
-| `./ashchan.sh down` | Stop and remove everything (containers, networks, volumes) |
-| `./ashchan.sh stop` | Stop containers (keeps data) |
-| `./ashchan.sh restart` | Restart all containers |
-| `./ashchan.sh status` | Show container status |
-| `./ashchan.sh logs [svc]` | Tail logs (optionally for specific service) |
-| `./ashchan.sh health` | Check health of all services |
-| `./ashchan.sh rebuild [svc]` | Rebuild service images |
-| `./ashchan.sh migrate` | Run database migrations |
-| `./ashchan.sh clean` | Remove everything including build cache |
-| `./ashchan.sh help` | Show all commands |
+```
+SQLSTATE[08006] Connection refused
+```
+
+**Solutions:**
+
+1. **Verify PostgreSQL is running:**
+   ```bash
+   # Systemd
+   sudo systemctl status postgresql
+   
+   # Check if listening
+   pg_isready -h localhost -p 5432
+   ```
+
+2. **Check connection parameters in .env:**
+   ```bash
+   cat services/api-gateway/.env | grep DB_
+   # Verify DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+   ```
+
+3. **Test connection manually:**
+   ```bash
+   psql -h localhost -U ashchan -d ashchan -c "SELECT 1"
+   ```
+
+4. **Check pg_hba.conf for local connections:**
+   ```bash
+   sudo cat /etc/postgresql/16/main/pg_hba.conf | grep -v "^#"
+   ```
+
+### Symptom: Redis connection refused
+
+```
+RedisException: Connection refused
+```
+
+**Solutions:**
+
+1. **Verify Redis is running:**
+   ```bash
+   sudo systemctl status redis
+   redis-cli ping
+   ```
+
+2. **Check Redis password in .env:**
+   ```bash
+   cat services/api-gateway/.env | grep REDIS_
+   # Verify REDIS_HOST, REDIS_PORT, REDIS_AUTH (password)
+   ```
+
+3. **Test connection manually:**
+   ```bash
+   redis-cli -h localhost -a "your_password" ping
+   ```
+
+---
+
+## mTLS Certificate Issues
+
+### Symptom: Certificate verification failed
+
+```
+SSL: certificate verify failed
+```
+
+**Solutions:**
+
+1. **Verify certificate chain:**
+   ```bash
+   openssl verify -CAfile certs/ca/ca.crt certs/services/gateway/gateway.crt
+   ```
+
+2. **Check certificate expiration:**
+   ```bash
+   make mtls-status
+   # Or manually:
+   openssl x509 -in certs/services/gateway/gateway.crt -noout -dates
+   ```
+
+3. **Regenerate certificates:**
+   ```bash
+   make clean-certs
+   make mtls-init
+   make mtls-certs
+   ```
+
+### Symptom: mTLS handshake fails
+
+```
+SSL_ERROR_SYSCALL
+SSL routines::tlsv13 alert certificate required
+```
+
+**Solutions:**
+
+1. **Verify both client and server certificates:**
+   ```bash
+   # Test with openssl
+   openssl s_client -connect localhost:8443 \
+     -cert certs/services/gateway/gateway.crt \
+     -key certs/services/gateway/gateway.key \
+     -CAfile certs/ca/ca.crt
+   ```
+
+2. **Check certificate Common Name (CN):**
+   ```bash
+   openssl x509 -in certs/services/auth/auth.crt -noout -subject
+   ```
+
+3. **Ensure MTLS environment variables are set:**
+   ```bash
+   cat services/auth-accounts/.env | grep MTLS_
+   ```
+
+---
+
+## Service Communication Issues
+
+### Symptom: Service-to-service calls timeout
+
+**Solutions:**
+
+1. **Verify target service is running:**
+   ```bash
+   make health
+   curl -s http://localhost:9502/health
+   ```
+
+2. **Check service URL in .env:**
+   ```bash
+   cat services/api-gateway/.env | grep SERVICE_URL
+   ```
+
+3. **Test connection with curl:**
+   ```bash
+   # HTTP (development)
+   curl -v http://localhost:9502/health
+   
+   # mTLS (production)
+   curl --cacert certs/ca/ca.crt \
+        --cert certs/services/gateway/gateway.crt \
+        --key certs/services/gateway/gateway.key \
+        https://localhost:8443/health
+   ```
+
+### Symptom: Health check returns 503
+
+**Check service logs for the underlying error:**
+```bash
+tail -100 /tmp/ashchan-auth.log
+```
+
+Common causes:
+- Database connection failed
+- Redis connection failed
+- Dependency service not available
+
+---
+
+## Performance Issues
+
+### Symptom: High memory usage
+
+```bash
+# Check PHP process memory
+ps aux | grep hyperf
+
+# Check Swoole worker configuration
+cat services/api-gateway/config/autoload/server.php | grep worker_num
+```
+
+**Solution:** Adjust worker count in `config/autoload/server.php`:
+```php
+'settings' => [
+    'worker_num' => 4, // Reduce for limited memory
+    'max_request' => 1000, // Recycle workers after N requests
+],
+```
+
+### Symptom: Slow response times
+
+**Check 1: Database queries**
+```bash
+# Enable slow query log in PostgreSQL
+# Check pg_stat_statements for slow queries
+```
+
+**Check 2: Redis connection pooling**
+```bash
+# Verify Redis connection pool settings in .env
+REDIS_POOL_MAX_CONNECTIONS=10
+```
+
+**Check 3: Swoole coroutine settings**
+```php
+// config/autoload/server.php
+'settings' => [
+    'enable_coroutine' => true,
+    'max_coroutine' => 100000,
+],
+```
+
+---
+
+## Process Management
+
+### Starting Services
+
+```bash
+# Start all services
+make up
+
+# Start specific service
+make start-gateway
+make start-auth
+make start-boards
+make start-media
+make start-search
+make start-moderation
+```
+
+### Stopping Services
+
+```bash
+# Stop all services
+make down
+
+# Stop specific service
+make stop-gateway
+```
+
+### Checking Service Status
+
+```bash
+# Quick health check
+make health
+
+# Check running processes
+ps aux | grep hyperf
+
+# Check PID files
+ls -la /tmp/ashchan-pids/
+```
+
+---
+
+## Log Files
+
+| Service | Log Location |
+|---------|--------------|
+| API Gateway | `/tmp/ashchan-gateway.log` |
+| Auth | `/tmp/ashchan-auth.log` |
+| Boards | `/tmp/ashchan-boards.log` |
+| Media | `/tmp/ashchan-media.log` |
+| Search | `/tmp/ashchan-search.log` |
+| Moderation | `/tmp/ashchan-moderation.log` |
+
+### Viewing Logs
+
+```bash
+# All logs combined
+make logs
+
+# Specific service
+tail -f /tmp/ashchan-gateway.log
+
+# Search for errors
+grep -i error /tmp/ashchan-*.log
+```
+
+---
+
+## Cleanup and Reset
+
+### Full Reset
+
+```bash
+# Stop all services
+make down
+
+# Clean runtime artifacts
+make clean
+
+# Clean certificates
+make clean-certs
+
+# Fresh bootstrap
+make bootstrap
+```
+
+### Reset Single Service
+
+```bash
+# Stop service
+make stop-gateway
+
+# Clear runtime cache
+rm -rf services/api-gateway/runtime/*
+
+# Start service
+make start-gateway
+```
 
 ---
 
@@ -173,7 +420,9 @@ Use the `./ashchan.sh` script for common operations:
 
 If you encounter issues not covered here:
 
-1. Check service logs: `./ashchan.sh logs`
-2. Verify container status: `./ashchan.sh status`
-3. Check network configuration: `./ashchan.sh network`
-4. Review Podman logs: `podman logs <container-name>`
+1. **Check service logs:** `make logs`
+2. **Check service health:** `make health`
+3. **Verify PHP extensions:** `php -m`
+4. **Check certificate status:** `make mtls-status`
+5. **Review environment variables:** `cat services/<service>/.env`
+6. **File an issue:** Include logs, environment details, and steps to reproduce

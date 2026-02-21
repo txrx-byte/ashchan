@@ -32,8 +32,8 @@ composer.phar
 runtime/
 storage/logs/
 
-# Docker build artifacts
-.docker-cache/
+# Build artifacts
+.build-cache/
 
 # Node (if any frontend tooling)
 node_modules/
