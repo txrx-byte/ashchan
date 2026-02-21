@@ -24,6 +24,7 @@ namespace Tests\Feature;
 use App\Model\Board;
 use App\Service\BoardService;
 use App\Service\ContentFormatter;
+use App\Service\PiiEncryptionService;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
 use PHPUnit\Framework\TestCase;
@@ -37,6 +38,7 @@ final class ThreadCreationTest extends TestCase
     private BoardService $boardService;
     private Mockery\MockInterface $mockRedis;
     private Mockery\MockInterface $mockContentFormatter;
+    private Mockery\MockInterface $mockPiiEncryption;
     private Mockery\MockInterface $mockBoard;
     private Mockery\MockInterface $dbMock;
 
@@ -58,8 +60,14 @@ final class ThreadCreationTest extends TestCase
         // Since we are testing a successful, simple creation with a mock board that is not near capacity, `del` should NOT be called.
         // Let's remove the expectation for `del` to be called.
 
+        // Mock PiiEncryptionService
+        $this->mockPiiEncryption = Mockery::mock(PiiEncryptionService::class);
+        $this->mockPiiEncryption->shouldReceive('encrypt')->andReturnUsing(function (string $value): string {
+            return 'encrypted_' . $value;
+        });
+
         // Instantiate the service
-        $this->boardService = new BoardService($this->mockContentFormatter, $this->mockRedis);
+        $this->boardService = new BoardService($this->mockContentFormatter, $this->mockRedis, $this->mockPiiEncryption);
 
         // Prepare for static mocks of Db
         $this->dbMock = Mockery::mock('alias:Hyperf\DbConnection\Db');
