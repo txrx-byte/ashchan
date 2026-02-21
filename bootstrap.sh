@@ -88,7 +88,7 @@ PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
 info "PHP Version: $PHP_VERSION"
 
 # Check for required extensions
-REQUIRED_EXTENSIONS=("swoole" "openssl" "pdo" "pdo_pgsql" "redis" "mbstring" "json" "curl" "pcntl")
+REQUIRED_EXTENSIONS=("swoole" "openssl" "pdo" "pdo_pgsql" "redis" "mbstring" "json" "curl" "pcntl" "gd" "fileinfo")
 MISSING_EXTENSIONS=()
 
 for ext in "${REQUIRED_EXTENSIONS[@]}"; do

@@ -257,5 +257,6 @@ declare(strict_types=1);
 <?php
 $is_index = true;
 $__content = ob_get_clean();
+error_log('[BOARD_TPL] is_staff=' . var_export($is_staff ?? 'NOT_SET', true) . ' staff_level=' . var_export($staff_level ?? 'NOT_SET', true));
 include __DIR__ . '/layout.php';
 ?>

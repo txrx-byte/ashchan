@@ -103,13 +103,14 @@ final class FrontendController
             'threads'        => $threads,
             'thread_id'      => '',
             'is_staff'       => $this->isStaff($request),
+            'staff_level'    => $this->getStaffLevel(),
         ]));
 
         return $this->html($html);
     }
 
     /** GET /{slug}/catalog – Board catalog view */
-    public function catalog(string $slug): ResponseInterface
+    public function catalog(RequestInterface $request, string $slug): ResponseInterface
     {
         $common = $this->getCommonData();
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
@@ -129,13 +130,15 @@ final class FrontendController
             'threads'     => $threads,
             'thread_id'   => '',
             'page_num'    => 1,
+            'is_staff'    => $this->isStaff($request),
+            'staff_level' => $this->getStaffLevel(),
         ]));
 
         return $this->html($html);
     }
 
     /** GET /{slug}/archive – Board archive */
-    public function archive(string $slug): ResponseInterface
+    public function archive(RequestInterface $request, string $slug): ResponseInterface
     {
         $common = $this->getCommonData();
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
@@ -154,6 +157,8 @@ final class FrontendController
             'archived_threads' => $archived,
             'thread_id'        => '',
             'page_num'         => 1,
+            'is_staff'         => $this->isStaff($request),
+            'staff_level'      => $this->getStaffLevel(),
         ]));
 
         return $this->html($html);
@@ -198,6 +203,7 @@ final class FrontendController
             'thread_locked' => $threadData['locked'] ?? false,
             'thread_sticky' => $threadData['sticky'] ?? false,
             'is_staff'      => $this->isStaff($request),
+            'staff_level'   => $this->getStaffLevel(),
         ]));
 
         return $this->html($html);
@@ -205,8 +211,19 @@ final class FrontendController
 
     private function isStaff(RequestInterface $request): bool
     {
+        $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
+        if (!empty($staffInfo) && !empty($staffInfo['level'])) {
+            return true;
+        }
+        // Fallback to AuthMiddleware role attribute
         $role = $request->getAttribute('role');
         return in_array($role, ['admin', 'manager', 'moderator', 'janitor'], true);
+    }
+
+    private function getStaffLevel(): string
+    {
+        $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
+        return $staffInfo['level'] ?? '';
     }
 
     /** POST /{slug}/threads – Create new thread (from form) */

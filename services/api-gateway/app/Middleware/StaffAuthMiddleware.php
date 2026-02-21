@@ -54,8 +54,10 @@ class StaffAuthMiddleware implements MiddlewareInterface
         $uri = $request->getUri();
         $path = $uri->getPath();
 
-        // Only protect /staff/* routes - all other routes are public
+        // For non-staff paths, opportunistically detect staff session
+        // so public pages can show admin tools overlay
         if ($path !== '/staff' && !str_starts_with($path, '/staff/')) {
+            $this->detectStaffSession($request);
             return $handler->handle($request);
         }
 
@@ -162,7 +164,40 @@ class StaffAuthMiddleware implements MiddlewareInterface
     
     /**
      * Redirect to login page
+     */    /**
+     * Opportunistically check staff_session cookie on public pages.
+     * Sets staff_info context if the session is valid, but never blocks.
      */
+    private function detectStaffSession(ServerRequestInterface $request): void
+    {
+        $cookies = $request->getCookieParams();
+        $sessionToken = $cookies['staff_session'] ?? null;
+        if (!$sessionToken || !is_string($sessionToken) || $sessionToken === '') {
+            return;
+        }
+
+        try {
+            $tokenHash = hash('sha256', $sessionToken);
+            $validation = $this->authService->validateSession($tokenHash);
+            if (!($validation['valid'] ?? false) || !isset($validation['user'])) {
+                return;
+            }
+
+            $user = $validation['user'];
+            $level = $user['access_level'] ?? 'janitor';
+            $boardAccess = $user['board_access'] ?? [];
+            \Hyperf\Context\Context::set('staff_info', [
+                'username' => $user['username'] ?? 'system',
+                'level' => $level,
+                'boards' => is_array($boardAccess) ? $boardAccess : (is_string($boardAccess) ? json_decode($boardAccess, true) ?? [] : []),
+                'is_mod' => in_array($level, ['mod', 'manager', 'admin'], true),
+                'is_manager' => in_array($level, ['manager', 'admin'], true),
+                'is_admin' => $level === 'admin',
+            ]);
+        } catch (\Throwable) {
+            // Silently ignore — this is opportunistic detection
+        }
+    }
     private function redirectToLogin(ServerRequestInterface $request, string $message): PsrResponseInterface
     {
         // For API requests, return JSON

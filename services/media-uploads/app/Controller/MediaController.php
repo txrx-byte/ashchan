@@ -63,7 +63,8 @@ final class MediaController
         } catch (\RuntimeException $e) {
             return $this->response->json(['error' => $e->getMessage()]);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => 'Upload processing failed']);
+            error_log('[UPLOAD_ERROR] ' . get_class($e) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            return $this->response->json(['error' => 'Upload processing failed: ' . $e->getMessage()]);
         }
     }
 

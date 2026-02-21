@@ -37,11 +37,22 @@
   <?= $extra_css ?? '' ?>
   <script src="/static/js/core.js" defer></script>
   <script src="/static/js/extension.js" defer></script>
+<?php if (!empty($is_staff)): ?>
+<?php
+  $__staff_level = $staff_level ?? '';
+  $__staff_js = in_array($__staff_level, ['admin', 'manager', 'mod'], true) ? 'mod.js' : 'janitor.js';
+?>
+  <script src="/static/js/<?= $__staff_js ?>" defer></script>
+<?php endif; ?>
 </head>
 <body class="<?= !empty($is_index) ? 'is_index' : 'is_thread' ?> board_<?= htmlspecialchars((string) $board_slug ?? '') ?>"
       data-board-slug="<?= htmlspecialchars((string) $board_slug ?? '') ?>"
       data-thread-id="<?= htmlspecialchars((string)($thread_id ?? '')) ?>"
-      data-page="<?= (int)($page_num ?? 1) ?>">
+      data-page="<?= (int)($page_num ?? 1) ?>"
+<?php if (!empty($is_staff)): ?>
+      data-is-staff="true"
+      data-staff-level="<?= htmlspecialchars($staff_level ?? '') ?>"
+<?php endif; ?>>
 
 <span id="id_css"></span>
 
