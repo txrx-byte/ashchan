@@ -34,6 +34,10 @@
 #   certs:rotate     Rotate service certificates
 #   certs:status     Show certificate expiry info
 #   certs:verify     Verify mTLS chain
+#   anubis:start     Start the Anubis AI firewall
+#   anubis:stop      Stop the Anubis AI firewall
+#   anubis:restart   Restart the Anubis AI firewall
+#   anubis:status    Show Anubis status
 #   compile          Install composer dependencies for all services
 #   lint             Lint all PHP source files
 #   test             Run test suites
@@ -80,6 +84,10 @@ CERTS_DIR="${SCRIPT_DIR}/certs"
 CA_DIR="${CERTS_DIR}/ca"
 SERVICES_DIR="${CERTS_DIR}/services"
 DB_DIR="${SCRIPT_DIR}/db"
+ANUBIS_DIR="${SCRIPT_DIR}/config/anubis"
+ANUBIS_BIN="$(command -v anubis 2>/dev/null || echo '/usr/local/bin/anubis')"
+ANUBIS_PORT=8080
+ANUBIS_METRICS_PORT=9091
 
 # Database defaults (override via env)
 DB_HOST="${DB_HOST:-localhost}"
@@ -215,6 +223,100 @@ check_db() {
         warn "Cannot connect to PostgreSQL (${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME})"
         return 1
     fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Anubis (Web AI Firewall)
+# ─────────────────────────────────────────────────────────────────────────────
+
+check_anubis() {
+    if [[ -x "$ANUBIS_BIN" ]]; then
+        local ver
+        ver=$("$ANUBIS_BIN" 2>&1 | head -1 || echo "unknown")
+        success "Anubis available at ${ANUBIS_BIN}"
+        return 0
+    else
+        warn "Anubis not found at ${ANUBIS_BIN}"
+        info "Install: download from https://github.com/TecharoHQ/anubis/releases"
+        return 1
+    fi
+}
+
+anubis_is_running() {
+    local pidfile="${PID_DIR}/anubis.pid"
+    if [[ -f "$pidfile" ]]; then
+        local pid
+        pid=$(cat "$pidfile")
+        if kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+        rm -f "$pidfile"
+    fi
+    return 1
+}
+
+anubis_pid() {
+    local pidfile="${PID_DIR}/anubis.pid"
+    if [[ -f "$pidfile" ]]; then
+        cat "$pidfile"
+    fi
+}
+
+anubis_start() {
+    ensure_pid_dir
+    if anubis_is_running; then
+        info "Anubis already running (PID $(anubis_pid))"
+        return 0
+    fi
+    if [[ ! -x "$ANUBIS_BIN" ]]; then
+        warn "Anubis binary not found — skipping"
+        return 1
+    fi
+    if [[ ! -f "${ANUBIS_DIR}/env" ]]; then
+        warn "Anubis env file not found at ${ANUBIS_DIR}/env — skipping"
+        return 1
+    fi
+
+    # Source env file and export variables
+    set -a
+    # shellcheck source=/dev/null
+    source "${ANUBIS_DIR}/env"
+    set +a
+
+    nohup "$ANUBIS_BIN" > "${LOG_DIR}/ashchan-anubis.log" 2>&1 &
+    local pid=$!
+    echo "$pid" > "${PID_DIR}/anubis.pid"
+    sleep 0.5
+    if kill -0 "$pid" 2>/dev/null; then
+        success "Anubis started (PID ${pid}, port ${ANUBIS_PORT} → gateway:${SVC_PORTS[gateway]})"
+    else
+        fail "Anubis failed to start — check ${LOG_DIR}/ashchan-anubis.log"
+        rm -f "${PID_DIR}/anubis.pid"
+        return 1
+    fi
+}
+
+anubis_stop() {
+    if anubis_is_running; then
+        local pid
+        pid=$(anubis_pid)
+        kill "$pid" 2>/dev/null || true
+        sleep 0.5
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+        rm -f "${PID_DIR}/anubis.pid"
+        success "Anubis stopped (was PID ${pid})"
+    else
+        info "Anubis not running"
+    fi
+}
+
+anubis_health() {
+    if curl -s --max-time 2 "http://localhost:${ANUBIS_PORT}/health" &>/dev/null; then
+        return 0
+    fi
+    return 1
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -705,6 +807,28 @@ cmd_status() {
     done
     echo
 
+    # Anubis
+    echo
+    printf "  ${BOLD}%-20s %-8s %-8s %-10s${NC}\n" "FIREWALL" "PORT" "PID" "HEALTH"
+    separator
+    local anubis_pid_str="-" anubis_health_str="-" anubis_color="$DIM"
+    if anubis_is_running; then
+        anubis_pid_str="$(anubis_pid)"
+        if anubis_health; then
+            anubis_health_str="healthy"
+            anubis_color="$G"
+        else
+            anubis_health_str="unhealthy"
+            anubis_color="$Y"
+        fi
+    else
+        anubis_health_str="stopped"
+        anubis_color="$DIM"
+    fi
+    printf "  %-20s %-8s %-8s ${anubis_color}%-10s${NC}\n" \
+        "Anubis (AI Firewall)" "${ANUBIS_PORT}" "$anubis_pid_str" "$anubis_health_str"
+    echo
+
     # Infrastructure
     printf "  ${BOLD}%-20s %-8s${NC}\n" "INFRASTRUCTURE" "STATUS"
     separator
@@ -774,14 +898,24 @@ cmd_install() {
     fi
 
     # ─── 6. Start services ───
-    step "6/7  Starting services"
+    step "6/8  Starting services"
     for svc in "${SVC_NAMES[@]}"; do
         svc_start "$svc"
         sleep 1
     done
 
-    # ─── 7. Health ───
-    step "7/7  Verifying health"
+    # ─── 7. Start Anubis ───
+    step "7/8  Starting Anubis (AI firewall)"
+    if check_anubis 2>/dev/null; then
+        anubis_start || warn "Anubis not started — site runs without bot protection"
+    else
+        warn "Anubis not installed — skipping bot protection layer"
+        info "Install from: https://github.com/TecharoHQ/anubis/releases"
+        info "Then run:  ./ashchan anubis:start"
+    fi
+
+    # ─── 8. Health ───
+    step "8/8  Verifying health"
     sleep 3
     local healthy=0
     for svc in "${SVC_NAMES[@]}"; do
@@ -792,6 +926,11 @@ cmd_install() {
             warn "${SVC_LABELS[$svc]} — not responding yet"
         fi
     done
+    if anubis_is_running && anubis_health; then
+        success "Anubis (AI Firewall) — healthy"
+    elif anubis_is_running; then
+        warn "Anubis — not responding yet"
+    fi
 
     # ─── Summary ───
     echo
@@ -801,6 +940,9 @@ cmd_install() {
     echo
     echo -e "  ${BOLD}Endpoints${NC}"
     separator
+    if anubis_is_running; then
+        printf "  %-22s http://localhost:%s  ${DIM}(via Anubis)${NC}\n" "Public frontend" "${ANUBIS_PORT}"
+    fi
     for svc in "${SVC_NAMES[@]}"; do
         printf "  %-22s http://localhost:%s\n" "${SVC_LABELS[$svc]}" "${SVC_PORTS[$svc]}"
     done
@@ -857,6 +999,12 @@ cmd_help() {
     echo -e "    ${C}certs:status${NC}       Show certificate expiry"
     echo -e "    ${C}certs:verify${NC}       Verify the mTLS chain"
     echo
+    echo -e "  ${BOLD}Anubis (AI Firewall)${NC}"
+    echo -e "    ${C}anubis:start${NC}       Start Anubis reverse proxy"
+    echo -e "    ${C}anubis:stop${NC}        Stop Anubis"
+    echo -e "    ${C}anubis:restart${NC}     Restart Anubis"
+    echo -e "    ${C}anubis:status${NC}      Show Anubis status"
+    echo
     echo -e "  ${BOLD}Quality${NC}"
     echo -e "    ${C}lint${NC}               Check PHP syntax"
     echo -e "    ${C}test${NC}               Run PHPUnit test suites"
@@ -865,7 +1013,7 @@ cmd_help() {
     echo -e "    ${C}clean${NC}              Remove logs, PIDs, caches"
     echo -e "    ${C}help${NC}               Show this help"
     echo
-    echo -e "  ${BOLD}Services:${NC} gateway, auth, boards, media, search, moderation"
+    echo -e "  ${BOLD}Services:${NC} gateway, auth, boards, media, search, moderation, anubis"
     echo
     echo -e "  ${BOLD}Options:${NC}"
     echo -e "    ${C}--force${NC}            Force regeneration of certs/env files"
@@ -905,11 +1053,14 @@ main() {
             local target="${args[0]:-all}"
             if [[ "$target" == "all" ]]; then
                 for svc in "${SVC_NAMES[@]}"; do svc_start "$svc"; sleep 0.5; done
+                anubis_start 2>/dev/null || true
+            elif [[ "$target" == "anubis" ]]; then
+                anubis_start
             else
                 if [[ -n "${SVC_DIRS[$target]+x}" ]]; then
                     svc_start "$target"
                 else
-                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]}"
+                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis"
                 fi
             fi
             ;;
@@ -917,12 +1068,15 @@ main() {
             banner "Stopping services"
             local target="${args[0]:-all}"
             if [[ "$target" == "all" ]]; then
+                anubis_stop 2>/dev/null || true
                 for svc in "${SVC_NAMES[@]}"; do svc_stop "$svc"; done
+            elif [[ "$target" == "anubis" ]]; then
+                anubis_stop
             else
                 if [[ -n "${SVC_DIRS[$target]+x}" ]]; then
                     svc_stop "$target"
                 else
-                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]}"
+                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis"
                 fi
             fi
             ;;
@@ -930,16 +1084,22 @@ main() {
             banner "Restarting services"
             local target="${args[0]:-all}"
             if [[ "$target" == "all" ]]; then
+                anubis_stop 2>/dev/null || true
                 for svc in "${SVC_NAMES[@]}"; do svc_stop "$svc"; done
                 sleep 1
                 for svc in "${SVC_NAMES[@]}"; do svc_start "$svc"; sleep 0.5; done
+                anubis_start 2>/dev/null || true
+            elif [[ "$target" == "anubis" ]]; then
+                anubis_stop
+                sleep 1
+                anubis_start
             else
                 if [[ -n "${SVC_DIRS[$target]+x}" ]]; then
                     svc_stop "$target"
                     sleep 1
                     svc_start "$target"
                 else
-                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]}"
+                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis"
                 fi
             fi
             ;;
@@ -995,6 +1155,39 @@ main() {
         test)
             banner "Test"
             cmd_test
+            ;;
+        anubis:start)
+            banner "Anubis"
+            anubis_start
+            ;;
+        anubis:stop)
+            banner "Anubis"
+            anubis_stop
+            ;;
+        anubis:restart)
+            banner "Anubis"
+            anubis_stop
+            sleep 1
+            anubis_start
+            ;;
+        anubis:status)
+            banner "Anubis"
+            step "Anubis AI Firewall status"
+            if anubis_is_running; then
+                success "Running (PID $(anubis_pid), port ${ANUBIS_PORT})"
+                if anubis_health; then
+                    success "Health: OK"
+                else
+                    warn "Health: not responding"
+                fi
+                info "Policy: ${ANUBIS_DIR}/policy.yaml"
+                info "Logs:   ${LOG_DIR}/ashchan-anubis.log"
+                info "Target: http://localhost:${SVC_PORTS[gateway]} (API Gateway)"
+            else
+                info "Not running"
+                info "Start with:  ./ashchan anubis:start"
+            fi
+            echo
             ;;
         clean)
             banner "Cleanup"

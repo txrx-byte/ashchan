@@ -1,0 +1,47 @@
+# ═══════════════════════════════════════════════════════════════
+# ashchan Anubis Environment Configuration
+# ═══════════════════════════════════════════════════════════════
+# Anubis reverse-proxies to the API gateway on port 9501.
+# Clients connect to Anubis on port 8080; valid requests are
+# forwarded to the gateway after passing the challenge.
+# ═══════════════════════════════════════════════════════════════
+
+# Network binding — Anubis listens here (public-facing port)
+BIND=:8080
+BIND_NETWORK=tcp
+
+# Target — forward valid requests to the API gateway
+TARGET=http://localhost:9501
+
+# Challenge difficulty (number of leading zeros in PoW hash)
+# 4 = light challenge (~1-2 seconds for real browsers)
+DIFFICULTY=4
+
+# Cookie settings
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=Lax
+COOKIE_EXPIRATION_TIME=168h
+COOKIE_PREFIX=ashchan-anubis
+
+# Policy file
+POLICY_FNAME=/workspaces/ashchan/config/anubis/policy.yaml
+
+# Metrics (Prometheus)
+METRICS_BIND=:9091
+METRICS_BIND_NETWORK=tcp
+
+# Serve a restrictive robots.txt that blocks AI scrapers
+SERVE_ROBOTS_TXT=true
+
+# Logging
+SLOG_LEVEL=INFO
+
+# Use the real IP from the network socket in dev
+# In production, set CUSTOM_REAL_IP_HEADER=X-Forwarded-For
+USE_REMOTE_ADDRESS=true
+
+# Contact email shown on error pages
+WEBMASTER_EMAIL=admin@ashchan.org
+
+# ED25519 signing key for challenge tokens (survives restarts)
+ED25519_PRIVATE_KEY_HEX_FILE=/workspaces/ashchan/config/anubis/signing-key.hex

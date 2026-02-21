@@ -60,3 +60,5 @@ runtime/logs/
 certs/
 dump.rdb
 minio/
+config/anubis/signing-key.pem
+config/anubis/signing-key.hex

@@ -1,0 +1,122 @@
+# ═══════════════════════════════════════════════════════════════
+# ashchan Anubis Policy Configuration
+# ═══════════════════════════════════════════════════════════════
+# Anubis sits between clients and the API gateway, challenging
+# suspicious requests with proof-of-work to block AI scrapers,
+# bots, and automated abuse while letting real users through.
+#
+# Docs: https://anubis.techaro.lol/docs/admin/policies
+# ═══════════════════════════════════════════════════════════════
+
+bots:
+  # ── Deny pathological / known-bad bots ──────────────────────
+  - import: (data)/bots/_deny-pathological.yaml
+  - import: (data)/bots/aggressive-brazilian-scrapers.yaml
+  - import: (data)/bots/cloudflare-workers.yaml
+
+  # ── Block AI scrapers aggressively ──────────────────────────
+  - import: (data)/meta/ai-block-aggressive.yaml
+
+  # ── Allow known-good search engine crawlers ─────────────────
+  # Google, Bing, DuckDuckGo, Kagi, Internet Archive, etc.
+  - import: (data)/crawlers/_allow-good.yaml
+
+  # ── Challenge Firefox AI previews ───────────────────────────
+  - import: (data)/clients/x-firefox-ai.yaml
+
+  # ── Allow essential routes without challenge ────────────────
+  - import: (data)/common/keep-internet-working.yaml
+
+  # ── ashchan-specific rules ─────────────────────────────────
+
+  # Allow health check endpoint (from anywhere, including monitors)
+  - name: health-check
+    path_regex: ^/health$
+    action: ALLOW
+
+  # Allow static assets without challenge (CSS/JS/images)
+  - name: static-assets
+    path_regex: ^/static/
+    action: ALLOW
+
+  # Allow media proxy without challenge (images/thumbnails)
+  - name: media-assets
+    path_regex: ^/media/
+    action: ALLOW
+
+  # Allow API endpoints with JSON content-type (AJAX from pages
+  # that already passed the challenge when the page loaded)
+  - name: api-json-requests
+    path_regex: ^/api/v1/
+    headers_regex:
+      Content-Type: application/json
+    action: ALLOW
+
+  # Allow staff interface (has its own auth layer)
+  - name: staff-interface
+    path_regex: ^/staff/
+    action: ALLOW
+
+  # Punish headless browsers / automation tools harder
+  - name: headless-browsers
+    user_agent_regex: (?i:headless|phantomjs|selenium|puppeteer|playwright|webdriver)
+    action: CHALLENGE
+    challenge:
+      difficulty: 16
+      algorithm: fast
+
+  # Punish generic "bot" user agents
+  - name: generic-bot-catchall
+    user_agent_regex: (?i:bot|crawler|spider|scraper|curl|wget|httpie|python-requests|node-fetch|axios|go-http-client)
+    action: CHALLENGE
+    challenge:
+      difficulty: 8
+      algorithm: fast
+
+  # Generic browser catchall — light challenge for normal users
+  - name: generic-browser
+    user_agent_regex: Mozilla|Opera
+    action: CHALLENGE
+    challenge:
+      difficulty: 4
+      algorithm: fast
+
+# Use Redis as the challenge store (shared with ashchan stack)
+store:
+  backend: valkey
+  parameters:
+    url: redis://localhost:6379/2
+
+# Disable DNSBL lookups (we have our own anti-spam)
+dnsbl: false
+
+# Open Graph passthrough for social media link previews
+openGraph:
+  enabled: true
+  considerHost: false
+  ttl: 24h
+
+# Imprint / footer
+impressum:
+  footer: >-
+    Protected by <a href="https://github.com/TecharoHQ/anubis">Anubis</a>.
+    This challenge page verifies you are a real person, not a bot.
+    If you are having trouble, please try disabling browser extensions
+    or contact us via the <a href="/feedback">feedback page</a>.
+  page:
+    title: "ashchan - Bot Protection"
+    body: >-
+      <h2>About This Protection</h2>
+      <p>ashchan uses Anubis to protect against automated scraping and bot abuse.
+      When you first visit, your browser solves a brief proof-of-work challenge
+      to verify that you are a real person. This takes only a few seconds and
+      happens automatically.</p>
+      <h2>Why?</h2>
+      <p>AI companies and scrapers send enormous volumes of automated requests
+      that can degrade site performance for real users. This lightweight challenge
+      stops most bots while remaining invisible to normal browsing.</p>
+      <h2>Having Trouble?</h2>
+      <p>If you are repeatedly seeing the challenge page, try:
+      enabling JavaScript, disabling browser extensions that block scripts,
+      or clearing your cookies. If the problem persists, please let us know
+      via our <a href="/feedback">feedback page</a>.</p>
