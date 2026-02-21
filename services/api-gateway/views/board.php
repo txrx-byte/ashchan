@@ -182,6 +182,10 @@ declare(strict_types=1);
           <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $reply['id']) ?>">
             <?= isset($reply['content_html']) ? strip_tags((string) $reply['content_html'], '<br><a><span><s><b><i><u><pre><wbr><em><strong>') : htmlspecialchars((string) $reply['content'] ?? '') ?>
           </blockquote>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
     <?php endforeach; ?>
   </div>
 
