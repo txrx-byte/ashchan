@@ -128,13 +128,24 @@ fi
 step "3/7 Setting up service configurations..."
 SERVICES=("api-gateway" "auth-accounts" "boards-threads-posts" "media-uploads" "search-indexing" "moderation-anti-spam")
 
+# Local development defaults (override with environment variables)
+DB_HOST="${DB_HOST:-localhost}"
+REDIS_HOST="${REDIS_HOST:-localhost}"
+REDIS_PASSWORD="${REDIS_PASSWORD:-}"
+REDIS_AUTH="${REDIS_AUTH:-}"
+
 for svc in "${SERVICES[@]}"; do
     ENV_FILE="services/${svc}/.env"
     ENV_EXAMPLE="services/${svc}/.env.example"
     
     if [[ "$FORCE_REBUILD" == "true" ]] || [[ ! -f "$ENV_FILE" ]]; then
         if [[ -f "$ENV_EXAMPLE" ]]; then
-            sed "s|__PROJECT_ROOT__|${SCRIPT_DIR}|g" "$ENV_EXAMPLE" > "$ENV_FILE"
+            sed -e "s|__PROJECT_ROOT__|${SCRIPT_DIR}|g" \
+                -e "s|__DB_HOST__|${DB_HOST}|g" \
+                -e "s|__REDIS_HOST__|${REDIS_HOST}|g" \
+                -e "s|__REDIS_PASSWORD__|${REDIS_PASSWORD}|g" \
+                -e "s|__REDIS_AUTH__|${REDIS_AUTH}|g" \
+                "$ENV_EXAMPLE" > "$ENV_FILE"
             info "Created ${ENV_FILE}"
         else
             warn "No .env.example found for ${svc}"

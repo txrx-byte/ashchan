@@ -30,4 +30,5 @@ use App\Database\PostgresConnector;
 
 return [
     'db.connector.pgsql' => PostgresConnector::class,
+    \App\Service\PiiEncryptionServiceInterface::class => \App\Service\PiiEncryptionService::class,
 ];

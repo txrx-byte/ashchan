@@ -58,3 +58,4 @@ runtime/logs/
 
 # Secrets / Certificates
 certs/
+dump.rdb
