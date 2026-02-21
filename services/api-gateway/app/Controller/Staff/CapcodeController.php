@@ -45,6 +45,7 @@ final class CapcodeController
             ->orderBy('is_active', 'desc')
             ->orderBy('name')
             ->get();
+        $capcodes = \App\Helper\PgArrayParser::parseCollection($capcodes, 'boards');
         $html = $this->viewService->render('staff/capcodes/index', ['capcodes' => $capcodes]);
         return $this->response->html($html);
     }
@@ -85,7 +86,7 @@ final class CapcodeController
             'tripcode' => $tripcode,
             'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
-            'boards' => $body['boards'] ?? [],
+            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'created_by' => $user['id'] ?? null,
             'created_at' => date('Y-m-d H:i:s'),
@@ -101,6 +102,7 @@ final class CapcodeController
         if (!$capcode) {
             return $this->response->json(['error' => 'Not found'], 404);
         }
+        $capcode->boards = \App\Helper\PgArrayParser::parse($capcode->boards ?? null);
 
         $html = $this->viewService->render('staff/capcodes/edit', [
             'capcode' => $capcode,
@@ -137,7 +139,7 @@ final class CapcodeController
             'name' => trim((string) ($body['name'] ?? '')),
             'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
-            'boards' => $body['boards'] ?? [],
+            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);

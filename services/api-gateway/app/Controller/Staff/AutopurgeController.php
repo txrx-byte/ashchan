@@ -45,6 +45,7 @@ final class AutopurgeController
             ->orderBy('is_active', 'desc')
             ->orderBy('hit_count', 'desc')
             ->get();
+        $rules = \App\Helper\PgArrayParser::parseCollection($rules, 'boards');
         $html = $this->viewService->render('staff/autopurge/index', ['rules' => $rules]);
         return $this->response->html($html);
     }
@@ -68,7 +69,7 @@ final class AutopurgeController
         if (empty($body['pattern'])) {
             $errors[] = 'Pattern is required';
         }
-        if ($body['ban_length_days'] < 0) {
+        if (((int) ($body['ban_length_days'] ?? 0)) < 0) {
             $errors[] = 'Ban length must be 0 or greater (0 = no ban)';
         }
 
@@ -80,7 +81,7 @@ final class AutopurgeController
         Db::table('autopurge_rules')->insert([
             'pattern' => trim((string) ($body['pattern'] ?? '')),
             'is_regex' => isset($body['is_regex']),
-            'boards' => $body['boards'] ?? [],
+            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'purge_threads' => isset($body['purge_threads']),
             'purge_replies' => isset($body['purge_replies']),
             'ban_length_days' => (int)($body['ban_length_days'] ?? 0),
@@ -100,6 +101,7 @@ final class AutopurgeController
         if (!$rule) {
             return $this->response->json(['error' => 'Not found'], 404);
         }
+        $rule->boards = \App\Helper\PgArrayParser::parse($rule->boards ?? null);
 
         $html = $this->viewService->render('staff/autopurge/edit', [
             'rule' => $rule,
@@ -124,7 +126,7 @@ final class AutopurgeController
         if (empty($body['pattern'])) {
             $errors[] = 'Pattern is required';
         }
-        if ($body['ban_length_days'] < 0) {
+        if (((int) ($body['ban_length_days'] ?? 0)) < 0) {
             $errors[] = 'Ban length must be 0 or greater (0 = no ban)';
         }
 
@@ -135,7 +137,7 @@ final class AutopurgeController
         Db::table('autopurge_rules')->where('id', $id)->update([
             'pattern' => trim((string) ($body['pattern'] ?? '')),
             'is_regex' => isset($body['is_regex']),
-            'boards' => $body['boards'] ?? [],
+            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'purge_threads' => isset($body['purge_threads']),
             'purge_replies' => isset($body['purge_replies']),
             'ban_length_days' => (int)($body['ban_length_days'] ?? 0),

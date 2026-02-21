@@ -158,14 +158,14 @@ final class ModerationService
                 board,
                 SUM(weight) as total_weight,
                 COUNT(*) as cnt,
-                GROUP_CONCAT(DISTINCT report_category) as cats,
+                STRING_AGG(DISTINCT report_category::text, \',\') as cats,
                 MAX(ts) as time,
-                ANY_VALUE(id) as id,
-                ANY_VALUE(post_json) as post_json,
-                ANY_VALUE(resto) as resto,
-                ANY_VALUE(post_ip) as post_ip,
-                ANY_VALUE(ws) as ws,
-                ANY_VALUE(cleared_by) as cleared_by
+                MIN(id) as id,
+                MIN(post_json) as post_json,
+                MIN(resto) as resto,
+                MIN(post_ip) as post_ip,
+                MIN(ws) as ws,
+                MIN(cleared_by) as cleared_by
             ')
             ->groupBy('no', 'board');
 
@@ -179,7 +179,18 @@ final class ModerationService
             $query->where('board', $board);
         }
 
-        $total = $query->count();
+        // Count distinct (no, board) groups for pagination
+        $countBase = Report::query();
+        if ($clearedOnly) {
+            $countBase->where('cleared', 1);
+        } else {
+            $countBase->where('cleared', 0);
+        }
+        if ($board !== null) {
+            $countBase->where('board', $board);
+        }
+        $total = (int) $countBase->selectRaw('COUNT(DISTINCT (no, board)) as cnt')->value('cnt');
+
         $reports = $query
             ->orderByDesc('total_weight')
             ->orderByDesc('time')

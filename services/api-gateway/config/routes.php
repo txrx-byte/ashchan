@@ -60,8 +60,7 @@ Router::get('/staff/dashboard', [\App\Controller\Staff\StaffController::class, '
 Router::get('/staff/dashboard/stats', [\App\Controller\Staff\StaffController::class, 'dashboardStats']);
 Router::get('/staff/bans', [\App\Controller\Staff\StaffController::class, 'bans']);
 Router::post('/staff/bans/unban', [\App\Controller\Staff\StaffController::class, 'unban']);
-Router::get('/staff/reports', [\App\Controller\Staff\StaffController::class, 'reports']);
-Router::get('/staff/reports/ban-requests', [\App\Controller\Staff\StaffController::class, 'banRequests']);
+// Reports and ban requests handled by StaffReportController via annotations
 
 // Staff Tools
 Router::get('/staff/search', [\App\Controller\Staff\StaffToolsController::class, 'search']);
@@ -72,6 +71,15 @@ Router::get('/staff/staff-roster', [\App\Controller\Staff\StaffToolsController::
 Router::get('/staff/floodlog', [\App\Controller\Staff\StaffToolsController::class, 'floodLog']);
 Router::get('/staff/stafflog', [\App\Controller\Staff\StaffToolsController::class, 'staffLog']);
 Router::get('/staff/userdellog', [\App\Controller\Staff\StaffToolsController::class, 'userDelLog']);
+
+// Staff Reports (All staff)
+Router::get('/staff/reports', [\App\Controller\Staff\StaffReportController::class, 'index']);
+Router::get('/staff/reports/data', [\App\Controller\Staff\StaffReportController::class, 'data']);
+Router::post('/staff/reports/{id:\d+}/clear', [\App\Controller\Staff\StaffReportController::class, 'clear']);
+Router::post('/staff/reports/{id:\d+}/delete', [\App\Controller\Staff\StaffReportController::class, 'delete']);
+Router::get('/staff/reports/ban-requests', [\App\Controller\Staff\StaffReportController::class, 'banRequests']);
+Router::post('/staff/reports/ban-requests/{id:\d+}/approve', [\App\Controller\Staff\StaffReportController::class, 'approveBanRequest']);
+Router::post('/staff/reports/ban-requests/{id:\d+}/deny', [\App\Controller\Staff\StaffReportController::class, 'denyBanRequest']);
 
 // Staff ban templates (Manager+)
 Router::get('/staff/ban-templates', [\App\Controller\Staff\StaffBanTemplateController::class, 'index']);

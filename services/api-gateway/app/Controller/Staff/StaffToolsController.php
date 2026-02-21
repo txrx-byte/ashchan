@@ -209,7 +209,7 @@ final class StaffToolsController
         
         try {
             $query = Db::table('admin_audit_log')
-                ->select('action_type', 'ip_address as ip', 'board', 'resource_id as post_id', 'description as arg_str', 'username as pwd', 'created_at')
+                ->select('action_type', 'ip_address as ip', 'board', 'resource_id as post_id', 'description as arg_str', 'username', 'created_at')
                 ->orderBy('created_at', 'desc')
                 ->limit(100);
             
@@ -308,8 +308,10 @@ final class StaffToolsController
         if ($type === 'all' || $type === 'reports') {
             $results['reports'] = Db::table('reports')
                 ->select('id', 'board', 'no', 'post_json', 'ts')
-                ->where('no', 'like', "%{$query}%")
-                ->orWhere('board', $query)
+                ->where(function ($q) use ($query) {
+                    $q->where('no', 'like', "%{$query}%")
+                      ->orWhere('board', $query);
+                })
                 ->limit(20)
                 ->get();
         }

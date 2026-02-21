@@ -45,6 +45,7 @@ final class SiteMessageController
             ->orderBy('is_active', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
+        $messages = \App\Helper\PgArrayParser::parseCollection($messages, 'boards');
         $html = $this->viewService->render('staff/site-messages/index', ['messages' => $messages]);
         return $this->response->html($html);
     }
@@ -81,7 +82,7 @@ final class SiteMessageController
             'title' => trim((string) ($body['title'] ?? '')),
             'message' => trim((string) ($body['message'] ?? '')),
             'is_html' => isset($body['is_html']),
-            'boards' => $body['boards'] ?? [],
+            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'start_at' => !empty($body['start_at']) ? $body['start_at'] : date('Y-m-d H:i:s'),
             'end_at' => !empty($body['end_at']) ? $body['end_at'] : null,
@@ -99,6 +100,7 @@ final class SiteMessageController
         if (!$message) {
             return $this->response->json(['error' => 'Not found'], 404);
         }
+        $message->boards = \App\Helper\PgArrayParser::parse($message->boards ?? null);
 
         $html = $this->viewService->render('staff/site-messages/edit', [
             'message' => $message,
@@ -135,7 +137,7 @@ final class SiteMessageController
             'title' => trim((string) ($body['title'] ?? '')),
             'message' => trim((string) ($body['message'] ?? '')),
             'is_html' => isset($body['is_html']),
-            'boards' => $body['boards'] ?? [],
+            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'start_at' => !empty($body['start_at']) ? $body['start_at'] : $message->start_at,
             'end_at' => !empty($body['end_at']) ? $body['end_at'] : null,

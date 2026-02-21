@@ -45,6 +45,7 @@ final class IpRangeBanController
             ->orderBy('is_active', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
+        $rangeBans = \App\Helper\PgArrayParser::parseCollection($rangeBans, 'boards');
         $html = $this->viewService->render('staff/iprangebans/index', ['rangeBans' => $rangeBans]);
         return $this->response->html($html);
     }
@@ -85,7 +86,7 @@ final class IpRangeBanController
             'range_start' => $rangeStart,
             'range_end' => $rangeEnd,
             'reason' => trim((string) ($body['reason'] ?? '')),
-            'boards' => $body['boards'] ?? [],
+            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'expires_at' => !empty($body['expires_at']) ? $body['expires_at'] : null,
             'created_by' => $user['id'] ?? null,
@@ -102,6 +103,7 @@ final class IpRangeBanController
         if (!$rangeBan) {
             return $this->response->json(['error' => 'Not found'], 404);
         }
+        $rangeBan->boards = \App\Helper\PgArrayParser::parse($rangeBan->boards ?? null);
 
         $html = $this->viewService->render('staff/iprangebans/edit', [
             'rangeBan' => $rangeBan,
@@ -142,7 +144,7 @@ final class IpRangeBanController
             'range_start' => $rangeStart,
             'range_end' => $rangeEnd,
             'reason' => trim((string) ($body['reason'] ?? '')),
-            'boards' => $body['boards'] ?? [],
+            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'expires_at' => !empty($body['expires_at']) ? $body['expires_at'] : null,
             'updated_at' => date('Y-m-d H:i:s'),
@@ -174,13 +176,9 @@ final class IpRangeBanController
             return $this->response->json(['valid' => false, 'error' => 'Invalid IP address']);
         }
 
-        $testIpLong = ip2long($testIp);
-        
         $matchingBans = Db::table('ip_range_bans')
             ->where('is_active', true)
-            ->where(function ($query) use ($testIp) {
-                $query->whereRaw('INET_ATON(?) >= INET_ATON(range_start) AND INET_ATON(?) <= INET_ATON(range_end)', [$testIp, $testIp]);
-            })
+            ->whereRaw('?::inet >= range_start AND ?::inet <= range_end', [$testIp, $testIp])
             ->get();
 
         return $this->response->json([

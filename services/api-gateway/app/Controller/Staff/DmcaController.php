@@ -44,6 +44,7 @@ final class DmcaController
         $notices = Db::table('dmca_notices')
             ->orderBy('received_at', 'desc')
             ->get();
+        $notices = \App\Helper\PgArrayParser::parseCollection($notices, 'infringing_urls');
         $html = $this->viewService->render('staff/dmca/index', ['notices' => $notices]);
         return $this->response->html($html);
     }
@@ -95,7 +96,7 @@ final class DmcaController
             'claimant_email' => trim((string) ($body['claimant_email'] ?? '')),
             'claimant_phone' => trim((string) ($body['claimant_phone'] ?? '')),
             'copyrighted_work' => trim((string) ($body['copyrighted_work'] ?? '')),
-            'infringing_urls' => $infringingUrls,
+            'infringing_urls' => '{' . implode(',', array_map(fn($u) => '"' . str_replace('"', '\\"', $u) . '"', $infringingUrls)) . '}',
             'statement' => trim((string) ($body['statement'] ?? '')),
             'signature' => trim((string) ($body['signature'] ?? '')),
             'status' => 'pending',
@@ -112,6 +113,7 @@ final class DmcaController
         if (!$notice) {
             return $this->response->json(['error' => 'Not found'], 404);
         }
+        $notice->infringing_urls = \App\Helper\PgArrayParser::parse($notice->infringing_urls ?? null);
 
         $takedowns = Db::table('dmca_takedowns')
             ->where('notice_id', $id)
