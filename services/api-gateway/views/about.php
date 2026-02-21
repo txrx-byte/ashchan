@@ -160,6 +160,7 @@
 <div class="sub-nav">
   <a href="/">Home</a>
   <a href="/about">About</a>
+  <a href="/rules">Rules</a>
   <a href="/feedback">Feedback</a>
   <a href="/legal">Legal</a>
   <a href="/contact">Contact</a>
@@ -334,6 +335,7 @@
 <!-- Footer -->
 <div class="home-footer">
   <a href="/about">About</a> &bull;
+  <a href="/rules">Rules</a> &bull;
   <a href="/feedback">Feedback</a> &bull;
   <a href="/legal">Legal</a> &bull;
   <a href="/contact">Contact</a>

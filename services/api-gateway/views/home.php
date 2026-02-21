@@ -91,6 +91,7 @@
 <!-- Footer -->
 <div class="home-footer">
   <a href="/about">About</a> &bull;
+  <a href="/rules">Rules</a> &bull;
   <a href="/feedback">Feedback</a> &bull;
   <a href="/legal">Legal</a> &bull;
   <a href="/contact">Contact</a>

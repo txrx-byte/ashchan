@@ -207,6 +207,7 @@ Router::get('/', [FrontendController::class, 'home']);
 
 // Static pages
 Router::get('/about', [FrontendController::class, 'about']);
+Router::get('/rules', [FrontendController::class, 'rules']);
 Router::get('/feedback', [FrontendController::class, 'feedback']);
 
 // Feedback API

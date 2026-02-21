@@ -48,6 +48,14 @@ final class FrontendController
         return $this->html($html);
     }
 
+    /** GET /rules – Rules page */
+    public function rules(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('rules', $common);
+        return $this->html($html);
+    }
+
     /** GET /feedback – Feedback form page */
     public function feedback(): ResponseInterface
     {
