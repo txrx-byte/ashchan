@@ -110,6 +110,7 @@ make mtls-status
 ### API & Contracts
 | Document | Description |
 |----------|-------------|
+| [docs/FOURCHAN_API.md](docs/FOURCHAN_API.md) | **4chan-compatible read-only API (egress in exact 4chan format)** |
 | [contracts/openapi/README.md](contracts/openapi/README.md) | API specifications per service |
 | [contracts/events/README.md](contracts/events/README.md) | Domain event schemas |
 

@@ -22,6 +22,7 @@ use Hyperf\HttpServer\Router\Router;
 use App\Controller\HealthController;
 use App\Controller\BoardController;
 use App\Controller\ThreadController;
+use App\Controller\FourChanApiController;
 
 Router::get('/health', [HealthController::class, 'check']);
 
@@ -55,3 +56,14 @@ Router::post('/api/v1/admin/boards', [BoardController::class, 'store']);
 Router::get('/api/v1/admin/boards/{slug}', [BoardController::class, 'adminShow']);
 Router::post('/api/v1/admin/boards/{slug}', [BoardController::class, 'update']);
 Router::delete('/api/v1/admin/boards/{slug}', [BoardController::class, 'destroy']);
+
+// ──────────────────────────────────────────────
+// 4chan-compatible API (read-only)
+// https://github.com/4chan/4chan-API
+// ──────────────────────────────────────────────
+Router::get('/api/4chan/boards.json', [FourChanApiController::class, 'boards']);
+Router::get('/api/4chan/{board}/threads.json', [FourChanApiController::class, 'threadList']);
+Router::get('/api/4chan/{board}/catalog.json', [FourChanApiController::class, 'catalog']);
+Router::get('/api/4chan/{board}/archive.json', [FourChanApiController::class, 'archive']);
+Router::get('/api/4chan/{board}/thread/{no:\d+}.json', [FourChanApiController::class, 'thread']);
+Router::get('/api/4chan/{board}/{page:\d+}.json', [FourChanApiController::class, 'indexPage']);
