@@ -207,6 +207,10 @@ Router::get('/', [FrontendController::class, 'home']);
 
 // Static pages
 Router::get('/about', [FrontendController::class, 'about']);
+Router::get('/feedback', [FrontendController::class, 'feedback']);
+
+// Feedback API
+Router::post('/api/v1/feedback', [App\Controller\FeedbackController::class, 'submit']);
 
 // Board pages (must be before API catch-all)
 Router::get('/{slug}/catalog', [FrontendController::class, 'catalog']);

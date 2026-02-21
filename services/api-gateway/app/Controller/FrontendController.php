@@ -48,6 +48,14 @@ final class FrontendController
         return $this->html($html);
     }
 
+    /** GET /feedback – Feedback form page */
+    public function feedback(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('feedback', $common);
+        return $this->html($html);
+    }
+
     /** GET / – Homepage with board listing */
     public function home(): ResponseInterface
     {

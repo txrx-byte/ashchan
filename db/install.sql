@@ -849,4 +849,36 @@ COMMENT ON TABLE sfs_audit_log IS 'Tracks all SFS queue actions including decryp
 COMMENT ON TABLE pii_access_log IS 'Records every instance of PII decryption by staff. Used for accountability.';
 COMMENT ON COLUMN boards.staff_only IS 'When true, only authenticated staff can view and post on this board.';
 
+-- ═══════════════════════════════════════════════════════════════
+-- FEEDBACK
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS feedback (
+    id              BIGSERIAL PRIMARY KEY,
+    category        VARCHAR(50) NOT NULL,
+    subject         VARCHAR(150) NOT NULL,
+    message         TEXT NOT NULL,
+    board           VARCHAR(20) DEFAULT NULL,
+    url             VARCHAR(500) DEFAULT NULL,
+    browser         VARCHAR(500) DEFAULT NULL,
+    priority        VARCHAR(20) NOT NULL DEFAULT 'normal',
+    email           VARCHAR(200) DEFAULT NULL,
+    name            VARCHAR(100) DEFAULT NULL,
+    ip_address      VARCHAR(45) DEFAULT NULL,
+    status          VARCHAR(20) NOT NULL DEFAULT 'new',
+    staff_notes     TEXT DEFAULT NULL,
+    resolved_by     INTEGER DEFAULT NULL REFERENCES staff_users(id),
+    resolved_at     TIMESTAMPTZ DEFAULT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_feedback_category ON feedback(category);
+CREATE INDEX idx_feedback_status ON feedback(status);
+CREATE INDEX idx_feedback_priority ON feedback(priority);
+CREATE INDEX idx_feedback_created_at ON feedback(created_at DESC);
+
+COMMENT ON TABLE feedback IS 'User-submitted feedback, suggestions, and bug reports.';
+COMMENT ON COLUMN feedback.ip_address IS 'Stored for anti-spam; automatically purged after 7 days.';
+
 COMMIT;
