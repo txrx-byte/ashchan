@@ -66,6 +66,11 @@ class StaffAuthMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
+        // Allow static assets (CSS, JS, images, favicon) without auth
+        if (str_starts_with($path, '/staff/css/') || str_starts_with($path, '/staff/js/') || $path === '/staff/favicon.ico') {
+            return $handler->handle($request);
+        }
+
         // Get session token from cookie
         $cookies = $request->getCookieParams();
         $sessionToken = $cookies['staff_session'] ?? null;
