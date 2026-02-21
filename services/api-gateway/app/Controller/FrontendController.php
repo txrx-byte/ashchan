@@ -64,6 +64,54 @@ final class FrontendController
         return $this->html($html);
     }
 
+    /** GET /legal – Legal hub page */
+    public function legal(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('legal', $common);
+        return $this->html($html);
+    }
+
+    /** GET /legal/privacy – Privacy policy */
+    public function legalPrivacy(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('legal-privacy', $common);
+        return $this->html($html);
+    }
+
+    /** GET /legal/terms – Terms of service */
+    public function legalTerms(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('legal-terms', $common);
+        return $this->html($html);
+    }
+
+    /** GET /legal/cookies – Cookie policy */
+    public function legalCookies(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('legal-cookies', $common);
+        return $this->html($html);
+    }
+
+    /** GET /legal/rights – Privacy rights center (GDPR/CCPA) */
+    public function legalRights(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('legal-rights', $common);
+        return $this->html($html);
+    }
+
+    /** GET /legal/contact – Contact page */
+    public function legalContact(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('legal-contact', $common);
+        return $this->html($html);
+    }
+
     /** GET / – Homepage with board listing */
     public function home(): ResponseInterface
     {

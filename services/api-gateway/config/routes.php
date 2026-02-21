@@ -210,6 +210,15 @@ Router::get('/about', [FrontendController::class, 'about']);
 Router::get('/rules', [FrontendController::class, 'rules']);
 Router::get('/feedback', [FrontendController::class, 'feedback']);
 
+// Legal pages
+Router::get('/legal', [FrontendController::class, 'legal']);
+Router::get('/legal/privacy', [FrontendController::class, 'legalPrivacy']);
+Router::get('/legal/terms', [FrontendController::class, 'legalTerms']);
+Router::get('/legal/cookies', [FrontendController::class, 'legalCookies']);
+Router::get('/legal/rights', [FrontendController::class, 'legalRights']);
+Router::get('/legal/contact', [FrontendController::class, 'legalContact']);
+Router::get('/contact', [FrontendController::class, 'legalContact']);
+
 // Feedback API
 Router::post('/api/v1/feedback', [App\Controller\FeedbackController::class, 'submit']);
 
