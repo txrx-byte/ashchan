@@ -15,7 +15,7 @@
 # limitations under the License.
 
 #
-# Rotate certificates for Ashchan ServiceMesh
+# Rotate certificates for Ashchan mTLS
 # This script regenerates all service certificates and triggers a rolling restart
 #
 
@@ -26,8 +26,9 @@ PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 CERTS_DIR="${PROJECT_ROOT}/certs"
 CA_DIR="${CERTS_DIR}/ca"
 SERVICES_DIR="${CERTS_DIR}/services"
+PID_DIR="/tmp/ashchan-pids"
 
-echo "=== Ashchan ServiceMesh - Certificate Rotation ==="
+echo "=== Ashchan mTLS - Certificate Rotation ==="
 echo ""
 
 # Colors
@@ -49,7 +50,7 @@ SERVICES=("gateway" "auth" "boards" "media" "search" "moderation")
 echo "This script will:"
 echo "  1. Backup existing certificates"
 echo "  2. Generate new certificates for all services"
-echo "  3. Trigger a rolling restart of services"
+echo "  3. Trigger a rolling restart of services (if running)"
 echo ""
 read -p "Continue? (y/N) " -n 1 -r
 echo ""
@@ -89,7 +90,7 @@ for SERVICE in "${SERVICES[@]}"; do
     rm -f "${SERVICES_DIR}/${SERVICE}.key"
     
     # Generate new certificate
-    DNS_NAME="${SERVICE}.ashchan.local"
+    DNS_NAME="localhost"
     "${SCRIPT_DIR}/generate-cert.sh" "${SERVICE}" "${DNS_NAME}"
     echo ""
 done
@@ -101,33 +102,39 @@ echo ""
 
 # Check if services are running and trigger restart
 echo "Checking for running services..."
-if podman ps --format "{{.Names}}" | grep -q "ashchan-"; then
+RUNNING_SERVICES=0
+
+for SERVICE in "${SERVICES[@]}"; do
+    PID_FILE="${PID_DIR}/${SERVICE}.pid"
+    if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
+        ((RUNNING_SERVICES++))
+    fi
+done
+
+if [[ ${RUNNING_SERVICES} -gt 0 ]]; then
     echo ""
-    echo -e "${YELLOW}Services are running. Rolling restart recommended.${NC}"
-    echo ""
-    echo "To restart services one by one (zero-downtime):"
-    echo "  for svc in gateway auth boards media search moderation; do"
-    echo "    podman restart ashchan-\$svc-1"
-    echo "    sleep 5"
-    echo "  done"
+    echo -e "${YELLOW}${RUNNING_SERVICES} service(s) running. Rolling restart recommended.${NC}"
     echo ""
     read -p "Perform rolling restart now? (y/N) " -n 1 -r
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
+        cd "${PROJECT_ROOT}"
         for SERVICE in "${SERVICES[@]}"; do
-            CONTAINER_NAME="ashchan-${SERVICE}-1"
-            if podman ps --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
-                echo "Restarting ${CONTAINER_NAME}..."
-                podman restart "${CONTAINER_NAME}"
-                sleep 5
-                echo -e "${GREEN}✓ ${CONTAINER_NAME} restarted${NC}"
+            PID_FILE="${PID_DIR}/${SERVICE}.pid"
+            if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
+                echo "Restarting ${SERVICE}..."
+                make stop-${SERVICE} 2>/dev/null || true
+                sleep 1
+                make start-${SERVICE} 2>/dev/null || true
+                sleep 3
+                echo -e "${GREEN}✓ ${SERVICE} restarted${NC}"
             fi
         done
         echo ""
         echo -e "${GREEN}✓ Rolling restart complete${NC}"
     fi
 else
-    echo "No services running. Start with: podman-compose up -d"
+    echo "No services running. Start with: make up"
 fi
 
 echo ""

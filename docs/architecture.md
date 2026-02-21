@@ -12,11 +12,11 @@
 - Monolithic deployment.
 - Tight coupling between services.
 - User tracking beyond operational security needs.
-- Kubernetes dependency (uses rootless Podman instead).
+- Container orchestration complexity (uses native PHP-CLI instead).
 
 ## High-Level Topology
 
-### mTLS ServiceMesh Architecture
+### Native PHP-CLI Architecture
 
 ```
                                     ┌─────────────────┐
@@ -34,16 +34,10 @@
 ┌────────▼────────┐ ┌────────▼────────┐ ┌───▼─────────┐ ┌───▼─────────┐ ┌───────▼───────┐
 │ Auth/Accounts   │ │Boards/Threads   │ │ Media/      │ │ Search/     │ │ Moderation/   │
 │ (Port 9502)     │ │ (Port 9503)     │ │ Uploads     │ │ Indexing    │ │ Anti-Spam     │
-│ mtls:8443       │ │ mtls:8443       │ │ (Port 9504) │ │ (Port 9505) │ │ (Port 9506)   │
+│ mTLS:8443       │ │ mTLS:8443       │ │ (Port 9504) │ │ (Port 9505) │ │ (Port 9506)   │
 └────────┬────────┘ └────────┬────────┘ └──────┬──────┘ └──────┬──────┘ └───────┬───────┘
          │                   │                 │               │                 │
          └───────────────────┴─────────────────┴───────────────┴─────────────────┘
-                                    │
-                        ┌───────────┴───────────┐
-                        │   ServiceMesh Network │
-                        │    10.90.0.0/24       │
-                        │   DNS: ashchan.local  │
-                        └───────────┬───────────┘
                                     │
               ┌─────────────────────┼─────────────────────┐
               │                     │                     │
@@ -90,43 +84,55 @@
 
 ### PostgreSQL
 - Durable domain data and compliance logs.
-- Connection: `postgres.ashchan.local:5432`
-- Used by all services via internal network.
+- Connection: `localhost:5432` or configured host
+- Used by all services via TCP connection.
 
 ### Redis
 - Cache, rate limits, queues, and distributed locks.
-- Connection: `redis.ashchan.local:6379`
+- Connection: `localhost:6379` or configured host
 - Pub/sub for WebSocket fan-out.
 
 ### Object Storage (MinIO/S3)
 - Media blobs with immutable hashes.
-- Endpoint: `minio.ashchan.local:9000`
+- Endpoint: `localhost:9000` or configured S3-compatible endpoint
 - Used by Media/Uploads service.
 
-## Network Architecture
+## Deployment Architecture
 
-### ServiceMesh Network (`ashchan-mesh`)
-- Subnet: `10.90.0.0/24`
-- DNS domain: `ashchan.local`
-- All service-to-service communication via mTLS on port 8443
+### Native PHP-CLI (Swoole)
 
-### Public Network (`ashchan-public`)
-- Subnet: `10.90.1.0/24`
-- API Gateway only
-- Public HTTP/HTTPS traffic
+Each service runs as a standalone PHP process using the Swoole extension:
 
-### DNS-Based Service Discovery
+```bash
+# Start a service
+php bin/hyperf.php start
 
-Services are addressed by DNS name:
+# Services are managed via:
+# - Systemd (production)
+# - make up/down (development)
+# - Direct PHP execution (debugging)
+```
 
-| Service | DNS Name | Internal URL |
-|---------|----------|--------------|
-| API Gateway | `gateway.ashchan.local` | `https://gateway.ashchan.local:8443` |
-| Auth/Accounts | `auth.ashchan.local` | `https://auth.ashchan.local:8443` |
-| Boards/Threads/Posts | `boards.ashchan.local` | `https://boards.ashchan.local:8443` |
-| Media/Uploads | `media.ashchan.local` | `https://media.ashchan.local:8443` |
-| Search/Indexing | `search.ashchan.local` | `https://search.ashchan.local:8443` |
-| Moderation/Anti-Spam | `moderation.ashchan.local` | `https://moderation.ashchan.local:8443` |
+### Process Management
+
+| Method | Use Case |
+|--------|----------|
+| Systemd | Production deployments with auto-restart |
+| Make targets | Development and testing |
+| Direct PHP | Debugging and troubleshooting |
+
+### Service Communication
+
+Services communicate via HTTP/HTTPS:
+
+| Service | HTTP Port | mTLS Port | Environment Variable |
+|---------|-----------|-----------|---------------------|
+| API Gateway | 9501 | 8443 | `GATEWAY_URL` |
+| Auth/Accounts | 9502 | 8443 | `AUTH_SERVICE_URL` |
+| Boards/Threads/Posts | 9503 | 8443 | `BOARDS_SERVICE_URL` |
+| Media/Uploads | 9504 | 8443 | `MEDIA_SERVICE_URL` |
+| Search/Indexing | 9505 | 8443 | `SEARCH_SERVICE_URL` |
+| Moderation/Anti-Spam | 9506 | 8443 | `MODERATION_SERVICE_URL` |
 
 ## Eventing and Async
 
@@ -177,9 +183,9 @@ Services are addressed by DNS name:
 
 ### mTLS (Mutual TLS)
 - All service-to-service communication encrypted and authenticated.
-- Certificates signed by internal CA (`ashchan-ca`).
+- Certificates signed by internal CA.
 - TLS 1.3 minimum, strong cipher suites only.
-- See [docs/SERVICEMESH.md](docs/SERVICEMESH.md) for details.
+- See [docs/SERVICEMESH.md](SERVICEMESH.md) for details.
 
 ### Certificate Management
 - Root CA valid for 10 years.
@@ -209,34 +215,28 @@ Services are addressed by DNS name:
 
 ## Deployment
 
-### Development (Rootless Podman)
-- Podman Compose for local development.
+### Development
+- Direct PHP process execution via Makefile.
 - mTLS certificates generated locally.
-- DNS-based service discovery via Podman network.
+- Services communicate via localhost.
 
 ### Production
-- Rootless Podman on hardened hosts.
-- Centralized CA (Vault or HSM).
-- Multi-host networking via WireGuard/VXLAN.
-- Systemd for service management.
+- Systemd service units for process management.
+- Centralized CA (Vault or HSM recommended).
+- Multi-host deployments via reverse proxy.
 
-### Not Kubernetes
-- No K8s manifests or operators.
-- Simpler deployment model.
-- Full control over networking and security.
+### Service Identity
 
-## Service Identity
-
-Each service has a unique identity based on DNS names and X.509 certificates:
+Each service has a unique identity based on X.509 certificates:
 
 | Service | Certificate CN | Subject Alternative Names |
 |---------|----------------|---------------------------|
-| API Gateway | `gateway.ashchan.local` | `gateway.ashchan.local`, `gateway` |
-| Auth/Accounts | `auth.ashchan.local` | `auth.ashchan.local`, `auth` |
-| Boards/Threads/Posts | `boards.ashchan.local` | `boards.ashchan.local`, `boards` |
-| Media/Uploads | `media.ashchan.local` | `media.ashchan.local`, `media` |
-| Search/Indexing | `search.ashchan.local` | `search.ashchan.local`, `search` |
-| Moderation/Anti-Spam | `moderation.ashchan.local` | `moderation.ashchan.local`, `moderation` |
+| API Gateway | `gateway` | `gateway`, `localhost` |
+| Auth/Accounts | `auth` | `auth`, `localhost` |
+| Boards/Threads/Posts | `boards` | `boards`, `localhost` |
+| Media/Uploads | `media` | `media`, `localhost` |
+| Search/Indexing | `search` | `search`, `localhost` |
+| Moderation/Anti-Spam | `moderation` | `moderation`, `localhost` |
 
 ## Failure Isolation
 

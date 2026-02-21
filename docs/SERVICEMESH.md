@@ -1,13 +1,13 @@
-# Ashchan mTLS ServiceMesh Architecture
+# Ashchan mTLS Security Architecture
 
 ## Overview
 
-Ashchan uses a **DNS-based mTLS ServiceMesh** for secure service-to-service communication. This architecture provides:
+Ashchan uses **mTLS (Mutual TLS)** for secure service-to-service communication. This architecture provides:
 
-- **Mutual TLS (mTLS)** authentication between all services
-- **DNS-based service discovery** via rootless Podman networking
-- **Zero-trust security model** with certificate-based identity
-- **No Kubernetes dependency** - runs entirely on Podman Compose
+- **Mutual TLS authentication** between all services
+- **Certificate-based identity** for zero-trust security
+- **Native PHP-CLI deployment** without container dependencies
+- **Systemd integration** for production process management
 
 ---
 
@@ -29,17 +29,10 @@ Ashchan uses a **DNS-based mTLS ServiceMesh** for secure service-to-service comm
 ┌────────▼────────┐ ┌────────▼────────┐ ┌───▼─────────┐ ┌───▼─────────┐ ┌───────▼───────┐
 │ Auth/Accounts   │ │Boards/Threads   │ │ Media/      │ │ Search/     │ │ Moderation/   │
 │ (Port 9502)     │ │ (Port 9503)     │ │ Uploads     │ │ Indexing    │ │ Anti-Spam     │
-│ mtls:8443       │ │ mtls:8443       │ │ (Port 9504) │ │ (Port 9505) │ │ (Port 9506)   │
-│ http:9502       │ │ http:9502       │ │ mtls:8443   │ │ mtls:8443   │ │ mtls:8443     │
+│ mTLS:8443       │ │ mTLS:8443       │ │ (Port 9504) │ │ (Port 9505) │ │ (Port 9506)   │
 └────────┬────────┘ └────────┬────────┘ └──────┬──────┘ └──────┬──────┘ └───────┬───────┘
          │                   │                 │               │                 │
          └───────────────────┴─────────────────┴───────────────┴─────────────────┘
-                                    │
-                        ┌───────────┴───────────┐
-                        │   ServiceMesh Network │
-                        │    10.90.0.0/24       │
-                        │   DNS: ashchan.local  │
-                        └───────────┬───────────┘
                                     │
               ┌─────────────────────┼─────────────────────┐
               │                     │                     │
@@ -53,24 +46,24 @@ Ashchan uses a **DNS-based mTLS ServiceMesh** for secure service-to-service comm
 
 ## Service Identity
 
-Each service has a unique identity based on DNS names:
+Each service has a unique identity based on X.509 certificates:
 
-| Service | DNS Name | Certificate CN | Internal URL |
-|---------|----------|----------------|--------------|
-| API Gateway | `gateway.ashchan.local` | `gateway.ashchan.local` | `https://gateway.ashchan.local:8443` |
-| Auth/Accounts | `auth.ashchan.local` | `auth.ashchan.local` | `https://auth.ashchan.local:8443` |
-| Boards/Threads/Posts | `boards.ashchan.local` | `boards.ashchan.local` | `https://boards.ashchan.local:8443` |
-| Media/Uploads | `media.ashchan.local` | `media.ashchan.local` | `https://media.ashchan.local:8443` |
-| Search/Indexing | `search.ashchan.local` | `search.ashchan.local` | `https://search.ashchan.local:8443` |
-| Moderation/Anti-Spam | `moderation.ashchan.local` | `moderation.ashchan.local` | `https://moderation.ashchan.local:8443` |
+| Service | Certificate CN | HTTP Port | mTLS Port |
+|---------|----------------|-----------|-----------|
+| API Gateway | `gateway` | 9501 | 8443 |
+| Auth/Accounts | `auth` | 9502 | 8443 |
+| Boards/Threads/Posts | `boards` | 9503 | 8443 |
+| Media/Uploads | `media` | 9504 | 8443 |
+| Search/Indexing | `search` | 9505 | 8443 |
+| Moderation/Anti-Spam | `moderation` | 9506 | 8443 |
 
 ### Infrastructure Services (No mTLS)
 
-| Service | DNS Name | Internal URL |
-|---------|----------|--------------|
-| PostgreSQL | `postgres.ashchan.local` | `postgres.ashchan.local:5432` |
-| Redis | `redis.ashchan.local` | `redis.ashchan.local:6379` |
-| MinIO | `minio.ashchan.local` | `https://minio.ashchan.local:9000` |
+| Service | Port | Notes |
+|---------|------|-------|
+| PostgreSQL | 5432 | Use SSL if connecting over network |
+| Redis | 6379 | Use TLS if connecting over network |
+| MinIO | 9000 | Use HTTPS for production |
 
 ---
 
@@ -78,13 +71,12 @@ Each service has a unique identity based on DNS names:
 
 ```
 ashchan-ca (Root CA)
-├── gateway.ashchan.local (Server Certificate)
-├── auth.ashchan.local (Server Certificate)
-├── boards.ashchan.local (Server Certificate)
-├── media.ashchan.local (Server Certificate)
-├── search.ashchan.local (Server Certificate)
-├── moderation.ashchan.local (Server Certificate)
-└── ashchan.local (Client CA - signs client certs)
+├── gateway.crt (Server Certificate)
+├── auth.crt (Server Certificate)
+├── boards.crt (Server Certificate)
+├── media.crt (Server Certificate)
+├── search.crt (Server Certificate)
+└── moderation.crt (Server Certificate)
 ```
 
 ### Certificate Properties
@@ -95,40 +87,6 @@ ashchan-ca (Root CA)
 - **Signature Algorithm**: SHA-256
 - **Key Usage**: Digital Signature, Key Encipherment
 - **Extended Key Usage**: TLS Web Server Authentication, TLS Web Client Authentication
-
----
-
-## Network Topology
-
-### Podman Network Configuration
-
-```yaml
-networks:
-  ashchan-mesh:
-    driver: bridge
-    ipam:
-      driver: host-local
-      config:
-        - subnet: 10.90.0.0/24
-          gateway: 10.90.0.1
-    options:
-      com.podman.network.bridge.name: ashchan-mesh
-```
-
-### DNS Resolution
-
-Podman's internal DNS resolver provides automatic service discovery:
-
-- Container hostname → Container IP
-- Service name → Container IP
-- Custom domain: `*.ashchan.local`
-
-**DNS Configuration in Containers:**
-```bash
-# Inside any container
-getent hosts auth.ashchan.local
-# Returns: 10.90.0.21  auth.ashchan.local
-```
 
 ---
 
@@ -170,7 +128,7 @@ getent hosts auth.ashchan.local
 - **Server Authentication**: Client verifies server certificate
 - **Client Authentication**: Server verifies client certificate
 - **Certificate Chain**: All certs signed by `ashchan-ca`
-- **SAN Validation**: Subject Alternative Names must match DNS
+- **SAN Validation**: Subject Alternative Names must match expected identity
 
 ### Authorization
 - **Service Identity**: Derived from certificate CN
@@ -191,23 +149,24 @@ getent hosts auth.ashchan.local
 # Generate Root CA
 ./scripts/mtls/generate-ca.sh
 
-# Generate service certificates
-./scripts/mtls/generate-cert.sh gateway.ashchan.local
-./scripts/mtls/generate-cert.sh auth.ashchan.local
-# ... etc
+# Generate all service certificates
+./scripts/mtls/generate-all-certs.sh
+
+# Generate single service certificate
+./scripts/mtls/generate-cert.sh gateway localhost
 ```
 
 ### Generation (Production)
 ```bash
 # Use Vault or external CA
 vault write pki/issue/ashchan-services \
-    common_name=gateway.ashchan.local \
+    common_name=gateway \
     ttl=8760h \
-    ip_sans=10.90.0.10
+    alt_names=gateway,localhost
 ```
 
 ### Rotation
-- **Automatic**: Certificates renewed at 70% lifetime
+- **Automatic**: Certificates renewed at 70% lifetime via cron
 - **Manual**: `./scripts/mtls/rotate-certs.sh`
 - **Emergency**: Revoke and reissue immediately
 
@@ -226,18 +185,17 @@ Each service requires these mTLS-related variables:
 ```bash
 # Service identity
 SERVICE_NAME=auth-accounts
-SERVICE_DNS_NAME=auth.ashchan.local
 
 # mTLS configuration
 MTLS_ENABLED=true
 MTLS_PORT=8443
-MTLS_CERT_FILE=/etc/mtls/server.crt
-MTLS_KEY_FILE=/etc/mtls/server.key
-MTLS_CA_FILE=/etc/mtls/ca.crt
+MTLS_CERT_FILE=/path/to/certs/services/auth/auth.crt
+MTLS_KEY_FILE=/path/to/certs/services/auth/auth.key
+MTLS_CA_FILE=/path/to/certs/ca/ca.crt
 
 # Client certificate (for outbound calls)
-MTLS_CLIENT_CERT_FILE=/etc/mtls/client.crt
-MTLS_CLIENT_KEY_FILE=/etc/mtls/client.key
+MTLS_CLIENT_CERT_FILE=/path/to/certs/services/auth/auth.crt
+MTLS_CLIENT_KEY_FILE=/path/to/certs/services/auth/auth.key
 
 # Peer verification
 MTLS_VERIFY_CLIENT=true
@@ -261,11 +219,11 @@ return [
             ],
             'options' => [
                 'open_ssl' => true,
-                'ssl_cert_file' => '/etc/mtls/server.crt',
-                'ssl_key_file' => '/etc/mtls/server.key',
+                'ssl_cert_file' => env('MTLS_CERT_FILE'),
+                'ssl_key_file' => env('MTLS_KEY_FILE'),
                 'ssl_verify_peer' => true,
                 'ssl_verify_depth' => 3,
-                'ssl_ca_file' => '/etc/mtls/ca.crt',
+                'ssl_ca_file' => env('MTLS_CA_FILE'),
             ],
         ],
     ],
@@ -279,10 +237,9 @@ return [
 return [
     'http_client' => [
         'default_options' => [
-            'verify' => '/etc/mtls/ca.crt',
-            'cert' => '/etc/mtls/client.crt',
-            'key' => '/etc/mtls/client.key',
-            'ssl_key' => '/etc/mtls/client.key',
+            'verify' => env('MTLS_CA_FILE'),
+            'cert' => env('MTLS_CLIENT_CERT_FILE'),
+            'key' => env('MTLS_CLIENT_KEY_FILE'),
         ],
     ],
 ];
@@ -300,24 +257,24 @@ return [
    Authorization: Bearer <token>
 
 2. Gateway → Auth Service (mTLS)
-   POST https://auth.ashchan.local:8443/api/v1/verify
-   Client Cert: gateway.ashchan.local
-   Server Cert: auth.ashchan.local
+   POST https://localhost:8443/api/v1/verify
+   Client Cert: gateway
+   Server Cert: auth
    
 3. Gateway → Boards Service (mTLS)
-   POST https://boards.ashchan.local:8443/api/v1/posts
-   Client Cert: gateway.ashchan.local
-   Server Cert: boards.ashchan.local
+   POST https://localhost:8443/api/v1/posts
+   Client Cert: gateway
+   Server Cert: boards
    
 4. Boards Service → Media Service (mTLS)
-   GET https://media.ashchan.local:8443/api/v1/media/abc123
-   Client Cert: boards.ashchan.local
-   Server Cert: media.ashchan.local
+   GET https://localhost:8443/api/v1/media/abc123
+   Client Cert: boards
+   Server Cert: media
    
 5. Boards Service → Moderation Service (mTLS)
-   POST https://moderation.ashchan.local:8443/api/v1/score
-   Client Cert: boards.ashchan.local
-   Server Cert: moderation.ashchan.local
+   POST https://localhost:8443/api/v1/score
+   Client Cert: boards
+   Server Cert: moderation
 ```
 
 ---
@@ -333,11 +290,6 @@ return [
 - **Symptom**: TLS handshake fails with "certificate revoked"
 - **Detection**: CRL/OCSP check failure
 - **Recovery**: Issue new certificate, investigate compromise
-
-### DNS Resolution Failure
-- **Symptom**: Connection timeout, "host not found"
-- **Detection**: Health check failures
-- **Recovery**: Restart Podman network, check DNS configuration
 
 ### mTLS Handshake Failure
 - **Symptom**: SSL_ERROR alerts in logs
@@ -364,12 +316,12 @@ return [
 
 ```json
 {
-  "timestamp": "2025-02-18T12:00:00Z",
+  "timestamp": "2026-02-18T12:00:00Z",
   "level": "info",
   "service": "api-gateway",
   "event": "mtls_handshake_complete",
-  "client_cn": "boards.ashchan.local",
-  "server_cn": "gateway.ashchan.local",
+  "client_cn": "boards",
+  "server_cn": "gateway",
   "tls_version": "TLSv1.3",
   "cipher_suite": "TLS_AES_256_GCM_SHA384"
 }
@@ -379,20 +331,20 @@ return [
 
 ```bash
 # Test mTLS connection
-openssl s_client -connect auth.ashchan.local:8443 \
-  -cert /etc/mtls/client.crt \
-  -key /etc/mtls/client.key \
-  -CAfile /etc/mtls/ca.crt
+openssl s_client -connect localhost:8443 \
+  -cert certs/services/gateway/gateway.crt \
+  -key certs/services/gateway/gateway.key \
+  -CAfile certs/ca/ca.crt
 
 # Verify certificate chain
-openssl verify -CAfile /etc/mtls/ca.crt /etc/mtls/server.crt
+openssl verify -CAfile certs/ca/ca.crt certs/services/auth/auth.crt
 ```
 
 ---
 
 ## Deployment
 
-### Development (Podman Compose)
+### Development
 
 ```bash
 # Generate certificates
@@ -400,25 +352,45 @@ openssl verify -CAfile /etc/mtls/ca.crt /etc/mtls/server.crt
 ./scripts/mtls/generate-all-certs.sh
 
 # Start services
-podman-compose up -d
+make up
 
 # Verify mTLS
 ./scripts/mtls/verify-mesh.sh
 ```
 
-### Production (Rootless Podman on multiple hosts)
+### Production (Systemd)
 
-```bash
-# On each host:
-# 1. Install certificates
-# 2. Configure Podman network
-# 3. Deploy services with systemd
+```ini
+# /etc/systemd/system/ashchan-gateway.service
+[Unit]
+Description=Ashchan API Gateway
+After=network.target postgresql.service redis.service
 
-# For multi-host:
-# - Use WireGuard/VXLAN for host-to-host networking
-# - Centralized CA (Vault)
-# - DNS forwarding between hosts
+[Service]
+Type=simple
+User=ashchan
+Group=ashchan
+WorkingDirectory=/opt/ashchan/services/api-gateway
+Environment=APP_ENV=production
+Environment=MTLS_CERT_FILE=/etc/ashchan/certs/services/gateway/gateway.crt
+Environment=MTLS_KEY_FILE=/etc/ashchan/certs/services/gateway/gateway.key
+Environment=MTLS_CA_FILE=/etc/ashchan/certs/ca/ca.crt
+ExecStart=/usr/bin/php bin/hyperf.php start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 ```
+
+### Multi-Host Deployment
+
+For multi-host deployments:
+
+1. **Centralized CA**: Use Vault or HSM for certificate management
+2. **Certificate Distribution**: Automate cert deployment via Ansible/Chef
+3. **Service URLs**: Configure environment variables with actual hostnames
+4. **Network Security**: Use firewall rules to restrict mTLS ports
 
 ---
 
@@ -429,27 +401,27 @@ podman-compose up -d
 | Issue | Symptom | Solution |
 |-------|---------|----------|
 | Certificate mismatch | "unable to verify certificate" | Regenerate certs with correct CN |
-| DNS resolution fails | "host not found" | Check Podman network config |
 | TLS version mismatch | "unsupported protocol" | Ensure TLS 1.3 on all services |
 | Permission denied | "cannot read certificate" | Fix file permissions (644 for certs, 600 for keys) |
+| Port already in use | "address already in use" | Stop existing process or use different port |
 
 ### Debug Commands
 
 ```bash
 # Check certificate details
-openssl x509 -in /etc/mtls/server.crt -text -noout
+openssl x509 -in certs/services/gateway/gateway.crt -text -noout
 
 # Test connection without client cert (should fail)
-curl -k https://auth.ashchan.local:8443/health
+curl -k https://localhost:8443/health
 
 # Test connection with client cert (should succeed)
-curl --cacert /etc/mtls/ca.crt \
-     --cert /etc/mtls/client.crt \
-     --key /etc/mtls/client.key \
-     https://auth.ashchan.local:8443/health
+curl --cacert certs/ca/ca.crt \
+     --cert certs/services/gateway/gateway.crt \
+     --key certs/services/gateway/gateway.key \
+     https://localhost:8443/health
 
-# Check Podman DNS
-podman exec ashchan-gateway-1 getent hosts auth.ashchan.local
+# Check PHP Swoole SSL support
+php -r "var_dump(extension_loaded('swoole'), defined('SWOOLE_SSL'));"
 ```
 
 ---
@@ -467,30 +439,6 @@ podman exec ashchan-gateway-1 getent hosts auth.ashchan.local
 
 ---
 
-## Migration from Static IPs
-
-### Before (Static IPs)
-```bash
-AUTH_SERVICE_URL=http://10.90.0.21:9502
-BOARDS_SERVICE_URL=http://10.90.0.22:9503
-```
-
-### After (DNS + mTLS)
-```bash
-AUTH_SERVICE_URL=https://auth.ashchan.local:8443
-BOARDS_SERVICE_URL=https://boards.ashchan.local:8443
-```
-
-### Migration Steps
-1. Deploy mTLS infrastructure (CA, certificates)
-2. Update service configurations for mTLS
-3. Update environment variables (HTTP → HTTPS, IP → DNS)
-4. Test each service pair individually
-5. Enable mTLS verification in production
-6. Disable non-mTLS ports (9502-9506)
-
----
-
 ## Future Enhancements
 
 - **Automatic certificate rotation** via cron job
@@ -498,4 +446,3 @@ BOARDS_SERVICE_URL=https://boards.ashchan.local:8443
 - **mTLS middleware** for automatic client cert injection
 - **OCSP stapling** for faster revocation checks
 - **SPIFFE/SPIRE integration** for workload identity
-- **Envoy sidecar** proxy for advanced traffic management

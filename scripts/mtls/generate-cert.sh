@@ -76,14 +76,11 @@ SERVICE_DIR="${SERVICES_DIR}/${SERVICE_NAME}"
 mkdir -p "${SERVICE_DIR}"
 
 # Generate private key
-# NOTE: We use mode 644 (not 600) because containers mount these volumes
-# as root but the application runs as appuser (UID 1000). The appuser
-# must be able to read the key files for Swoole SSL to work.
-# In production, use proper UID mapping or secrets management instead.
+# Use mode 600 (owner read/write only) for secure private key storage
 echo "1. Generating private key..."
 openssl ecparam -genkey -name prime256v1 -noout -out "${SERVICE_DIR}/${SERVICE_NAME}.key"
-chmod 644 "${SERVICE_DIR}/${SERVICE_NAME}.key"
-echo "   Created: ${SERVICE_DIR}/${SERVICE_NAME}.key (mode 644 for container access)"
+chmod 600 "${SERVICE_DIR}/${SERVICE_NAME}.key"
+echo "   Created: ${SERVICE_DIR}/${SERVICE_NAME}.key"
 
 # Generate CSR
 echo "2. Generating Certificate Signing Request (CSR)..."
@@ -147,14 +144,14 @@ echo ""
 echo "=== Certificate Generation Complete ==="
 echo ""
 echo "Certificate: ${SERVICE_DIR}/${SERVICE_NAME}.crt"
-echo "Private Key: ${SERVICE_DIR}/${SERVICE_NAME}.key (mode 644 for container access)"
+echo "Private Key: ${SERVICE_DIR}/${SERVICE_NAME}.key"
 echo "CA Bundle:   ${CA_DIR}/ca.crt"
 echo ""
 echo "Certificate details:"
 openssl x509 -in "${SERVICE_DIR}/${SERVICE_NAME}.crt" -text -noout | grep -A2 "Subject:" | head -3
 echo ""
-echo "To use this certificate in Podman Compose, mount:"
-echo "  - ${SERVICE_DIR}/${SERVICE_NAME}.crt:/etc/mtls/server.crt:ro"
-echo "  - ${SERVICE_DIR}/${SERVICE_NAME}.key:/etc/mtls/server.key:ro"
-echo "  - ${CA_DIR}/ca.crt:/etc/mtls/ca.crt:ro"
+echo "Configure in your service .env file:"
+echo "  MTLS_CERT_FILE=${SERVICE_DIR}/${SERVICE_NAME}.crt"
+echo "  MTLS_KEY_FILE=${SERVICE_DIR}/${SERVICE_NAME}.key"
+echo "  MTLS_CA_FILE=${CA_DIR}/ca.crt"
 echo ""

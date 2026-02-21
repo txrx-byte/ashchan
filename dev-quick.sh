@@ -20,13 +20,12 @@
 # Lightweight version of bootstrap.sh for rapid development iterations.
 # Assumes mTLS certs and .env files are already configured.
 #
-# Usage: ./dev-quick.sh [--rooted]
+# Usage: ./dev-quick.sh
 #
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="${SCRIPT_DIR}/podman-compose.yml"
 
 # Colors
 GREEN='\033[0;32m'
@@ -40,90 +39,46 @@ success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 step() { echo -e "${CYAN}[STEP]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
-# Parse command line arguments
-ROOTED_MODE=false
-
-for arg in "$@"; do
-    case $arg in
-        --rooted)
-            ROOTED_MODE=true
-            warn "Rooted mode enabled (for dev containers/testing)"
-            ;;
-        *)
-            echo "Usage: $0 [--rooted]"
-            exit 1
-            ;;
-    esac
-done
-
-# Set podman command prefix based on mode
-if [[ "$ROOTED_MODE" == "true" ]]; then
-    PODMAN_CMD="sudo podman"
-    PODMAN_COMPOSE_CMD="sudo podman-compose"
-else
-    PODMAN_CMD="podman"
-    PODMAN_COMPOSE_CMD="podman-compose"
-fi
-
 echo
-echo "🚀 Ashchan Quick Development Setup"
-echo "=================================="
+echo "🚀 Ashchan Quick Development Restart"
+echo "====================================="
 
-# Step 1: Clean restart
-step "1/4 Restarting services..."
-$PODMAN_COMPOSE_CMD -f "$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
-$PODMAN_COMPOSE_CMD -f "$COMPOSE_FILE" up -d
+# Step 1: Stop existing services
+step "1/3 Stopping existing services..."
+make down 2>/dev/null || true
+success "Services stopped"
 
-# Wait for PostgreSQL
-info "Waiting for PostgreSQL..."
-for i in {1..20}; do
-    if $PODMAN_CMD exec ashchan-postgres-1 pg_isready -U ashchan -d ashchan >/dev/null 2>&1; then
-        break
-    fi
-    if [[ $i -eq 20 ]]; then
-        echo "PostgreSQL not ready, continuing anyway..."
-        break
-    fi
-    sleep 1
-done
+# Step 2: Start services
+step "2/3 Starting services..."
+make up
+success "Services started"
 
-# Step 2: Quick migration check (only run latest if needed)
-step "2/4 Checking migrations..."
-if $PODMAN_CMD exec ashchan-boards-1 php /app/bin/hyperf.php migrate:status >/dev/null 2>&1; then
-    info "Running any pending migrations..."
-    $PODMAN_CMD exec ashchan-boards-1 php /app/bin/hyperf.php migrate
-else
-    # Fallback to key SQL migrations
-    info "Running key SQL migrations..."
-    $PODMAN_CMD exec ashchan-postgres-1 psql -U ashchan -d ashchan -f "/app/db/migrations/002_boards_threads_posts.sql" 2>/dev/null || true
-fi
-
-# Step 3: Quick seed (only boards if empty)
-step "3/4 Quick seeding..."
-BOARD_COUNT=$($PODMAN_CMD exec ashchan-postgres-1 psql -U ashchan -d ashchan -t -c "SELECT COUNT(*) FROM boards;" 2>/dev/null | tr -d ' ' || echo "0")
-if [[ "$BOARD_COUNT" == "0" ]]; then
-    info "Seeding boards..."
-    $PODMAN_CMD exec ashchan-postgres-1 psql -U ashchan -d ashchan -f "/app/db/seeders/boards.sql" 2>/dev/null || true
-else
-    info "Boards already seeded (${BOARD_COUNT} boards found)"
-fi
-
-# Step 4: Quick health check
-step "4/4 Health check..."
+# Step 3: Quick health check
+step "3/3 Checking health..."
 sleep 3
-if curl -s -f "http://localhost:9501/health" >/dev/null 2>&1; then
-    success "✓ API Gateway is healthy"
+
+HEALTHY=0
+TOTAL=6
+
+for pair in gateway:9501 auth:9502 boards:9503 media:9504 search:9505 moderation:9506; do
+    svc=${pair%%:*}
+    PORT=${pair##*:}
+    if curl -s --max-time 2 "http://localhost:$PORT/health" > /dev/null 2>&1; then
+        ((HEALTHY++))
+    fi
+done
+
+echo
+if [ $HEALTHY -eq $TOTAL ]; then
+    success "✓ All services healthy ($HEALTHY/$TOTAL)"
 else
-    info "API Gateway still starting... (this is normal)"
+    warn "⚠ Some services may still be starting ($HEALTHY/$TOTAL healthy)"
 fi
 
 echo
-success "🎯 Quick setup complete!"
-echo "=================================="
+success "🎯 Quick restart complete!"
+echo "====================================="
 echo "API Gateway: http://localhost:9501"
-if [[ "$ROOTED_MODE" == "true" ]]; then
-echo "Logs:        sudo podman-compose logs -f"
-else
-echo "Logs:        podman-compose logs -f"
-fi
+echo "Logs:        make logs"
+echo "Health:      make health"
 echo

@@ -18,7 +18,7 @@
 # Ashchan Bootstrap Script - Dry Run Mode
 # 
 # This version simulates the bootstrap process for testing in environments
-# where podman is not available. It validates the script logic and structure.
+# where PHP/Swoole is not available. It validates the script logic and structure.
 #
 # Usage: ./bootstrap-dry.sh [--force]
 #
@@ -26,7 +26,6 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="${SCRIPT_DIR}/podman-compose.yml"
 
 # Colors for output
 RED='\033[0;31m'
@@ -57,20 +56,39 @@ echo " ▄▀█ █▀ █░█ █▀▀ █░█ █▀█ █▄░█"
 echo " █▀█ ▄█ █▀█ █▄▄ █▀█ █▀█ █░▀█"
 echo "=================================================="
 echo "         Bootstrap Dry Run (Testing Mode)"
+echo "           (Native PHP-CLI via Swoole)"
 echo "=================================================="
 echo
 
-# Step 1: Configure Podman registries (dry run)
-step "1/8 Configuring Podman registries... (DRY RUN)"
-CONFIG_DIR="$HOME/.config/containers"
-CONFIG_FILE="$CONFIG_DIR/registries.conf"
+# Step 1: Check PHP environment (dry run)
+step "1/7 Verifying PHP environment... (DRY RUN)"
 
-info "Would create directory: $CONFIG_DIR"
-info "Would write configuration to: $CONFIG_FILE"
-success "Podman registries configured (simulated)"
+if command -v php >/dev/null 2>&1; then
+    PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+    success "PHP ${PHP_VERSION} found"
+    
+    # Check for required extensions
+    REQUIRED_EXTENSIONS=("swoole" "openssl" "pdo" "pdo_pgsql" "redis" "mbstring" "json" "curl" "pcntl")
+    MISSING_EXTENSIONS=()
+    
+    for ext in "${REQUIRED_EXTENSIONS[@]}"; do
+        if php -m 2>/dev/null | grep -qi "^${ext}$"; then
+            info "  ✓ ${ext}"
+        else
+            MISSING_EXTENSIONS+=("$ext")
+            warn "  ✗ ${ext} (missing)"
+        fi
+    done
+    
+    if [ ${#MISSING_EXTENSIONS[@]} -gt 0 ]; then
+        warn "Missing extensions: ${MISSING_EXTENSIONS[*]}"
+    fi
+else
+    warn "PHP not found - would be required for actual deployment"
+fi
 
 # Step 2: Initialize mTLS certificates (dry run)
-step "2/8 Initializing mTLS ServiceMesh... (DRY RUN)"
+step "2/7 Initializing mTLS certificates... (DRY RUN)"
 CERTS_DIR="${SCRIPT_DIR}/certs"
 
 if [[ "$FORCE_REBUILD" == "true" ]] || [[ ! -f "${CERTS_DIR}/ca/ca.crt" ]]; then
@@ -98,7 +116,7 @@ else
 fi
 
 # Step 3: Set up service environment files
-step "3/8 Setting up service configurations..."
+step "3/7 Setting up service configurations..."
 SERVICES=("api-gateway" "auth-accounts" "boards-threads-posts" "media-uploads" "search-indexing" "moderation-anti-spam")
 
 for svc in "${SERVICES[@]}"; do
@@ -119,21 +137,22 @@ done
 
 success "Service configurations ready"
 
-# Step 4: Stop any existing services (dry run)
-step "4/8 Cleaning up existing services... (DRY RUN)"
-info "Would stop any existing podman-compose services..."
-success "Existing services stopped (simulated)"
+# Step 4: Install composer dependencies (dry run)
+step "4/7 Installing composer dependencies... (DRY RUN)"
+if command -v composer >/dev/null 2>&1; then
+    info "Composer available - would install dependencies for each service"
+else
+    warn "Composer not found - would be required for actual deployment"
+fi
+success "Composer dependencies installed (simulated)"
 
-# Step 5: Start all services (dry run)
-step "5/8 Starting all services... (DRY RUN)"
-info "Would start infrastructure (PostgreSQL, Redis, MinIO)..."
-info "Would start microservices (API Gateway, Auth, Boards, Media, Search, Moderation)..."
-info "Would wait for services to start..."
-info "Would check PostgreSQL readiness..."
-success "All services started (simulated)"
-
-# Step 6: Run database migrations (dry run)
-step "6/8 Running database migrations... (DRY RUN)"
+# Step 5: Database connectivity check (dry run)
+step "5/7 Checking database connectivity... (DRY RUN)"
+if command -v psql >/dev/null 2>&1; then
+    info "psql client available - would check PostgreSQL connectivity"
+else
+    warn "psql not found - would be needed for migrations"
+fi
 
 # Check for SQL migrations
 SQL_MIGRATIONS=(
@@ -167,66 +186,21 @@ for migration in "${SQL_MIGRATIONS[@]}"; do
 done
 
 info "Found ${FOUND_MIGRATIONS} SQL migration files"
+success "Database migrations validated (simulated)"
 
-# Check for PHP migrations
-PHP_MIGRATIONS=(
-    "20260218000001_create_reports_table.php"
-    "20260218000002_create_report_categories_table.php"
-    "20260218000003_create_ban_templates_table.php"
-    "20260218000004_create_banned_users_table.php"
-    "20260218000005_create_ban_requests_table.php"
-    "20260218000006_create_report_clear_log_table.php"
-    "20260218000007_create_janitor_stats_table.php"
-)
+# Step 6: Start services (dry run)
+step "6/7 Starting all services... (DRY RUN)"
+info "Would start the following services:"
+echo "  • API Gateway     (port 9501)"
+echo "  • Auth/Accounts   (port 9502)"
+echo "  • Boards/Posts    (port 9503)"
+echo "  • Media/Uploads   (port 9504)"
+echo "  • Search/Indexing (port 9505)"
+echo "  • Moderation      (port 9506)"
+success "All services started (simulated)"
 
-FOUND_PHP_MIGRATIONS=0
-for migration in "${PHP_MIGRATIONS[@]}"; do
-    if [[ -f "db/migrations/${migration}" ]]; then
-        info "Found PHP migration: ${migration}"
-        ((FOUND_PHP_MIGRATIONS++))
-    fi
-done
-
-info "Found ${FOUND_PHP_MIGRATIONS} PHP migration files"
-success "Database migrations completed (simulated)"
-
-# Step 7: Seed the database (dry run)
-step "7/8 Seeding the database... (DRY RUN)"
-
-# Check for SQL seeders
-SQL_SEEDERS=(
-    "boards.sql"
-)
-
-FOUND_SEEDERS=0
-for seeder in "${SQL_SEEDERS[@]}"; do
-    if [[ -f "db/seeders/${seeder}" ]]; then
-        info "Found seeder: ${seeder}"
-        ((FOUND_SEEDERS++))
-    else
-        warn "Seeder file not found: ${seeder}"
-    fi
-done
-
-# Check for PHP seeders
-PHP_SEEDERS=(
-    "BanTemplateSeeder.php"
-    "ReportCategorySeeder.php"
-)
-
-FOUND_PHP_SEEDERS=0
-for seeder in "${PHP_SEEDERS[@]}"; do
-    if [[ -f "db/seeders/${seeder}" ]]; then
-        info "Found PHP seeder: ${seeder}"
-        ((FOUND_PHP_SEEDERS++))
-    fi
-done
-
-info "Found ${FOUND_SEEDERS} SQL seeders and ${FOUND_PHP_SEEDERS} PHP seeders"
-success "Database seeding completed (simulated)"
-
-# Step 8: Verify installation (dry run)
-step "8/8 Verifying installation... (DRY RUN)"
+# Step 7: Verify health (dry run)
+step "7/7 Verifying installation... (DRY RUN)"
 
 info "Would check service health at:"
 echo "  • API Gateway:    http://localhost:9501/health"
@@ -236,7 +210,7 @@ echo "  • Media Service:  http://localhost:9504/health"
 echo "  • Search Service: http://localhost:9505/health"
 echo "  • Moderation:     http://localhost:9506/health"
 
-info "Would verify mTLS ServiceMesh..."
+info "Would verify mTLS certificates..."
 
 # Final status
 echo
@@ -246,19 +220,19 @@ echo "=================================================="
 echo
 info "This was a dry run to test the bootstrap logic."
 echo
-info "To run with actual Podman services:"
-echo "  1. Ensure Podman is installed and configured"
-echo "  2. Run: ./bootstrap.sh"
+info "To run with actual services:"
+echo "  1. Ensure PHP 8.2+ with Swoole is installed"
+echo "  2. Ensure PostgreSQL and Redis are running"
+echo "  3. Run: ./bootstrap.sh"
 echo
 info "Files created/validated:"
 echo "  ✓ Service .env files (${#SERVICES[@]} services)"
-echo "  ✓ Migration files (${FOUND_MIGRATIONS} SQL, ${FOUND_PHP_MIGRATIONS} PHP)"
-echo "  ✓ Seeder files (${FOUND_SEEDERS} SQL, ${FOUND_PHP_SEEDERS} PHP)"
+echo "  ✓ Migration files (${FOUND_MIGRATIONS} SQL)"
 if [[ -f "${CERTS_DIR}/ca/ca.crt" ]]; then
     echo "  ✓ mTLS certificates"
 else
     echo "  ? mTLS certificates (generation skipped)"
 fi
 echo
-info "The bootstrap script structure is ready for production use!"
+info "The bootstrap script structure is ready for use!"
 echo

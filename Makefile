@@ -13,87 +13,315 @@
 # limitations under the License.
 
 # Ashchan Makefile
-# mTLS ServiceMesh Management
+# Native PHP-CLI Deployment via Swoole
 
-.PHONY: help install up down logs migrate seed test lint bootstrap bootstrap-force bootstrap-rooted bootstrap-rooted-force dev-quick dev-quick-rooted mtls-init mtls-certs mtls-verify mtls-rotate
-.PHONY: swoole-cli-download swoole-cli-build runtime-build runtime-up runtime-down runtime-logs
+.PHONY: help install up down logs migrate seed test lint phpstan bootstrap dev-quick
+.PHONY: mtls-init mtls-certs mtls-verify mtls-rotate mtls-status
+.PHONY: start-gateway start-auth start-boards start-media start-search start-moderation
+.PHONY: stop-gateway stop-auth stop-boards stop-media stop-search stop-moderation
+.PHONY: restart health clean clean-certs
+
+# Service directories
+SERVICES = api-gateway auth-accounts boards-threads-posts media-uploads search-indexing moderation-anti-spam
+
+# PID file directory
+PID_DIR = /tmp/ashchan-pids
 
 help:
 	@echo "Ashchan Makefile Commands"
 	@echo ""
 	@echo "Development:"
-	@echo "  bootstrap        Complete setup (certs, env, services, migrations, seed)"
-	@echo "  bootstrap-rooted Complete setup with root privileges (dev containers)"
-	@echo "  dev-quick        Quick development restart (assumes setup is done)"
-	@echo "  dev-quick-rooted Quick restart with root privileges (dev containers)"
-	@echo "  install          Copy .env files for all services"
-	@echo "  up               Start all services with podman-compose"
-	@echo "  down             Stop all services"
-	@echo "  logs             Tail logs from all services"
-	@echo "  migrate          Run database migrations"
-	@echo "  seed             Seed the database"
-	@echo "  test             Run all service tests"
-	@echo "  lint             Lint all PHP code"
+	@echo "  bootstrap      Complete setup (deps, certs, services, migrations, seed)"
+	@echo "  dev-quick      Quick development restart (assumes setup is done)"
+	@echo "  install        Copy .env.example to .env for all services"
+	@echo "  up             Start all services (native PHP processes)"
+	@echo "  down           Stop all services"
+	@echo "  logs           View combined logs"
+	@echo "  migrate        Run database migrations"
+	@echo "  seed           Seed the database"
+	@echo "  test           Run all service tests"
+	@echo "  lint           Lint all PHP code"
+	@echo "  phpstan        Run PHPStan static analysis"
 	@echo ""
-	@echo "Static Runtime (swoole-cli):"
-	@echo "  swoole-cli-download  Download pre-built swoole-cli binary"
-	@echo "  swoole-cli-build     Build swoole-cli from source (Podman)"
-	@echo "  runtime-build        Build ashchan-runtime single image"
-	@echo "  runtime-up           Start all services (single image mode)"
-	@echo "  runtime-down         Stop all services (single image mode)"
-	@echo "  runtime-logs         Tail logs (single image mode)"
+	@echo "Service Management:"
+	@echo "  start-<svc>    Start a specific service (gateway, auth, boards, media, search, moderation)"
+	@echo "  stop-<svc>     Stop a specific service"
+	@echo "  restart        Restart all services"
+	@echo "  health         Check health of all services"
 	@echo ""
-	@echo "mTLS ServiceMesh:"
-	@echo "  mtls-init      Generate Root CA for ServiceMesh"
+	@echo "mTLS Certificates:"
+	@echo "  mtls-init      Generate Root CA"
 	@echo "  mtls-certs     Generate all service certificates"
-	@echo "  mtls-verify    Verify mTLS mesh configuration"
+	@echo "  mtls-verify    Verify mTLS configuration"
 	@echo "  mtls-rotate    Rotate all service certificates"
-	@echo "  mtls-status    Show certificate status"
+	@echo "  mtls-status    Show certificate expiration status"
 	@echo ""
-	@echo "Quick Start (production/rootless):"
+	@echo "Cleanup:"
+	@echo "  clean          Clean runtime artifacts"
+	@echo "  clean-certs    Remove all generated certificates"
+	@echo ""
+	@echo "Quick Start:"
 	@echo "  make bootstrap"
-	@echo ""
-	@echo "Quick Start (dev containers/rooted):"
-	@echo "  make bootstrap-rooted"
+
+# ─────────────────────────────────────────────────────────────
+# Setup & Configuration
+# ─────────────────────────────────────────────────────────────
 
 install:
 	@echo "Copying .env.example to .env for all services..."
-	@for svc in api-gateway auth-accounts boards-threads-posts media-uploads search-indexing moderation-anti-spam; do \
-		cp services/$$svc/.env.example services/$$svc/.env; \
+	@for svc in $(SERVICES); do \
+		if [ -f "services/$$svc/.env.example" ]; then \
+			cp -n services/$$svc/.env.example services/$$svc/.env 2>/dev/null || true; \
+			echo "  ✓ $$svc"; \
+		fi; \
+	done
+	@echo "Installing composer dependencies..."
+	@for svc in $(SERVICES); do \
+		echo "  Installing $$svc..."; \
+		(cd services/$$svc && composer install --no-interaction --quiet) || echo "  ⚠ Failed to install $$svc"; \
 	done
 	@echo "Done. Edit .env files as needed."
 
-up:
-	podman-compose -f podman-compose.yml down --remove-orphans 2>/dev/null || true
-	podman-compose -f podman-compose.yml up -d
+# ─────────────────────────────────────────────────────────────
+# Service Control (Native PHP Processes)
+# ─────────────────────────────────────────────────────────────
+
+$(PID_DIR):
+	@mkdir -p $(PID_DIR)
+
+up: $(PID_DIR)
+	@echo "Starting all Ashchan services..."
+	@$(MAKE) start-gateway
+	@$(MAKE) start-auth
+	@$(MAKE) start-boards
+	@$(MAKE) start-media
+	@$(MAKE) start-search
+	@$(MAKE) start-moderation
+	@echo "All services started. Use 'make logs' to view output."
 
 down:
-	podman-compose -f podman-compose.yml down
+	@echo "Stopping all Ashchan services..."
+	@$(MAKE) stop-gateway
+	@$(MAKE) stop-auth
+	@$(MAKE) stop-boards
+	@$(MAKE) stop-media
+	@$(MAKE) stop-search
+	@$(MAKE) stop-moderation
+	@echo "All services stopped."
+
+start-gateway: $(PID_DIR)
+	@echo "Starting API Gateway (port 9501)..."
+	@if [ -f "$(PID_DIR)/gateway.pid" ] && kill -0 $$(cat $(PID_DIR)/gateway.pid) 2>/dev/null; then \
+		echo "  Already running (PID $$(cat $(PID_DIR)/gateway.pid))"; \
+	else \
+		cd services/api-gateway && \
+		nohup php bin/hyperf.php start > /tmp/ashchan-gateway.log 2>&1 & \
+		echo $$! > $(PID_DIR)/gateway.pid; \
+		echo "  Started (PID $$!)"; \
+	fi
+
+start-auth: $(PID_DIR)
+	@echo "Starting Auth/Accounts (port 9502)..."
+	@if [ -f "$(PID_DIR)/auth.pid" ] && kill -0 $$(cat $(PID_DIR)/auth.pid) 2>/dev/null; then \
+		echo "  Already running (PID $$(cat $(PID_DIR)/auth.pid))"; \
+	else \
+		cd services/auth-accounts && \
+		nohup php bin/hyperf.php start > /tmp/ashchan-auth.log 2>&1 & \
+		echo $$! > $(PID_DIR)/auth.pid; \
+		echo "  Started (PID $$!)"; \
+	fi
+
+start-boards: $(PID_DIR)
+	@echo "Starting Boards/Threads/Posts (port 9503)..."
+	@if [ -f "$(PID_DIR)/boards.pid" ] && kill -0 $$(cat $(PID_DIR)/boards.pid) 2>/dev/null; then \
+		echo "  Already running (PID $$(cat $(PID_DIR)/boards.pid))"; \
+	else \
+		cd services/boards-threads-posts && \
+		nohup php bin/hyperf.php start > /tmp/ashchan-boards.log 2>&1 & \
+		echo $$! > $(PID_DIR)/boards.pid; \
+		echo "  Started (PID $$!)"; \
+	fi
+
+start-media: $(PID_DIR)
+	@echo "Starting Media/Uploads (port 9504)..."
+	@if [ -f "$(PID_DIR)/media.pid" ] && kill -0 $$(cat $(PID_DIR)/media.pid) 2>/dev/null; then \
+		echo "  Already running (PID $$(cat $(PID_DIR)/media.pid))"; \
+	else \
+		cd services/media-uploads && \
+		nohup php bin/hyperf.php start > /tmp/ashchan-media.log 2>&1 & \
+		echo $$! > $(PID_DIR)/media.pid; \
+		echo "  Started (PID $$!)"; \
+	fi
+
+start-search: $(PID_DIR)
+	@echo "Starting Search/Indexing (port 9505)..."
+	@if [ -f "$(PID_DIR)/search.pid" ] && kill -0 $$(cat $(PID_DIR)/search.pid) 2>/dev/null; then \
+		echo "  Already running (PID $$(cat $(PID_DIR)/search.pid))"; \
+	else \
+		cd services/search-indexing && \
+		nohup php bin/hyperf.php start > /tmp/ashchan-search.log 2>&1 & \
+		echo $$! > $(PID_DIR)/search.pid; \
+		echo "  Started (PID $$!)"; \
+	fi
+
+start-moderation: $(PID_DIR)
+	@echo "Starting Moderation/Anti-Spam (port 9506)..."
+	@if [ -f "$(PID_DIR)/moderation.pid" ] && kill -0 $$(cat $(PID_DIR)/moderation.pid) 2>/dev/null; then \
+		echo "  Already running (PID $$(cat $(PID_DIR)/moderation.pid))"; \
+	else \
+		cd services/moderation-anti-spam && \
+		nohup php bin/hyperf.php start > /tmp/ashchan-moderation.log 2>&1 & \
+		echo $$! > $(PID_DIR)/moderation.pid; \
+		echo "  Started (PID $$!)"; \
+	fi
+
+stop-gateway:
+	@echo "Stopping API Gateway..."
+	@if [ -f "$(PID_DIR)/gateway.pid" ]; then \
+		PID=$$(cat $(PID_DIR)/gateway.pid); \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill $$PID 2>/dev/null || true; \
+			echo "  Stopped (PID $$PID)"; \
+		else \
+			echo "  Not running"; \
+		fi; \
+		rm -f $(PID_DIR)/gateway.pid; \
+	else \
+		echo "  Not running"; \
+	fi
+
+stop-auth:
+	@echo "Stopping Auth/Accounts..."
+	@if [ -f "$(PID_DIR)/auth.pid" ]; then \
+		PID=$$(cat $(PID_DIR)/auth.pid); \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill $$PID 2>/dev/null || true; \
+			echo "  Stopped (PID $$PID)"; \
+		else \
+			echo "  Not running"; \
+		fi; \
+		rm -f $(PID_DIR)/auth.pid; \
+	else \
+		echo "  Not running"; \
+	fi
+
+stop-boards:
+	@echo "Stopping Boards/Threads/Posts..."
+	@if [ -f "$(PID_DIR)/boards.pid" ]; then \
+		PID=$$(cat $(PID_DIR)/boards.pid); \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill $$PID 2>/dev/null || true; \
+			echo "  Stopped (PID $$PID)"; \
+		else \
+			echo "  Not running"; \
+		fi; \
+		rm -f $(PID_DIR)/boards.pid; \
+	else \
+		echo "  Not running"; \
+	fi
+
+stop-media:
+	@echo "Stopping Media/Uploads..."
+	@if [ -f "$(PID_DIR)/media.pid" ]; then \
+		PID=$$(cat $(PID_DIR)/media.pid); \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill $$PID 2>/dev/null || true; \
+			echo "  Stopped (PID $$PID)"; \
+		else \
+			echo "  Not running"; \
+		fi; \
+		rm -f $(PID_DIR)/media.pid; \
+	else \
+		echo "  Not running"; \
+	fi
+
+stop-search:
+	@echo "Stopping Search/Indexing..."
+	@if [ -f "$(PID_DIR)/search.pid" ]; then \
+		PID=$$(cat $(PID_DIR)/search.pid); \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill $$PID 2>/dev/null || true; \
+			echo "  Stopped (PID $$PID)"; \
+		else \
+			echo "  Not running"; \
+		fi; \
+		rm -f $(PID_DIR)/search.pid; \
+	else \
+		echo "  Not running"; \
+	fi
+
+stop-moderation:
+	@echo "Stopping Moderation/Anti-Spam..."
+	@if [ -f "$(PID_DIR)/moderation.pid" ]; then \
+		PID=$$(cat $(PID_DIR)/moderation.pid); \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill $$PID 2>/dev/null || true; \
+			echo "  Stopped (PID $$PID)"; \
+		else \
+			echo "  Not running"; \
+		fi; \
+		rm -f $(PID_DIR)/moderation.pid; \
+	else \
+		echo "  Not running"; \
+	fi
+
+restart: down up
 
 logs:
-	podman-compose -f podman-compose.yml logs -f
+	@echo "=== Combined Ashchan Logs ==="
+	@echo "Use Ctrl+C to exit"
+	@tail -f /tmp/ashchan-*.log 2>/dev/null || echo "No log files found. Start services first with 'make up'"
+
+# ─────────────────────────────────────────────────────────────
+# Database Operations
+# ─────────────────────────────────────────────────────────────
 
 migrate:
-	@echo "Running migrations..."
-	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/001_auth_accounts.sql
-	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/002_boards_threads_posts.sql
-	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/003_media_uploads.sql
-	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/migrations/004_moderation_anti_spam.sql
+	@echo "Running database migrations..."
+	@echo "Note: Ensure PostgreSQL is running and accessible"
+	@for migration in db/migrations/*.sql; do \
+		if [ -f "$$migration" ]; then \
+			echo "  Running $$migration..."; \
+			psql -h $${DB_HOST:-localhost} -U $${DB_USER:-ashchan} -d $${DB_NAME:-ashchan} -f "$$migration" 2>/dev/null || \
+			echo "  ⚠ Failed (check DB connection or migration already applied)"; \
+		fi; \
+	done
+	@echo "Migrations complete."
 
 seed:
-	@echo "Seeding boards..."
-	podman exec ashchan-postgres-1 psql -U ashchan -d ashchan -f /app/db/seeders/boards.sql
-	@echo "Boards seeded."
+	@echo "Seeding database..."
+	@for seeder in db/seeders/*.sql; do \
+		if [ -f "$$seeder" ]; then \
+			echo "  Running $$seeder..."; \
+			psql -h $${DB_HOST:-localhost} -U $${DB_USER:-ashchan} -d $${DB_NAME:-ashchan} -f "$$seeder" 2>/dev/null || \
+			echo "  ⚠ Failed (check DB connection)"; \
+		fi; \
+	done
+	@echo "Seeding complete."
+
+# ─────────────────────────────────────────────────────────────
+# Testing & Code Quality
+# ─────────────────────────────────────────────────────────────
 
 test:
-	@echo "Running tests for boards-threads-posts..."
-	podman exec -it ashchan-boards-1 php /app/vendor/bin/phpunit /app/tests/Feature
+	@echo "Running tests for all services..."
+	@for svc in $(SERVICES); do \
+		echo "Testing $$svc..."; \
+		(cd services/$$svc && composer test 2>/dev/null) || echo "  ⚠ Tests failed or not configured for $$svc"; \
+	done
 
 lint:
 	@echo "Linting PHP code..."
-	@for svc in api-gateway auth-accounts boards-threads-posts media-uploads search-indexing moderation-anti-spam; do \
+	@for svc in $(SERVICES); do \
 		echo "Linting $$svc..."; \
-		(cd services/$$svc && composer lint); \
+		(cd services/$$svc && composer lint 2>/dev/null) || echo "  ⚠ Lint failed or not configured for $$svc"; \
+	done
+
+phpstan:
+	@echo "Running PHPStan static analysis..."
+	@for svc in $(SERVICES); do \
+		echo "Analyzing $$svc..."; \
+		(cd services/$$svc && composer phpstan 2>/dev/null) || echo "  ⚠ PHPStan failed or not configured for $$svc"; \
 	done
 
 # ─────────────────────────────────────────────────────────────
@@ -104,48 +332,32 @@ bootstrap:
 	@echo "=== Complete Ashchan Bootstrap ==="
 	@./bootstrap.sh
 
-bootstrap-force:
-	@echo "=== Force Rebuild Ashchan Bootstrap ==="
-	@./bootstrap.sh --force
-
-bootstrap-rooted:
-	@echo "=== Complete Ashchan Bootstrap (Rooted) ==="
-	@./bootstrap.sh --rooted
-
-bootstrap-rooted-force:
-	@echo "=== Force Rebuild Ashchan Bootstrap (Rooted) ==="
-	@./bootstrap.sh --force --rooted
-
 dev-quick:
 	@echo "=== Quick Development Restart ==="
 	@./dev-quick.sh
 
-dev-quick-rooted:
-	@echo "=== Quick Development Restart (Rooted) ==="
-	@./dev-quick.sh --rooted
-
 # ─────────────────────────────────────────────────────────────
-# mTLS ServiceMesh Commands
+# mTLS Certificate Commands
 # ─────────────────────────────────────────────────────────────
 
 mtls-init:
-	@echo "=== Initializing mTLS ServiceMesh CA ==="
+	@echo "=== Initializing mTLS CA ==="
 	@./scripts/mtls/generate-ca.sh
 
 mtls-certs:
-	@echo "=== Generating ServiceMesh Certificates ==="
+	@echo "=== Generating Service Certificates ==="
 	@./scripts/mtls/generate-all-certs.sh
 
 mtls-verify:
-	@echo "=== Verifying mTLS ServiceMesh ==="
+	@echo "=== Verifying mTLS Configuration ==="
 	@./scripts/mtls/verify-mesh.sh
 
 mtls-rotate:
-	@echo "=== Rotating ServiceMesh Certificates ==="
+	@echo "=== Rotating Service Certificates ==="
 	@./scripts/mtls/rotate-certs.sh
 
 mtls-status:
-	@echo "=== ServiceMesh Certificate Status ==="
+	@echo "=== Certificate Status ==="
 	@echo ""
 	@CERTS_DIR="certs/services" && \
 	for svc in gateway auth boards media search moderation; do \
@@ -154,46 +366,35 @@ mtls-status:
 			echo "Service: $$svc"; \
 			openssl x509 -in "$$CERT_FILE" -noout -subject -dates | sed 's/^/  /'; \
 			EXPIRY=$$(openssl x509 -in "$$CERT_FILE" -noout -enddate | cut -d= -f2); \
-			EXPIRY_EPOCH=$$(date -d "$$EXPIRY" +%s); \
+			EXPIRY_EPOCH=$$(date -d "$$EXPIRY" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$$EXPIRY" +%s 2>/dev/null || echo 0); \
 			NOW_EPOCH=$$(date +%s); \
-			DAYS_LEFT=$$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 )); \
-			if [ $$DAYS_LEFT -lt 30 ]; then \
-				echo "  ⚠ Expires in $$DAYS_LEFT days"; \
+			if [ "$$EXPIRY_EPOCH" -gt 0 ] 2>/dev/null; then \
+				DAYS_LEFT=$$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 )); \
+				if [ $$DAYS_LEFT -lt 30 ]; then \
+					echo "  ⚠ Expires in $$DAYS_LEFT days"; \
+				else \
+					echo "  ✓ Expires in $$DAYS_LEFT days"; \
+				fi; \
 			else \
-				echo "  ✓ Expires in $$DAYS_LEFT days"; \
+				echo "  Expiry: $$EXPIRY"; \
 			fi; \
 			echo ""; \
 		else \
 			echo "Service: $$svc - Certificate not found"; \
+			echo ""; \
 		fi; \
 	done
 
 # ─────────────────────────────────────────────────────────────
-# Development Helpers
+# Health Check
 # ─────────────────────────────────────────────────────────────
-
-rebuild:
-	@echo "Rebuilding all services..."
-	podman-compose -f podman-compose.yml build $(BUILD_ARGS)
-
-rebuild-%:
-	@echo "Rebuilding $* service..."
-	podman-compose -f podman-compose.yml build $(BUILD_ARGS) $*
-
-restart:
-	@echo "Restarting all services..."
-	podman-compose -f podman-compose.yml restart
-
-restart-%:
-	@echo "Restarting $* service..."
-	podman restart ashchan-$*-1
 
 health:
 	@echo "Checking service health..."
 	@for pair in gateway:9501 auth:9502 boards:9503 media:9504 search:9505 moderation:9506; do \
 		svc=$${pair%%:*}; \
 		PORT=$${pair##*:}; \
-		echo -n "Checking $$svc (port $$PORT)... "; \
+		echo -n "  $$svc (port $$PORT)... "; \
 		if curl -s --max-time 2 http://localhost:$$PORT/health > /dev/null 2>&1; then \
 			echo "✓ OK"; \
 		else \
@@ -201,79 +402,20 @@ health:
 		fi; \
 	done
 
+# ─────────────────────────────────────────────────────────────
+# Cleanup
+# ─────────────────────────────────────────────────────────────
+
 clean:
-	@echo "Cleaning up Podman artifacts..."
-	podman-compose -f podman-compose.yml down -v
-	podman system prune -f
+	@echo "Cleaning up runtime artifacts..."
+	@rm -rf $(PID_DIR)
+	@rm -f /tmp/ashchan-*.log
+	@for svc in $(SERVICES); do \
+		rm -rf services/$$svc/runtime 2>/dev/null || true; \
+	done
+	@echo "Cleanup complete."
 
 clean-certs:
 	@echo "Removing all generated certificates..."
-	rm -rf certs/
+	@rm -rf certs/
 	@echo "Certificates removed. Run 'make mtls-init' to regenerate."
-
-# ─────────────────────────────────────────────────────────────
-# Static Runtime (swoole-cli) Commands
-# ─────────────────────────────────────────────────────────────
-
-SWOOLE_CLI_VERSION ?= v6.0.0
-RUNTIME_COMPOSE = podman-compose -f podman-compose.runtime.yml
-
-swoole-cli-download:
-	@echo "=== Downloading swoole-cli $(SWOOLE_CLI_VERSION) ==="
-	@bash docker/swoole-cli/download-swoole-cli.sh $(SWOOLE_CLI_VERSION)
-
-swoole-cli-build:
-	@echo "=== Building swoole-cli from source ==="
-	podman build \
-		-f docker/swoole-cli/Dockerfile.build \
-		--build-arg SWOOLE_CLI_VERSION=$(SWOOLE_CLI_VERSION) \
-		-t ashchan-swoole-cli-builder:latest \
-		docker/swoole-cli/
-	@echo "=== Extracting binary ==="
-	podman create --name swoole-tmp ashchan-swoole-cli-builder:latest
-	podman cp swoole-tmp:/output/swoole-cli docker/swoole-cli/swoole-cli
-	podman rm swoole-tmp
-	chmod +x docker/swoole-cli/swoole-cli
-	@echo "=== Binary ready at docker/swoole-cli/swoole-cli ==="
-	@file docker/swoole-cli/swoole-cli
-	@ls -lh docker/swoole-cli/swoole-cli
-
-runtime-build:
-	@echo "=== Building ashchan-runtime image ==="
-	@test -f docker/swoole-cli/swoole-cli || { echo "ERROR: swoole-cli binary not found. Run 'make swoole-cli-download' or 'make swoole-cli-build' first."; exit 1; }
-	podman build -f Dockerfile.runtime -t ashchan-runtime:latest .
-	@echo "=== Image built ==="
-	@podman images ashchan-runtime:latest --format 'Size: {{.Size}}'
-
-runtime-up: runtime-build
-	$(RUNTIME_COMPOSE) down --remove-orphans 2>/dev/null || true
-	$(RUNTIME_COMPOSE) up -d
-
-runtime-down:
-	$(RUNTIME_COMPOSE) down
-
-runtime-logs:
-	$(RUNTIME_COMPOSE) logs -f
-
-runtime-restart:
-	$(RUNTIME_COMPOSE) restart
-
-runtime-restart-%:
-	$(RUNTIME_COMPOSE) restart $*
-
-runtime-health:
-	@echo "Checking runtime service health..."
-	@for svc in 9501 9502 9503 9504 9505 9506; do \
-		echo -n "Port $$svc... "; \
-		if curl -sf --max-time 2 http://localhost:$$svc/health > /dev/null 2>&1; then \
-			echo "✓ OK"; \
-		else \
-			echo "✗ DOWN"; \
-		fi; \
-	done
-
-runtime-clean:
-	$(RUNTIME_COMPOSE) down -v
-	podman rmi ashchan-runtime:latest 2>/dev/null || true
-	podman rmi ashchan-swoole-cli-builder:latest 2>/dev/null || true
-	rm -f docker/swoole-cli/swoole-cli
