@@ -32,7 +32,7 @@ final class BoardService
     public function __construct(
         private ContentFormatter $formatter,
         private Redis $redis,
-        private PiiEncryptionService $piiEncryption,
+        private PiiEncryptionServiceInterface $piiEncryption,
     ) {}
 
     /* ──────────────────────────────────────────────

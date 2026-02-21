@@ -35,7 +35,7 @@ use Psr\Log\LoggerInterface;
  * For simplicity in this implementation, we use the KEK directly as the DEK.
  * In production, implement proper envelope encryption with key rotation.
  */
-final class PiiEncryptionService
+final class PiiEncryptionService implements PiiEncryptionServiceInterface
 {
     private LoggerInterface $logger;
     private string $encryptionKey;

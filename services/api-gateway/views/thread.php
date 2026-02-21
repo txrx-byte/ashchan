@@ -143,6 +143,9 @@ declare(strict_types=1);
           <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $op['id']) ?>">
             <?= isset($op['content_html']) ? strip_tags((string) $op['content_html'], '<br><a><span><s><b><i><u><pre><wbr><em><strong>') : htmlspecialchars((string) $op['content'] ?? '') ?>
           </blockquote>
+        </div>
+      </div>
+      <?php endif; ?>
 
       <!-- Replies -->
       <?php foreach (($replies ?? []) as $reply): ?>
@@ -194,6 +197,10 @@ declare(strict_types=1);
           <blockquote class="postMessage" id="m<?= htmlspecialchars((string) $reply['id']) ?>">
             <?= isset($reply['content_html']) ? strip_tags((string) $reply['content_html'], '<br><a><span><s><b><i><u><pre><wbr><em><strong>') : htmlspecialchars((string) $reply['content'] ?? '') ?>
           </blockquote>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
   </div>
 
   <!-- Bottom controls -->
