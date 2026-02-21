@@ -356,7 +356,8 @@ final class AuthenticationService
         string $userAgent,
         ?array $oldValues = null,
         ?array $newValues = null,
-        string $requestUri = ''
+        string $requestUri = '',
+        ?string $board = null
     ): void {
         Db::table('admin_audit_log')->insert([
             'user_id' => $userId,
@@ -371,6 +372,7 @@ final class AuthenticationService
             'ip_address' => $this->piiEncryption->encrypt($ipAddress),
             'user_agent' => $userAgent,
             'request_uri' => $requestUri,
+            'board' => $board,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }

@@ -22,7 +22,7 @@ namespace App\Controller\Staff;
 
 use App\Service\ProxyClient;
 use App\Service\ViewService;
-use App\Service\AuthService;
+use App\Service\AuthenticationService;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -42,7 +42,8 @@ class BoardConfigController
         private ProxyClient $proxyClient,
         private ViewService $viewService,
         private HttpResponse $response,
-        private AuthService $authService,
+        private AuthenticationService $authService,
+        private RequestInterface $request,
     ) {}
 
     /**
@@ -55,7 +56,8 @@ class BoardConfigController
         if (!$user) {
             return $this->response->redirect('/staff/login');
         }
-        $this->requireAccessLevel('manager');
+        $denied = $this->requireAccessLevel('manager');
+        if ($denied) return $denied;
 
         $result = $this->proxyClient->forward('boards', 'GET', '/api/v1/admin/boards');
         $data = json_decode((string) $result['body'], true);
@@ -91,7 +93,8 @@ class BoardConfigController
         if (!$user) {
             return $this->response->redirect('/staff/login');
         }
-        $this->requireAccessLevel('manager');
+        $denied = $this->requireAccessLevel('manager');
+        if ($denied) return $denied;
 
         $html = $this->viewService->render('staff/boards/create', [
             'username' => $user['username'],
@@ -113,7 +116,8 @@ class BoardConfigController
         if (!$user) {
             return $this->response->redirect('/staff/login');
         }
-        $this->requireAccessLevel('manager');
+        $denied = $this->requireAccessLevel('manager');
+        if ($denied) return $denied;
 
         $input = $request->all();
 
@@ -154,6 +158,8 @@ class BoardConfigController
             return $this->response->html($html)->withStatus($result['status']);
         }
 
+        $this->logStaffAction('board_create', "Created board /{$payload['slug']}/", $payload['slug']);
+
         return $this->response->redirect('/staff/boards');
     }
 
@@ -167,7 +173,8 @@ class BoardConfigController
         if (!$user) {
             return $this->response->redirect('/staff/login');
         }
-        $this->requireAccessLevel('manager');
+        $denied = $this->requireAccessLevel('manager');
+        if ($denied) return $denied;
 
         $result = $this->proxyClient->forward('boards', 'GET', "/api/v1/admin/boards/{$slug}");
         if ($result['status'] >= 400) {
@@ -198,7 +205,8 @@ class BoardConfigController
         if (!$user) {
             return $this->response->redirect('/staff/login');
         }
-        $this->requireAccessLevel('manager');
+        $denied = $this->requireAccessLevel('manager');
+        if ($denied) return $denied;
 
         $input = $request->all();
 
@@ -243,6 +251,8 @@ class BoardConfigController
             return $this->response->html($html)->withStatus($result['status']);
         }
 
+        $this->logStaffAction('board_update', "Updated board /{$slug}/ settings", $slug);
+
         return $this->response->redirect('/staff/boards');
     }
 
@@ -256,7 +266,8 @@ class BoardConfigController
         if (!$user) {
             return $this->response->redirect('/staff/login');
         }
-        $this->requireAccessLevel('admin');
+        $denied = $this->requireAccessLevel('admin');
+        if ($denied) return $denied;
 
         $result = $this->proxyClient->forward('boards', 'DELETE', "/api/v1/admin/boards/{$slug}");
 
@@ -264,6 +275,26 @@ class BoardConfigController
             return $this->response->json(['error' => 'Failed to delete board'])->withStatus($result['status']);
         }
 
+        $this->logStaffAction('board_delete', "Deleted board /{$slug}/", $slug);
+
         return $this->response->redirect('/staff/boards');
+    }
+
+    private function logStaffAction(string $action, string $details, ?string $board = null): void
+    {
+        try {
+            $user = $this->getStaffUser();
+            if ($user) {
+                $this->authService->logAuditAction(
+                    (int) $user['id'],
+                    $action,
+                    $details,
+                    $this->request->getHeaderLine('X-Real-IP') ?: $this->request->getServerParams()['remote_addr'] ?? '0.0.0.0',
+                    $board
+                );
+            }
+        } catch (\Throwable $e) {
+            // Don't let logging failures break the main operation
+        }
     }
 }

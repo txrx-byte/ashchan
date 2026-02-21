@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Staff;
 
+use App\Service\AuthenticationService;
 use App\Service\ModerationService;
 use App\Service\PiiEncryptionService;
 use App\Service\ViewService;
@@ -37,7 +38,10 @@ use Psr\Http\Message\ResponseInterface;
 #[Controller(prefix: '/staff')]
 final class StaffToolsController
 {
+    use RequiresAccessLevel;
+
     public function __construct(
+        private AuthenticationService $authService,
         private ModerationService $modService,
         private PiiEncryptionService $piiEncryption,
         private HttpResponse $response,
@@ -137,6 +141,12 @@ final class StaffToolsController
     #[GetMapping(path: 'staff-roster')]
     public function staffRoster(): ResponseInterface
     {
+        $user = $this->getStaffUser();
+        if (!$user) {
+            return $this->response->redirect('/staff/login');
+        }
+        $staffInfo = $this->getStaffInfo();
+
         try {
             $staff = Db::table('staff_users')
                 ->select('id', 'username', 'email', 'access_level', 'is_active', 'last_login_at', 'created_at')
@@ -146,11 +156,147 @@ final class StaffToolsController
         } catch (\Throwable $e) {
             $staff = [];
         }
-        
+
         $html = $this->viewService->render('staff/tools/staff-roster', [
             'staff' => $staff,
+            'username' => $user['username'],
+            'level' => $user['access_level'],
+            'isManager' => $staffInfo['is_manager'],
+            'isAdmin' => $staffInfo['is_admin'],
+            'access_levels' => ['janitor' => 'Janitor', 'mod' => 'Moderator', 'manager' => 'Manager', 'admin' => 'Admin'],
         ]);
         return $this->response->html($html);
+    }
+
+    /**
+     * Create new staff account
+     */
+    #[PostMapping(path: 'staff-roster/create')]
+    public function staffRosterCreate(): ResponseInterface
+    {
+        $denied = $this->requireAccessLevel('admin');
+        if ($denied) return $denied;
+
+        $body = (array) $this->request->getParsedBody();
+        $errors = [];
+        $username = trim((string) ($body['username'] ?? ''));
+        $email = trim((string) ($body['email'] ?? ''));
+        $password = (string) ($body['password'] ?? '');
+        $accessLevel = (string) ($body['access_level'] ?? 'janitor');
+
+        if (strlen($username) < 3) $errors[] = 'Username must be at least 3 characters';
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Invalid email';
+        if (strlen($password) < 8) $errors[] = 'Password must be at least 8 characters';
+        if (!in_array($accessLevel, ['janitor', 'mod', 'manager', 'admin'])) $errors[] = 'Invalid access level';
+        if (Db::table('staff_users')->where('username', $username)->first()) $errors[] = 'Username already exists';
+
+        if (!empty($errors)) {
+            return $this->response->json(['success' => false, 'errors' => $errors], 400);
+        }
+
+        Db::table('staff_users')->insert([
+            'username' => $username,
+            'email' => $email,
+            'password_hash' => password_hash($password, PASSWORD_ARGON2ID),
+            'access_level' => $accessLevel,
+            'is_active' => true,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->logStaffAction('create_account', 'Created staff account: ' . $username . ' (' . $accessLevel . ')');
+
+        return $this->response->json(['success' => true]);
+    }
+
+    /**
+     * Promote/demote staff member (change access level)
+     */
+    #[PostMapping(path: 'staff-roster/{id:\d+}/update-level')]
+    public function staffRosterUpdateLevel(int $id): ResponseInterface
+    {
+        $denied = $this->requireAccessLevel('admin');
+        if ($denied) return $denied;
+
+        $current = $this->getStaffUser();
+        if ($current && (int) $current['id'] === $id) {
+            return $this->response->json(['error' => 'Cannot change your own access level'], 400);
+        }
+
+        $user = Db::table('staff_users')->where('id', $id)->first();
+        if (!$user) {
+            return $this->response->json(['error' => 'User not found'], 404);
+        }
+
+        $body = (array) $this->request->getParsedBody();
+        $newLevel = (string) ($body['access_level'] ?? '');
+        if (!in_array($newLevel, ['janitor', 'mod', 'manager', 'admin'])) {
+            return $this->response->json(['error' => 'Invalid access level'], 400);
+        }
+
+        Db::table('staff_users')->where('id', $id)->update([
+            'access_level' => $newLevel,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->logStaffAction('update_level', 'Changed ' . $user->username . ' level: ' . $user->access_level . ' -> ' . $newLevel);
+
+        return $this->response->json(['success' => true]);
+    }
+
+    /**
+     * Toggle staff active status
+     */
+    #[PostMapping(path: 'staff-roster/{id:\d+}/toggle-active')]
+    public function staffRosterToggleActive(int $id): ResponseInterface
+    {
+        $denied = $this->requireAccessLevel('admin');
+        if ($denied) return $denied;
+
+        $current = $this->getStaffUser();
+        if ($current && (int) $current['id'] === $id) {
+            return $this->response->json(['error' => 'Cannot deactivate yourself'], 400);
+        }
+
+        $user = Db::table('staff_users')->where('id', $id)->first();
+        if (!$user) {
+            return $this->response->json(['error' => 'User not found'], 404);
+        }
+
+        Db::table('staff_users')->where('id', $id)->update([
+            'is_active' => !$user->is_active,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $newStatus = !$user->is_active ? 'activated' : 'deactivated';
+        $this->logStaffAction('toggle_active', $newStatus . ' staff account: ' . $user->username);
+
+        return $this->response->json(['success' => true, 'is_active' => !$user->is_active]);
+    }
+
+    /**
+     * Delete staff account
+     */
+    #[PostMapping(path: 'staff-roster/{id:\d+}/delete')]
+    public function staffRosterDelete(int $id): ResponseInterface
+    {
+        $denied = $this->requireAccessLevel('admin');
+        if ($denied) return $denied;
+
+        $current = $this->getStaffUser();
+        if ($current && (int) $current['id'] === $id) {
+            return $this->response->json(['error' => 'Cannot delete yourself'], 400);
+        }
+
+        $user = Db::table('staff_users')->where('id', $id)->first();
+        if (!$user) {
+            return $this->response->json(['error' => 'User not found'], 404);
+        }
+
+        Db::table('staff_users')->where('id', $id)->delete();
+
+        $this->logStaffAction('delete_account', 'Deleted staff account: ' . $user->username);
+
+        return $this->response->json(['success' => true]);
     }
 
     /**
@@ -444,5 +590,35 @@ final class StaffToolsController
             'match_count' => count($matches),
             'would_be_banned' => count($matches) > 0,
         ];
+    }
+
+    /**
+     * Log a staff action to the audit log
+     */
+    private function logStaffAction(string $actionType, string $description, ?string $board = null, ?int $resourceId = null): void
+    {
+        $user = $this->getStaffUser();
+        if (!$user) return;
+
+        try {
+            $serverParams = $this->request->getServerParams();
+            $this->authService->logAuditAction(
+                (int) $user['id'],
+                (string) $user['username'],
+                $actionType,
+                'staff_management',
+                null,
+                $resourceId,
+                $description,
+                (string) ($serverParams['remote_addr'] ?? ''),
+                $this->request->getHeaderLine('User-Agent'),
+                null,
+                null,
+                (string) $this->request->getUri(),
+                $board
+            );
+        } catch (\Throwable $e) {
+            // Logging failure should not break the operation
+        }
     }
 }

@@ -69,6 +69,10 @@ Router::get('/staff/ip-lookup', [\App\Controller\Staff\StaffToolsController::cla
 Router::get('/staff/check-md5', [\App\Controller\Staff\StaffToolsController::class, 'checkMd5']);
 Router::get('/staff/check-filter', [\App\Controller\Staff\StaffToolsController::class, 'checkFilter']);
 Router::get('/staff/staff-roster', [\App\Controller\Staff\StaffToolsController::class, 'staffRoster']);
+Router::post('/staff/staff-roster/create', [\App\Controller\Staff\StaffToolsController::class, 'staffRosterCreate']);
+Router::post('/staff/staff-roster/{id:\d+}/update-level', [\App\Controller\Staff\StaffToolsController::class, 'staffRosterUpdateLevel']);
+Router::post('/staff/staff-roster/{id:\d+}/toggle-active', [\App\Controller\Staff\StaffToolsController::class, 'staffRosterToggleActive']);
+Router::post('/staff/staff-roster/{id:\d+}/delete', [\App\Controller\Staff\StaffToolsController::class, 'staffRosterDelete']);
 Router::get('/staff/floodlog', [\App\Controller\Staff\StaffToolsController::class, 'floodLog']);
 Router::get('/staff/stafflog', [\App\Controller\Staff\StaffToolsController::class, 'staffLog']);
 Router::get('/staff/userdellog', [\App\Controller\Staff\StaffToolsController::class, 'userDelLog']);
@@ -200,6 +204,9 @@ Router::post('/api/v1/captcha/verify', [App\Controller\ModerationController::cla
 
 // Homepage
 Router::get('/', [FrontendController::class, 'home']);
+
+// Static pages
+Router::get('/about', [FrontendController::class, 'about']);
 
 // Board pages (must be before API catch-all)
 Router::get('/{slug}/catalog', [FrontendController::class, 'catalog']);

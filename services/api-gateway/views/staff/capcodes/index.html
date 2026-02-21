@@ -15,156 +15,155 @@
   limitations under the License.
 -->
 
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Capcodes - Staff Panel</title>
-    <link rel="stylesheet" href="/staff/css/admincore.css">
-    <link rel="stylesheet" href="/staff/css/bans.css">
+  <meta charset="utf-8">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Capcodes - Ashchan Admin</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
 </head>
-<body>
-    <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h1>Staff Panel</h1>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="/staff/admin" class="nav-item">
-                    <span class="nav-icon">📊</span>
-                    <span>Overview</span>
-                </a>
-                <div class="nav-section">Moderation</div>
-                <a href="/staff/reports" class="nav-item">
-                    <span class="nav-icon">🚩</span>
-                    <span>Reports Queue</span>
-                </a>
-                <a href="/staff/reports/ban-requests" class="nav-item">
-                    <span class="nav-icon">⚖️</span>
-                    <span>Ban Requests</span>
-                </a>
-                <a href="/staff/bans" class="nav-item">
-                    <span class="nav-icon">🚫</span>
-                    <span>Bans</span>
-                </a>
-                <div class="nav-section">Management</div>
-                <a href="/staff/accounts" class="nav-item">
-                    <span class="nav-icon">👤</span>
-                    <span>Accounts</span>
-                </a>
-                <a href="/staff/capcodes" class="nav-item active">
-                    <span class="nav-icon">🏷️</span>
-                    <span>Capcodes</span>
-                </a>
-                <a href="/staff/iprangebans" class="nav-item">
-                    <span class="nav-icon">🌐</span>
-                    <span>IP Range Bans</span>
-                </a>
-                <a href="/staff/autopurge" class="nav-item">
-                    <span class="nav-icon">🗑️</span>
-                    <span>Autopurge</span>
-                </a>
-                <a href="/staff/dmca" class="nav-item">
-                    <span class="nav-icon">📧</span>
-                    <span>DMCA</span>
-                </a>
-                <a href="/staff/blotter" class="nav-item">
-                    <span class="nav-icon">📢</span>
-                    <span>Blotter</span>
-                </a>
-                <a href="/staff/site-messages" class="nav-item">
-                    <span class="nav-icon">📝</span>
-                    <span>Site Messages</span>
-                </a>
-                <div class="nav-section">Account</div>
-                <form method="POST" action="/staff/logout" class="nav-item" style="margin:0">
-                    <button type="submit" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0;display:flex;align-items:center;gap:8px;width:100%">
-                    <span class="nav-icon">🚪</span>
-                    <span>Logout</span>
-                    </button>
-                </form>
-            </nav>
-        </aside>
-        <main class="content">
-            <header class="content-header">
-                <h2>Capcodes Management</h2>
-                <a href="/staff/capcodes/create" class="btn btn-primary">+ New Capcode</a>
-            </header>
-
-            <?php if (empty($capcodes)): ?>
-                <div class="empty-state">
-                    <p>No capcodes found.</p>
-                </div>
-            <?php else: ?>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Label</th>
-                                <th>Color</th>
-                                <th>Boards</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($capcodes as $capcode): ?>
-                                <tr>
-                                    <td>
-                                        <strong><?= htmlspecialchars($capcode->name) ?></strong>
-                                    </td>
-                                    <td>
-                                        <span style="color: <?= htmlspecialchars($capcode->color) ?>">
-                                            <?= htmlspecialchars($capcode->label) ?>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="color-swatch" style="background-color: <?= htmlspecialchars($capcode->color) ?>"></span>
-                                        <?= htmlspecialchars($capcode->color) ?>
-                                    </td>
-                                    <td>
-                                        <?php if (empty($capcode->boards)): ?>
-                                            <em>All boards</em>
-                                        <?php else: ?>
-                                            <?= htmlspecialchars(implode(', ', $capcode->boards)) ?>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if ($capcode->is_active): ?>
-                                            <span class="badge badge-success">Active</span>
-                                        <?php else: ?>
-                                            <span class="badge badge-secondary">Inactive</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?= date('Y-m-d', strtotime($capcode->created_at)) ?></td>
-                                    <td class="actions">
-                                        <a href="/staff/capcodes/<?= $capcode->id ?>/edit" class="btn btn-sm">Edit</a>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteCapcode(<?= $capcode->id ?>)">Delete</button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-        </main>
+<body class="admin-panel">
+<div id="admin-container">
+  <nav id="admin-nav">
+    <div class="admin-logo">Ashchan Admin</div>
+    <div class="admin-user">
+      <span class="username"><?= htmlspecialchars($username) ?></span>
+      <span class="level">(<?= htmlspecialchars(ucfirst($level)) ?>)</span>
     </div>
-    <script src="/staff/js/admincore.js"></script>
-    <script>
-        function deleteCapcode(id) {
-            if (!confirm('Are you sure you want to delete this capcode?')) return;
-            fetch('/staff/capcodes/' + id + '/delete', { method: 'POST' })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Error: ' + (data.error || 'Unknown error'));
-                    }
-                });
-        }
-    </script>
+
+    <ul class="nav-section">
+      <li class="nav-header">Main</li>
+      <li><a href="/staff/admin">Overview</a></li>
+      <li><a href="/staff/dashboard">Dashboard</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Moderation</li>
+      <li><a href="/staff/reports">Reports Queue</a></li>
+      <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+      <li><a href="/staff/bans">Bans</a></li>
+      <li><a href="/staff/ban-templates">Ban Templates</a></li>
+      <li><a href="/staff/report-categories">Report Categories</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Search &amp; Tools</li>
+      <li><a href="/staff/search">Search</a></li>
+      <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+      <li><a href="/staff/check-md5">Check MD5</a></li>
+      <li><a href="/staff/check-filter">Check Filter</a></li>
+    </ul>
+
+    <?php if ($isManager): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Management</li>
+      <li><a href="/staff/boards">Board Configuration</a></li>
+      <li><a href="/staff/staff-roster">Staff Roster</a></li>
+      <li><a href="/staff/capcodes" class="active">Capcodes</a></li>
+      <li><a href="/staff/iprangebans">IP Range Bans</a></li>
+      <li><a href="/staff/autopurge">Autopurge</a></li>
+      <li><a href="/staff/dmca">DMCA Tool</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Logs</li>
+      <li><a href="/staff/stafflog">Staff Action Log</a></li>
+      <li><a href="/staff/floodlog">Flood Log</a></li>
+      <li><a href="/staff/userdellog">User Deletion Log</a></li>
+    </ul>
+    <?php endif ?>
+
+    <?php if ($isAdmin): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Admin</li>
+      <li><a href="/staff/blotter">Blotter</a></li>
+      <li><a href="/staff/site-messages">Site Messages</a></li>
+    </ul>
+    <?php endif ?>
+
+    <ul class="nav-section nav-footer">
+      <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
+    </ul>
+  </nav>
+
+  <main id="admin-content">
+    <header class="content-header">
+      <h1>Capcodes Management</h1>
+      <div class="header-actions">
+        <a href="/staff/capcodes/create" class="button button-primary">+ New Capcode</a>
+      </div>
+    </header>
+
+    <?php if (empty($capcodes)): ?>
+    <div class="empty-state"><p>No capcodes found.</p></div>
+    <?php else: ?>
+    <div class="content-section">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Label</th>
+            <th>Color</th>
+            <th>Boards</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($capcodes as $capcode): ?>
+          <tr>
+            <td><strong><?= htmlspecialchars($capcode->name) ?></strong></td>
+            <td>
+              <span style="color: <?= htmlspecialchars($capcode->color) ?>">
+                <?= htmlspecialchars($capcode->label) ?>
+              </span>
+            </td>
+            <td>
+              <span class="color-swatch" style="display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:middle;background-color:<?= htmlspecialchars($capcode->color) ?>"></span>
+              <?= htmlspecialchars($capcode->color) ?>
+            </td>
+            <td>
+              <?php if (empty($capcode->boards)): ?>
+                <em>All boards</em>
+              <?php else: ?>
+                <?= htmlspecialchars(implode(', ', $capcode->boards)) ?>
+              <?php endif; ?>
+            </td>
+            <td>
+              <?php if ($capcode->is_active): ?>
+                <span style="color:green">Active</span>
+              <?php else: ?>
+                <span style="color:red">Inactive</span>
+              <?php endif; ?>
+            </td>
+            <td><?= date('Y-m-d', strtotime($capcode->created_at)) ?></td>
+            <td>
+              <a href="/staff/capcodes/<?= $capcode->id ?>/edit" class="button button-light button-sm" style="padding:2px 8px;font-size:13px">Edit</a>
+              <button class="button button-sm" onclick="deleteCapcode(<?= $capcode->id ?>)" style="padding:2px 8px;font-size:13px;background:#c62828;color:#fff;border:none;border-radius:4px;cursor:pointer">Delete</button>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php endif; ?>
+  </main>
+</div>
+<script type="text/javascript" src="/staff/js/admincore.js"></script>
+<script>
+function deleteCapcode(id) {
+  if (!confirm('Are you sure you want to delete this capcode?')) return;
+  fetch('/staff/capcodes/' + id + '/delete', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) { location.reload(); }
+      else { alert('Error: ' + (data.error || 'Unknown error')); }
+    });
+}
+</script>
 </body>
 </html>

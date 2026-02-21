@@ -18,42 +18,269 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Staff Roster - Ashchan</title>
-  <link rel="stylesheet" href="/staff/css/admincore.css">
-  <link rel="stylesheet" href="/staff/css/admin.css">
+  <meta name="referrer" content="never">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Staff Roster - Ashchan Admin</title>
+  <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
+  <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
 </head>
-<body>
-<nav id="admin-nav">
-  <div class="admin-logo">Ashchan Admin</div>
-  <ul class="nav-section"><li class="nav-header">Main</li>
-    <li><a href="/staff/admin">Overview</a></li>
-  </ul>
-  <ul class="nav-section"><li class="nav-header">Management</li>
-    <li><a href="/staff/staff-roster" class="active">Staff Roster</a></li>
-  </ul>
-  <ul class="nav-section nav-footer"><li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li></ul>
-</nav>
-<main id="admin-content">
-<header class="content-header"><h1>Staff Roster</h1></header>
-<?php if (empty($staff)): ?>
-<div class="empty-state"><h2>No Staff Members Found</h2></div>
-<?php else: ?>
-<table class="items-table">
-<thead><tr><th>Username</th><th>Email</th><th>Level</th><th>Status</th><th>Last Login</th><th>Created</th></tr></thead>
-<tbody>
-<?php foreach ($staff as $user): ?>
-<tr>
-  <td><?= htmlspecialchars($user->username) ?></td>
-  <td><?= htmlspecialchars($user->email) ?></td>
-  <td><span class="badge"><?= ucfirst($user->access_level) ?></span></td>
-  <td><?= $user->is_active ? '<span style="color:green">Active</span>' : '<span style="color:red">Inactive</span>' ?></td>
-  <td><?= $user->last_login_at ? date('m/d/y H:i', strtotime($user->last_login_at)) : 'Never' ?></td>
-  <td><?= date('m/d/y', strtotime($user->created_at)) ?></td>
-</tr>
-<?php endforeach ?>
-</tbody>
-</table>
+<body class="admin-panel">
+<div id="admin-container">
+  <nav id="admin-nav">
+    <div class="admin-logo">Ashchan Admin</div>
+    <div class="admin-user">
+      <span class="username"><?= htmlspecialchars($username) ?></span>
+      <span class="level">(<?= htmlspecialchars(ucfirst($level)) ?>)</span>
+    </div>
+
+    <ul class="nav-section">
+      <li class="nav-header">Main</li>
+      <li><a href="/staff/admin">Overview</a></li>
+      <li><a href="/staff/dashboard">Dashboard</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Moderation</li>
+      <li><a href="/staff/reports">Reports Queue</a></li>
+      <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+      <li><a href="/staff/bans">Bans</a></li>
+      <li><a href="/staff/ban-templates">Ban Templates</a></li>
+      <li><a href="/staff/report-categories">Report Categories</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Search &amp; Tools</li>
+      <li><a href="/staff/search">Search</a></li>
+      <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+      <li><a href="/staff/check-md5">Check MD5</a></li>
+      <li><a href="/staff/check-filter">Check Filter</a></li>
+    </ul>
+
+    <?php if ($isManager): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Management</li>
+      <li><a href="/staff/boards">Board Configuration</a></li>
+      <li><a href="/staff/staff-roster" class="active">Staff Roster</a></li>
+      <li><a href="/staff/capcodes">Capcodes</a></li>
+      <li><a href="/staff/iprangebans">IP Range Bans</a></li>
+      <li><a href="/staff/autopurge">Autopurge</a></li>
+      <li><a href="/staff/dmca">DMCA Tool</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Logs</li>
+      <li><a href="/staff/stafflog">Staff Action Log</a></li>
+      <li><a href="/staff/floodlog">Flood Log</a></li>
+      <li><a href="/staff/userdellog">User Deletion Log</a></li>
+    </ul>
+    <?php endif ?>
+
+    <?php if ($isAdmin): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Admin</li>
+      <li><a href="/staff/blotter">Blotter</a></li>
+      <li><a href="/staff/site-messages">Site Messages</a></li>
+    </ul>
+    <?php endif ?>
+
+    <ul class="nav-section nav-footer">
+      <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
+    </ul>
+  </nav>
+
+  <main id="admin-content">
+    <header class="content-header">
+      <h1>Staff Roster</h1>
+      <?php if ($isAdmin): ?>
+      <div class="header-actions">
+        <button class="button button-primary" onclick="showCreateModal()">+ New Staff Account</button>
+      </div>
+      <?php endif ?>
+    </header>
+
+    <div id="message-banner" style="display:none;padding:10px 16px;margin-bottom:16px;border-radius:4px;font-weight:500"></div>
+
+    <?php if (empty($staff)): ?>
+    <div class="empty-state"><h2>No Staff Members Found</h2></div>
+    <?php else: ?>
+    <div class="content-section">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Level</th>
+            <th>Status</th>
+            <th>Last Login</th>
+            <th>Created</th>
+            <?php if ($isAdmin): ?><th>Actions</th><?php endif ?>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($staff as $user): ?>
+          <tr id="staff-row-<?= $user->id ?>">
+            <td><strong><?= htmlspecialchars($user->username) ?></strong></td>
+            <td><?= htmlspecialchars($user->email) ?></td>
+            <td>
+              <?php if ($isAdmin): ?>
+              <select class="level-select" data-id="<?= $user->id ?>" data-original="<?= htmlspecialchars($user->access_level) ?>" onchange="changeLevel(this)" style="padding:4px 8px;border:1px solid #ccc;border-radius:4px">
+                <?php foreach ($access_levels as $lk => $lv): ?>
+                <option value="<?= $lk ?>" <?= $user->access_level === $lk ? 'selected' : '' ?>><?= $lv ?></option>
+                <?php endforeach ?>
+              </select>
+              <?php else: ?>
+              <span class="badge"><?= ucfirst($user->access_level) ?></span>
+              <?php endif ?>
+            </td>
+            <td>
+              <?php if ($isAdmin): ?>
+              <button class="button button-light button-sm" onclick="toggleActive(<?= $user->id ?>)" title="Toggle active status" style="padding:2px 8px;font-size:13px">
+                <?= $user->is_active ? '<span style="color:green">Active</span>' : '<span style="color:red">Inactive</span>' ?>
+              </button>
+              <?php else: ?>
+              <?= $user->is_active ? '<span style="color:green">Active</span>' : '<span style="color:red">Inactive</span>' ?>
+              <?php endif ?>
+            </td>
+            <td><?= $user->last_login_at ? date('m/d/y H:i', strtotime($user->last_login_at)) : 'Never' ?></td>
+            <td><?= date('m/d/y', strtotime($user->created_at)) ?></td>
+            <?php if ($isAdmin): ?>
+            <td>
+              <button class="button button-danger button-sm" onclick="deleteStaff(<?= $user->id ?>, '<?= htmlspecialchars($user->username, ENT_QUOTES) ?>')" style="padding:2px 8px;font-size:13px;background:#c62828;color:#fff;border:none;border-radius:4px;cursor:pointer">Delete</button>
+            </td>
+            <?php endif ?>
+          </tr>
+          <?php endforeach ?>
+        </tbody>
+      </table>
+    </div>
+    <?php endif ?>
+  </main>
+</div>
+
+<!-- Create Staff Modal -->
+<?php if ($isAdmin): ?>
+<div id="create-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:8px;padding:24px;max-width:440px;width:100%;margin:auto;position:relative;top:50%;transform:translateY(-50%)">
+    <h2 style="margin:0 0 16px">Create Staff Account</h2>
+    <div id="create-errors" style="display:none;color:#c62828;background:#ffebee;padding:8px 12px;border-radius:4px;margin-bottom:12px;font-size:14px"></div>
+    <form id="create-form" onsubmit="createStaff(event)">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-weight:600;margin-bottom:4px">Username</label>
+        <input type="text" name="username" required minlength="3" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-weight:600;margin-bottom:4px">Email</label>
+        <input type="email" name="email" required style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-weight:600;margin-bottom:4px">Password</label>
+        <input type="password" name="password" required minlength="8" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-weight:600;margin-bottom:4px">Access Level</label>
+        <select name="access_level" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box">
+          <?php foreach ($access_levels as $lk => $lv): ?>
+          <option value="<?= $lk ?>"><?= $lv ?></option>
+          <?php endforeach ?>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" class="button button-light" onclick="hideCreateModal()">Cancel</button>
+        <button type="submit" class="button button-primary">Create Account</button>
+      </div>
+    </form>
+  </div>
+</div>
 <?php endif ?>
-</main>
+
+<script type="text/javascript" src="/staff/js/admincore.js"></script>
+<script>
+function showMessage(msg, type) {
+  var b = document.getElementById('message-banner');
+  b.textContent = msg;
+  b.style.display = 'block';
+  b.style.background = type === 'error' ? '#ffebee' : '#e8f5e9';
+  b.style.color = type === 'error' ? '#c62828' : '#2e7d32';
+  setTimeout(function() { b.style.display = 'none'; }, 4000);
+}
+
+function showCreateModal() {
+  document.getElementById('create-modal').style.display = 'flex';
+  document.getElementById('create-errors').style.display = 'none';
+}
+function hideCreateModal() {
+  document.getElementById('create-modal').style.display = 'none';
+  document.getElementById('create-form').reset();
+}
+
+function createStaff(e) {
+  e.preventDefault();
+  var form = document.getElementById('create-form');
+  var data = new FormData(form);
+  var body = {};
+  data.forEach(function(v, k) { body[k] = v; });
+  fetch('/staff/staff-roster/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) { location.reload(); }
+    else {
+      var el = document.getElementById('create-errors');
+      el.style.display = 'block';
+      el.textContent = (d.errors || ['Unknown error']).join(', ');
+    }
+  }).catch(function() { showMessage('Network error', 'error'); });
+}
+
+function changeLevel(sel) {
+  var id = sel.dataset.id;
+  var newLevel = sel.value;
+  if (!confirm('Change access level to ' + newLevel + '?')) {
+    sel.value = sel.dataset.original;
+    return;
+  }
+  fetch('/staff/staff-roster/' + id + '/update-level', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({access_level: newLevel})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      sel.dataset.original = newLevel;
+      showMessage('Access level updated', 'success');
+    } else {
+      sel.value = sel.dataset.original;
+      showMessage(d.error || 'Failed to update', 'error');
+    }
+  }).catch(function() {
+    sel.value = sel.dataset.original;
+    showMessage('Network error', 'error');
+  });
+}
+
+function toggleActive(id) {
+  fetch('/staff/staff-roster/' + id + '/toggle-active', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: '{}'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) { location.reload(); }
+    else { showMessage(d.error || 'Failed', 'error'); }
+  }).catch(function() { showMessage('Network error', 'error'); });
+}
+
+function deleteStaff(id, username) {
+  if (!confirm('Delete staff account "' + username + '"? This cannot be undone.')) return;
+  fetch('/staff/staff-roster/' + id + '/delete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: '{}'
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) { location.reload(); }
+    else { showMessage(d.error || 'Failed to delete', 'error'); }
+  }).catch(function() { showMessage('Network error', 'error'); });
+}
+</script>
 </body>
 </html>

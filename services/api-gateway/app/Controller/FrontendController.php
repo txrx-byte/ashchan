@@ -40,6 +40,14 @@ final class FrontendController
         private LoggerFactory $loggerFactory,
     ) {}
 
+    /** GET /about – About page */
+    public function about(): ResponseInterface
+    {
+        $common = $this->getCommonData();
+        $html = $this->renderer->render('about', $common);
+        return $this->html($html);
+    }
+
     /** GET / – Homepage with board listing */
     public function home(): ResponseInterface
     {
@@ -88,6 +96,11 @@ final class FrontendController
             return $this->html('<h1>Board not found</h1>', 404);
         }
 
+        $denied = $this->checkStaffOnlyAccess($request, $board);
+        if ($denied) {
+            return $denied;
+        }
+
         $threadsData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/threads?page=' . $page);
         $threads = $threadsData['threads'] ?? [];
         $threads = $this->rewriteMediaUrls($threads);
@@ -104,6 +117,7 @@ final class FrontendController
             'thread_id'      => '',
             'is_staff'       => $this->isStaff($request),
             'staff_level'    => $this->getStaffLevel(),
+            'extra_css'      => $this->getExtraCss($board),
         ]));
 
         return $this->html($html);
@@ -119,6 +133,11 @@ final class FrontendController
             return $this->html('<h1>Board not found</h1>', 404);
         }
 
+        $denied = $this->checkStaffOnlyAccess($request, $board);
+        if ($denied) {
+            return $denied;
+        }
+
         $catalogData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/catalog');
         $threads = $catalogData['threads'] ?? [];
         $threads = $this->rewriteMediaUrls($threads);
@@ -132,6 +151,7 @@ final class FrontendController
             'page_num'    => 1,
             'is_staff'    => $this->isStaff($request),
             'staff_level' => $this->getStaffLevel(),
+            'extra_css'   => $this->getExtraCss($board),
         ]));
 
         return $this->html($html);
@@ -147,6 +167,11 @@ final class FrontendController
             return $this->html('<h1>Board not found</h1>', 404);
         }
 
+        $denied = $this->checkStaffOnlyAccess($request, $board);
+        if ($denied) {
+            return $denied;
+        }
+
         $archiveData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/archive');
         $archived = $archiveData['archived_threads'] ?? $archiveData['threads'] ?? [];
 
@@ -159,6 +184,7 @@ final class FrontendController
             'page_num'         => 1,
             'is_staff'         => $this->isStaff($request),
             'staff_level'      => $this->getStaffLevel(),
+            'extra_css'        => $this->getExtraCss($board),
         ]));
 
         return $this->html($html);
@@ -172,6 +198,11 @@ final class FrontendController
         $board = $boardData['board'] ?? null;
         if (!$board) {
             return $this->html('<h1>Board not found</h1>', 404);
+        }
+
+        $denied = $this->checkStaffOnlyAccess($request, $board);
+        if ($denied) {
+            return $denied;
         }
 
         $threadData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/threads/' . $id);
@@ -204,6 +235,7 @@ final class FrontendController
             'thread_sticky' => $threadData['sticky'] ?? false,
             'is_staff'      => $this->isStaff($request),
             'staff_level'   => $this->getStaffLevel(),
+            'extra_css'     => $this->getExtraCss($board),
         ]));
 
         return $this->html($html);
@@ -226,10 +258,65 @@ final class FrontendController
         return $staffInfo['level'] ?? '';
     }
 
+    /**
+     * Check if a board requires staff access and deny non-staff users.
+     * Returns a redirect response if denied, or null if access is granted.
+     */
+    private function checkStaffOnlyAccess(RequestInterface $request, array $board): ?ResponseInterface
+    {
+        if (!empty($board['staff_only']) && !$this->isStaff($request)) {
+            /** @var ResponseInterface */
+            return $this->response->withStatus(303)->withHeader('Location', '/staff/login');
+        }
+        return null;
+    }
+
+    /** Get extra CSS link tag for staff-only boards (janichan.css). */
+    private function getExtraCss(array $board): string
+    {
+        if (!empty($board['staff_only'])) {
+            return '<link rel="stylesheet" href="/static/css/janichan.css">';
+        }
+        return '';
+    }
+
+    /** Get the capcode value for the current staff member on a staff-only board. */
+    private function getStaffCapcode(array $board): ?string
+    {
+        if (empty($board['staff_only'])) {
+            return null;
+        }
+        $level = $this->getStaffLevel();
+        return match ($level) {
+            'admin' => 'Admin',
+            'manager' => 'Manager',
+            'mod' => 'Mod',
+            'janitor' => 'Janitor',
+            default => null,
+        };
+    }
+
     /** POST /{slug}/threads – Create new thread (from form) */
     public function createThread(RequestInterface $request, string $slug): ResponseInterface
     {
+        // Check staff-only board access
+        $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
+        $board = $boardData['board'] ?? null;
+        if ($board) {
+            $denied = $this->checkStaffOnlyAccess($request, $board);
+            if ($denied) {
+                return $denied;
+            }
+        }
+
         $input = $request->all();
+
+        // Auto-capcode on staff-only boards
+        $capcode = $this->getStaffCapcode($board ?? []);
+        if ($capcode) {
+            $input['capcode'] = $capcode;
+        }
+
         $mediaResult = $this->handleMediaUpload($request);
 
         if ($mediaResult && isset($mediaResult['error'])) {
@@ -267,7 +354,24 @@ final class FrontendController
     /** POST /{slug}/thread/{id}/posts – Create new reply (from form) */
     public function createPost(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
+        // Check staff-only board access
+        $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
+        $board = $boardData['board'] ?? null;
+        if ($board) {
+            $denied = $this->checkStaffOnlyAccess($request, $board);
+            if ($denied) {
+                return $denied;
+            }
+        }
+
         $input = $request->all();
+
+        // Auto-capcode on staff-only boards
+        $capcode = $this->getStaffCapcode($board ?? []);
+        if ($capcode) {
+            $input['capcode'] = $capcode;
+        }
+
         $mediaResult = $this->handleMediaUpload($request);
 
         if ($mediaResult && isset($mediaResult['error'])) {

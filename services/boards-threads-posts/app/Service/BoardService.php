@@ -63,6 +63,7 @@ final class BoardService
         }
         $boards = Board::query()
             ->where('archived', false)
+            ->where('staff_only', false)
             ->orderBy('category')
             ->orderBy('slug')
             ->get()
@@ -173,6 +174,7 @@ final class BoardService
         $board->cooldown_seconds = (int) ($data['cooldown_seconds'] ?? 60);
         $board->text_only = (bool) ($data['text_only'] ?? false);
         $board->require_subject = (bool) ($data['require_subject'] ?? false);
+        $board->staff_only = (bool) ($data['staff_only'] ?? false);
         $board->rules = $data['rules'] ?? '';
         $board->save();
 
@@ -200,7 +202,7 @@ final class BoardService
             $board->setAttribute('name', $data['title'] ?: $board->slug);
         }
 
-        $booleans = ['nsfw', 'text_only', 'require_subject', 'archived'];
+        $booleans = ['nsfw', 'text_only', 'require_subject', 'archived', 'staff_only'];
         foreach ($booleans as $field) {
             if (array_key_exists($field, $data)) {
                 $board->{$field} = (bool) $data[$field];
@@ -528,6 +530,7 @@ final class BoardService
                 'media_dimensions'     => $data['media_dimensions'] ?? null,
                 'media_hash'           => $data['media_hash'] ?? null,
                 'spoiler_image'        => $data['spoiler'] ?? false,
+                'capcode'              => $data['capcode'] ?? null,
                 'delete_password_hash' => (isset($data['password']) && is_string($data['password'])) ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
             ]);
 
@@ -588,6 +591,7 @@ final class BoardService
                 'media_dimensions'     => $data['media_dimensions'] ?? null,
                 'media_hash'           => $data['media_hash'] ?? null,
                 'spoiler_image'        => $data['spoiler'] ?? false,
+                'capcode'              => $data['capcode'] ?? null,
                 'delete_password_hash' => (isset($data['password']) && is_string($data['password'])) ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
             ]);
 

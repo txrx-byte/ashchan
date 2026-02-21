@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Staff;
 
+use App\Service\AuthenticationService;
 use App\Service\ViewService;
 use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Annotation\Controller;
@@ -32,7 +33,10 @@ use Psr\Http\Message\ResponseInterface;
 #[Controller(prefix: '/staff/capcodes')]
 final class CapcodeController
 {
+    use RequiresAccessLevel;
+
     public function __construct(
+        private AuthenticationService $authService,
         private HttpResponse $response,
         private RequestInterface $request,
         private ViewService $viewService,
@@ -41,20 +45,38 @@ final class CapcodeController
     #[GetMapping(path: '')]
     public function index(): ResponseInterface
     {
+        $user = $this->getStaffUser();
+        if (!$user) return $this->response->redirect('/staff/login');
+        $staffInfo = $this->getStaffInfo();
+
         $capcodes = Db::table('capcodes')
             ->orderBy('is_active', 'desc')
             ->orderBy('name')
             ->get();
         $capcodes = \App\Helper\PgArrayParser::parseCollection($capcodes, 'boards');
-        $html = $this->viewService->render('staff/capcodes/index', ['capcodes' => $capcodes]);
+        $html = $this->viewService->render('staff/capcodes/index', [
+            'capcodes' => $capcodes,
+            'username' => $user['username'],
+            'level' => $user['access_level'],
+            'isManager' => $staffInfo['is_manager'],
+            'isAdmin' => $staffInfo['is_admin'],
+        ]);
         return $this->response->html($html);
     }
 
     #[GetMapping(path: 'create')]
     public function create(): ResponseInterface
     {
+        $user = $this->getStaffUser();
+        if (!$user) return $this->response->redirect('/staff/login');
+        $staffInfo = $this->getStaffInfo();
+
         $html = $this->viewService->render('staff/capcodes/create', [
             'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'username' => $user['username'],
+            'level' => $user['access_level'],
+            'isManager' => $staffInfo['is_manager'],
+            'isAdmin' => $staffInfo['is_admin'],
         ]);
         return $this->response->html($html);
     }
@@ -81,8 +103,9 @@ final class CapcodeController
         $tripcode = '!!' . bin2hex(random_bytes(16));
 
         $user = \Hyperf\Context\Context::get('staff_user');
+        $name = trim((string) ($body['name'] ?? ''));
         Db::table('capcodes')->insert([
-            'name' => trim((string) ($body['name'] ?? '')),
+            'name' => $name,
             'tripcode' => $tripcode,
             'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
@@ -92,12 +115,18 @@ final class CapcodeController
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
+        $this->logStaffAction('capcode_create', "Created capcode '{$name}'");
+
         return $this->response->json(['success' => true, 'redirect' => '/staff/capcodes']);
     }
 
     #[GetMapping(path: '{id:\d+}/edit')]
     public function edit(int $id): ResponseInterface
     {
+        $user = $this->getStaffUser();
+        if (!$user) return $this->response->redirect('/staff/login');
+        $staffInfo = $this->getStaffInfo();
+
         $capcode = Db::table('capcodes')->where('id', $id)->first();
         if (!$capcode) {
             return $this->response->json(['error' => 'Not found'], 404);
@@ -107,6 +136,10 @@ final class CapcodeController
         $html = $this->viewService->render('staff/capcodes/edit', [
             'capcode' => $capcode,
             'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'username' => $user['username'],
+            'level' => $user['access_level'],
+            'isManager' => $staffInfo['is_manager'],
+            'isAdmin' => $staffInfo['is_admin'],
         ]);
         return $this->response->html($html);
     }
@@ -135,14 +168,17 @@ final class CapcodeController
             return $this->response->json(['success' => false, 'errors' => $errors], 400);
         }
 
+        $name = trim((string) ($body['name'] ?? ''));
         Db::table('capcodes')->where('id', $id)->update([
-            'name' => trim((string) ($body['name'] ?? '')),
+            'name' => $name,
             'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
             'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+
+        $this->logStaffAction('capcode_update', "Updated capcode #{$id} '{$name}'");
 
         return $this->response->json(['success' => true, 'redirect' => '/staff/capcodes']);
     }
@@ -155,8 +191,29 @@ final class CapcodeController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
+        $capcodeName = $capcode->name ?? 'unknown';
         Db::table('capcodes')->where('id', $id)->delete();
+
+        $this->logStaffAction('capcode_delete', "Deleted capcode #{$id} '{$capcodeName}'");
+
         return $this->response->json(['success' => true]);
+    }
+
+    private function logStaffAction(string $action, string $details): void
+    {
+        try {
+            $user = $this->getStaffUser();
+            if ($user) {
+                $this->authService->logAuditAction(
+                    (int) $user['id'],
+                    $action,
+                    $details,
+                    $this->request->getHeaderLine('X-Real-IP') ?: $this->request->getServerParams()['remote_addr'] ?? '0.0.0.0'
+                );
+            }
+        } catch (\Throwable $e) {
+            // Don't let logging failures break the main operation
+        }
     }
 
     #[PostMapping(path: 'test')]
