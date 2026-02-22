@@ -12,7 +12,9 @@ Before writing rules, know what you are protecting:
 
 | Port | Service | Direction | Exposure |
 |------|---------|-----------|----------|
-| 8080 | Anubis reverse proxy (public entry) | Inbound | **Public** |
+| 80   | nginx HTTP (redirect → HTTPS) | Inbound | **Public** (with nginx) |
+| 443  | nginx HTTPS (TLS entry point) | Inbound | **Public** (with nginx) |
+| 8080 | Anubis reverse proxy | Inbound | **Public** (without nginx) / Loopback (with nginx) |
 | 9501 | API Gateway | Internal | Loopback only |
 | 9502 | Auth / Accounts | Internal | Loopback only |
 | 9503 | Boards / Threads / Posts | Internal | Loopback only |
@@ -32,8 +34,12 @@ Before writing rules, know what you are protecting:
 | 9001 | MinIO Console | Internal | Admin only |
 | 22 | SSH | Inbound | Admin only |
 
-> **Principle:** Only ports 8080 (HTTP via Anubis) and 22 (SSH) should be reachable
-> from the public internet. Everything else stays on loopback or a private network.
+> **Principle:** Only the public entry point and SSH should be reachable from the
+> internet. With nginx: ports **80, 443, and 22**. Without nginx: ports **8080 and 22**.
+> Everything else stays on loopback or a private network.
+>
+> When using nginx, port 8080 (Anubis) should be moved to loopback-only.
+> See [docs/NGINX_HARDENING.md](NGINX_HARDENING.md) for the full nginx deployment guide.
 
 ---
 
@@ -1013,6 +1019,7 @@ sudo fail2ban-client set ashchan-http-flood banip 192.0.2.1
 
 ## See Also
 
+- [docs/NGINX_HARDENING.md](NGINX_HARDENING.md) — nginx reverse proxy (TLS, rate limiting, bot blocking)
 - [docs/security.md](security.md) — mTLS, encryption, audit logging, compliance
 - [docs/anti-spam.md](anti-spam.md) — Application-level anti-spam (Stop Forum Spam, heuristics)
 - [docs/SFS_ESCALATION_PLAYBOOK.md](SFS_ESCALATION_PLAYBOOK.md) — Spam escalation procedures

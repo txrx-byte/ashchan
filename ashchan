@@ -44,6 +44,11 @@
 #   build:clean      Remove static build artifacts
 #   build:<service>  Build static binary for one service
 #   firewall:setup   Configure firewall, fail2ban, and sysctl hardening
+#   nginx:setup      Configure nginx reverse proxy (TLS + rate limits)
+#   nginx:start      Start nginx
+#   nginx:stop       Stop nginx
+#   nginx:reload     Reload nginx configuration
+#   nginx:status     Show nginx status
 #   lint             Lint all PHP source files
 #   test             Run test suites
 #   clean            Remove runtime artifacts and logs
@@ -1598,6 +1603,385 @@ cmd_firewall_setup() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Nginx reverse proxy
+# ─────────────────────────────────────────────────────────────────────────────
+
+NGINX_CONF_SRC="${SCRIPT_DIR}/config/nginx/nginx.conf"
+NGINX_CONF_DST="/etc/nginx/nginx.conf"
+CLOUDFLARE_ORIGIN_CA_URL="https://developers.cloudflare.com/ssl/static/authenticated_origin_pull_ca.pem"
+CLOUDFLARE_CERT_DIR="/etc/nginx/certs"
+CLOUDFLARE_CERT_PATH="${CLOUDFLARE_CERT_DIR}/cloudflare-origin.pem"
+
+check_nginx() {
+    if command -v nginx &>/dev/null; then
+        local ver
+        ver=$(nginx -v 2>&1 | grep -oP '[\d.]+' | head -1)
+        success "nginx ${ver}"
+        return 0
+    else
+        warn "nginx not found"
+        return 1
+    fi
+}
+
+nginx_is_running() {
+    if pidof nginx &>/dev/null || (command -v systemctl &>/dev/null && systemctl is-active nginx &>/dev/null); then
+        return 0
+    fi
+    return 1
+}
+
+nginx_health() {
+    if curl -sk --max-time 2 "https://localhost/health" &>/dev/null || \
+       curl -s  --max-time 2 "http://localhost/health" &>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+nginx_start() {
+    if nginx_is_running; then
+        info "nginx already running"
+        return 0
+    fi
+    if ! command -v nginx &>/dev/null; then
+        warn "nginx not installed — skipping"
+        return 1
+    fi
+    sudo systemctl start nginx 2>/dev/null || sudo nginx 2>/dev/null || {
+        fail "Could not start nginx"
+        return 1
+    }
+    success "nginx started"
+}
+
+nginx_stop() {
+    if nginx_is_running; then
+        sudo systemctl stop nginx 2>/dev/null || sudo nginx -s stop 2>/dev/null || true
+        success "nginx stopped"
+    else
+        info "nginx not running"
+    fi
+}
+
+nginx_reload() {
+    if nginx_is_running; then
+        if sudo nginx -t &>/dev/null; then
+            sudo systemctl reload nginx 2>/dev/null || sudo nginx -s reload 2>/dev/null
+            success "nginx reloaded"
+        else
+            fail "nginx config test failed — not reloading"
+            sudo nginx -t 2>&1 | tail -5
+            return 1
+        fi
+    else
+        warn "nginx not running — start it first"
+    fi
+}
+
+cmd_nginx_setup() {
+    banner "Nginx Reverse Proxy Setup"
+
+    step "Checking nginx"
+    if ! check_nginx; then
+        info "Install nginx first:"
+        local os
+        os=$(detect_os)
+        if [[ "$os" == "freebsd" ]]; then
+            info "  sudo pkg install nginx"
+        else
+            info "  sudo apt-get install -y nginx   # Debian/Ubuntu"
+            info "  sudo dnf install -y nginx        # RHEL/Fedora"
+            info "  sudo apk add nginx               # Alpine"
+        fi
+        echo
+        if ! confirm "Continue anyway? (config will be generated but not applied)"; then
+            info "Aborted"
+            return 0
+        fi
+    fi
+
+    step "Configuration"
+    if [[ ! -f "$NGINX_CONF_SRC" ]]; then
+        die "Reference nginx config not found: ${NGINX_CONF_SRC}"
+    fi
+
+    # Ask for domain
+    local domain="ashchan.example.com"
+    echo -en "  ${Y}?${NC} Server domain [${domain}]: "
+    read -r custom_domain
+    [[ -n "$custom_domain" ]] && domain="$custom_domain"
+
+    # Ask for TLS cert paths
+    local cert_path="/etc/letsencrypt/live/${domain}/fullchain.pem"
+    local key_path="/etc/letsencrypt/live/${domain}/privkey.pem"
+    echo -en "  ${Y}?${NC} SSL certificate path [${cert_path}]: "
+    read -r custom_cert
+    [[ -n "$custom_cert" ]] && cert_path="$custom_cert"
+    echo -en "  ${Y}?${NC} SSL key path [${key_path}]: "
+    read -r custom_key
+    [[ -n "$custom_key" ]] && key_path="$custom_key"
+
+    # Generate customised config
+    local staged="${SCRIPT_DIR}/config/nginx/nginx-staged.conf"
+    sed -e "s|ashchan.example.com|${domain}|g" \
+        -e "s|/etc/letsencrypt/live/ashchan.example.com/fullchain.pem|${cert_path}|g" \
+        -e "s|/etc/letsencrypt/live/ashchan.example.com/privkey.pem|${key_path}|g" \
+        "$NGINX_CONF_SRC" > "$staged"
+    success "Generated ${staged}"
+    info "Domain: ${domain}"
+    info "Certificate: ${cert_path}"
+    info "Key: ${key_path}"
+
+    step "Anubis real-IP configuration"
+    info "When behind nginx, Anubis must use X-Forwarded-For for client IPs"
+    local anubis_env="${ANUBIS_DIR}/env"
+    if [[ -f "$anubis_env" ]]; then
+        if grep -q 'USE_REMOTE_ADDRESS=true' "$anubis_env" 2>/dev/null; then
+            sed -i 's/USE_REMOTE_ADDRESS=true/USE_REMOTE_ADDRESS=false/' "$anubis_env"
+            success "Set USE_REMOTE_ADDRESS=false in Anubis env"
+        else
+            info "USE_REMOTE_ADDRESS already configured"
+        fi
+        if ! grep -q 'CUSTOM_REAL_IP_HEADER' "$anubis_env" 2>/dev/null; then
+            echo 'CUSTOM_REAL_IP_HEADER=X-Forwarded-For' >> "$anubis_env"
+            success "Added CUSTOM_REAL_IP_HEADER=X-Forwarded-For to Anubis env"
+        elif grep -q '# .*CUSTOM_REAL_IP_HEADER' "$anubis_env" 2>/dev/null && \
+             ! grep -q '^CUSTOM_REAL_IP_HEADER' "$anubis_env" 2>/dev/null; then
+            echo 'CUSTOM_REAL_IP_HEADER=X-Forwarded-For' >> "$anubis_env"
+            success "Added CUSTOM_REAL_IP_HEADER=X-Forwarded-For to Anubis env"
+        else
+            info "CUSTOM_REAL_IP_HEADER already set"
+        fi
+    else
+        warn "Anubis env file not found at ${anubis_env}"
+        info "When deploying, set USE_REMOTE_ADDRESS=false and CUSTOM_REAL_IP_HEADER=X-Forwarded-For"
+    fi
+
+    echo
+    if command -v nginx &>/dev/null; then
+        if confirm "Install config to ${NGINX_CONF_DST}? (requires sudo)"; then
+            # Backup existing config
+            if [[ -f "$NGINX_CONF_DST" ]]; then
+                local backup="${NGINX_CONF_DST}.bak.$(date +%Y%m%d_%H%M%S)"
+                sudo cp "$NGINX_CONF_DST" "$backup"
+                success "Backed up existing config to ${backup}"
+            fi
+
+            sudo cp "$staged" "$NGINX_CONF_DST"
+
+            # Ensure required directories exist
+            sudo mkdir -p /var/lib/nginx/body /var/lib/nginx/proxy /var/www/certbot 2>/dev/null || true
+
+            if sudo nginx -t 2>/dev/null; then
+                success "nginx config test passed"
+                if nginx_is_running; then
+                    sudo systemctl reload nginx 2>/dev/null || sudo nginx -s reload 2>/dev/null
+                    success "nginx reloaded with new config"
+                else
+                    if confirm "Start nginx now?"; then
+                        nginx_start
+                    fi
+                fi
+            else
+                fail "nginx config test failed — check certificate/key paths"
+                sudo nginx -t 2>&1 | tail -5
+                info "Fix the issues and run: sudo nginx -t && sudo systemctl reload nginx"
+            fi
+        else
+            info "Config saved to ${staged}"
+            info "Install manually: sudo cp ${staged} ${NGINX_CONF_DST}"
+        fi
+    else
+        info "Config saved to ${staged}"
+        info "Install nginx, then: sudo cp ${staged} ${NGINX_CONF_DST}"
+    fi
+
+    echo
+    echo -e "  ${BOLD}Architecture:${NC}"
+    separator
+    echo "  nginx (80/443) → Anubis (8080) → API Gateway (9501)"
+    echo
+    echo -e "  ${BOLD}Next steps:${NC}"
+    separator
+    echo "  1. Obtain TLS certificate:  sudo certbot --nginx -d ${domain}"
+    echo "  2. Generate DH params:      sudo openssl dhparam -out /etc/nginx/dhparam.pem 2048"
+    echo "  3. Cloudflare setup:         ./ashchan nginx:cloudflare"
+    echo "  4. Update firewall:          ./ashchan firewall:setup"
+    echo "  5. Test:                     curl -I https://${domain}"
+    echo
+    echo -e "  ${DIM}See docs/NGINX_HARDENING.md for full guidance${NC}"
+    echo
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloudflare integration
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Download Cloudflare's Authenticated Origin Pull CA and update the nginx
+# config to enable ssl_verify_client.  Also refreshes the set_real_ip_from
+# ranges from Cloudflare's live IP list.
+#
+# WHY THIS MATTERS:
+# 1. Authenticated Origin Pulls — Cloudflare signs every request with a client
+#    certificate from their Origin Pull CA.  With ssl_verify_client on, nginx
+#    rejects any request NOT from Cloudflare.  This closes the "origin IP leak"
+#    attack vector: even if someone discovers your server's real IP, they cannot
+#    bypass Cloudflare's WAF, DDoS mitigation, or rate limiting.
+# 2. Real IP Restoration — Without set_real_ip_from, $remote_addr is a
+#    Cloudflare edge IP.  Rate-limit zones, fail2ban, and admin audit logs
+#    would all see CF edge IPs instead of real visitors.  The admin interface
+#    needs the true IP to ban/review users and to comply with legal requests.
+
+cmd_nginx_cloudflare() {
+    banner "Cloudflare Integration"
+
+    # ── Step 1: Download Origin Pull CA ──────────────────────
+    step "Downloading Cloudflare Authenticated Origin Pull CA"
+    sudo mkdir -p "$CLOUDFLARE_CERT_DIR"
+
+    if curl -fsSL "$CLOUDFLARE_ORIGIN_CA_URL" -o /tmp/cloudflare-origin.pem 2>/dev/null; then
+        # Basic sanity: must contain a PEM certificate
+        if grep -q 'BEGIN CERTIFICATE' /tmp/cloudflare-origin.pem; then
+            sudo cp /tmp/cloudflare-origin.pem "$CLOUDFLARE_CERT_PATH"
+            sudo chmod 644 "$CLOUDFLARE_CERT_PATH"
+            rm -f /tmp/cloudflare-origin.pem
+            success "Saved ${CLOUDFLARE_CERT_PATH}"
+        else
+            fail "Downloaded file is not a valid PEM certificate"
+            rm -f /tmp/cloudflare-origin.pem
+            return 1
+        fi
+    else
+        fail "Could not download Cloudflare Origin Pull CA"
+        info "URL: ${CLOUDFLARE_ORIGIN_CA_URL}"
+        info "Download manually and save to ${CLOUDFLARE_CERT_PATH}"
+        return 1
+    fi
+
+    # ── Step 2: Enable ssl_verify_client in config ───────────
+    step "Enabling Authenticated Origin Pulls in nginx config"
+    local conf="${NGINX_CONF_DST}"
+    [[ ! -f "$conf" ]] && conf="${SCRIPT_DIR}/config/nginx/nginx.conf"
+
+    if grep -q '# ssl_client_certificate.*cloudflare' "$conf" 2>/dev/null; then
+        # Uncomment the two lines
+        sudo sed -i \
+            -e 's|# ssl_client_certificate /etc/nginx/certs/cloudflare-origin.pem;|ssl_client_certificate /etc/nginx/certs/cloudflare-origin.pem;|' \
+            -e 's|# ssl_verify_client on;|ssl_verify_client on;|' \
+            "$conf"
+        success "Uncommented ssl_client_certificate + ssl_verify_client"
+    elif grep -q 'ssl_client_certificate.*cloudflare' "$conf" 2>/dev/null; then
+        info "Authenticated Origin Pulls already enabled"
+    else
+        warn "Could not find Cloudflare placeholder in config"
+        info "Add these lines manually inside the server { ssl } block:"
+        info "  ssl_client_certificate ${CLOUDFLARE_CERT_PATH};"
+        info "  ssl_verify_client on;"
+    fi
+
+    # ── Step 3: Refresh Cloudflare IP ranges ─────────────────
+    nginx_update_cf_ips "$conf"
+
+    # ── Step 4: Test & reload ────────────────────────────────
+    if nginx_is_running; then
+        step "Testing nginx config"
+        if sudo nginx -t 2>/dev/null; then
+            success "Config test passed"
+            if confirm "Reload nginx now?"; then
+                sudo systemctl reload nginx 2>/dev/null || sudo nginx -s reload 2>/dev/null
+                success "nginx reloaded"
+            fi
+        else
+            fail "nginx config test failed:"
+            sudo nginx -t 2>&1 | tail -5
+        fi
+    fi
+
+    echo
+    echo -e "  ${BOLD}Cloudflare checklist:${NC}"
+    separator
+    echo "  [✓] Cloudflare Origin Pull CA installed"
+    echo "  [✓] ssl_verify_client enabled in nginx"
+    echo "  [✓] Cloudflare IP ranges set for real IP restoration"
+    echo
+    echo "  Remaining steps:"
+    echo "  1. Cloudflare dashboard → SSL/TLS → Origin Server"
+    echo "     → Enable 'Authenticated Origin Pulls'"
+    echo "  2. Cloudflare dashboard → SSL/TLS → Overview"
+    echo "     → Set mode to 'Full (strict)'"
+    echo "  3. Verify:  curl -I https://your-domain.com"
+    echo "     (direct-to-origin should now return 400 Bad Request)"
+    echo
+    echo -e "  ${DIM}See docs/NGINX_HARDENING.md § Cloudflare for details${NC}"
+    echo
+}
+
+# Update the set_real_ip_from directives in an nginx config with the
+# latest Cloudflare IPv4/IPv6 ranges fetched from their API.
+nginx_update_cf_ips() {
+    local conf="${1:-$NGINX_CONF_DST}"
+    [[ ! -f "$conf" ]] && conf="${SCRIPT_DIR}/config/nginx/nginx.conf"
+
+    step "Fetching current Cloudflare IP ranges"
+
+    local ipv4 ipv6
+    ipv4=$(curl -fsSL "https://www.cloudflare.com/ips-v4" 2>/dev/null)
+    ipv6=$(curl -fsSL "https://www.cloudflare.com/ips-v6" 2>/dev/null)
+
+    if [[ -z "$ipv4" ]]; then
+        warn "Could not fetch Cloudflare IPv4 ranges — keeping existing list"
+        return 1
+    fi
+
+    # Count how many ranges we got
+    local v4_count v6_count
+    v4_count=$(echo "$ipv4" | wc -l)
+    v6_count=$(echo "$ipv6" | wc -l)
+    info "Fetched ${v4_count} IPv4 and ${v6_count} IPv6 ranges"
+
+    # Build the replacement block
+    local new_block=""
+    new_block+="    # ── Cloudflare IPv4 ranges ──\n"
+    while IFS= read -r cidr; do
+        [[ -n "$cidr" ]] && new_block+="    set_real_ip_from ${cidr};\n"
+    done <<< "$ipv4"
+    new_block+="    # ── Cloudflare IPv6 ranges ──\n"
+    while IFS= read -r cidr; do
+        [[ -n "$cidr" ]] && new_block+="    set_real_ip_from ${cidr};\n"
+    done <<< "$ipv6"
+    new_block+="    # ── Use CF-Connecting-IP as the source of truth ──\n"
+    new_block+="    real_ip_header    CF-Connecting-IP;\n"
+    new_block+="    real_ip_recursive on;"
+
+    # Replace the block between markers in the config
+    # Markers: "# ── Cloudflare IPv4 ranges ──" to "real_ip_recursive on;"
+    if grep -q 'Cloudflare IPv4 ranges' "$conf" 2>/dev/null; then
+        # Use awk to replace the block
+        local tmp_conf
+        tmp_conf=$(mktemp)
+        awk -v replacement="$(echo -e "$new_block")" '
+        /# ── Cloudflare IPv4 ranges/ { skip=1; printed=0 }
+        skip && /real_ip_recursive on;/ { print replacement; skip=0; printed=1; next }
+        skip { next }
+        { print }
+        ' "$conf" > "$tmp_conf"
+
+        if [[ -s "$tmp_conf" ]]; then
+            sudo cp "$tmp_conf" "$conf"
+            rm -f "$tmp_conf"
+            success "Updated Cloudflare IP ranges in ${conf}"
+        else
+            rm -f "$tmp_conf"
+            warn "Replacement produced empty file — keeping original"
+        fi
+    else
+        warn "Cloudflare IP range markers not found in ${conf}"
+        info "Add the ranges manually — see docs/NGINX_HARDENING.md"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Cleanup
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1659,6 +2043,24 @@ cmd_status() {
     fi
     printf "  %-20s %-8s %-8s ${anubis_color}%-10s${NC}\n" \
         "Anubis (AI Firewall)" "${ANUBIS_PORT}" "$anubis_pid_str" "$anubis_health_str"
+
+    # Nginx
+    local nginx_pid_str="-" nginx_health_str="-" nginx_color="$DIM"
+    if nginx_is_running; then
+        nginx_pid_str="$(pidof nginx 2>/dev/null | awk '{print $1}' || echo '-')"
+        if nginx_health; then
+            nginx_health_str="healthy"
+            nginx_color="$G"
+        else
+            nginx_health_str="unhealthy"
+            nginx_color="$Y"
+        fi
+    else
+        nginx_health_str="stopped"
+        nginx_color="$DIM"
+    fi
+    printf "  %-20s %-8s %-8s ${nginx_color}%-10s${NC}\n" \
+        "nginx (Rev. Proxy)" "80/443" "$nginx_pid_str" "$nginx_health_str"
     echo
 
     # Infrastructure
@@ -1748,27 +2150,27 @@ cmd_install() {
     banner "Full Installation"
 
     # ─── 1. Prerequisites ───
-    step "1/9  Checking prerequisites"
+    step "1/10  Checking prerequisites"
     check_php
     check_php_extensions || true
     check_composer
     check_openssl
 
     # ─── 2. mTLS ───
-    step "2/9  Setting up mTLS certificates"
+    step "2/10  Setting up mTLS certificates"
     certs_init_ca
     certs_generate_all
 
     # ─── 3. Environment ───
-    step "3/9  Configuring environment"
+    step "3/10  Configuring environment"
     setup_env_files
 
     # ─── 4. Dependencies ───
-    step "4/9  Compiling services"
+    step "4/10  Compiling services"
     compile_services
 
     # ─── 5. Static binaries (optional) ───
-    step "5/9  Static binary build (optional)"
+    step "5/10  Static binary build (optional)"
     if [[ -f "$BUILD_SCRIPT" ]]; then
         info "Static builds produce single-file executables for deployment"
         info "This step is optional — services work fine without it"
@@ -1784,7 +2186,7 @@ cmd_install() {
     fi
 
     # ─── 6. Database ───
-    step "6/9  Database setup"
+    step "6/10  Database setup"
     if check_db 2>/dev/null; then
         cmd_db_install
         cmd_db_seed
@@ -1794,7 +2196,7 @@ cmd_install() {
     fi
 
     # ─── 7. Firewall hardening (optional) ───
-    step "7/9  Firewall hardening (optional)"
+    step "7/10  Firewall hardening (optional)"
     local fw_backend
     fw_backend=$(detect_firewall_backend)
     if [[ "$fw_backend" != "none" ]]; then
@@ -1803,7 +2205,7 @@ cmd_install() {
         fw_wan=$(detect_wan_interface)
         info "Detected: ${fw_backend} on ${fw_os} (interface: ${fw_wan})"
         info "This configures firewall rules, fail2ban, and sysctl hardening"
-        info "Only SSH (22) and Anubis (8080) will be exposed publicly"
+        info "Only SSH (22) and HTTP/HTTPS (80/443 or 8080) will be exposed publicly"
         echo
         if confirm "Configure firewall hardening?"; then
             echo -en "  ${Y}?${NC} WAN interface [${fw_wan}]: "
@@ -1837,8 +2239,25 @@ cmd_install() {
         info "Then run:  ./ashchan firewall:setup"
     fi
 
-    # ─── 8. Start services ───
-    step "8/9  Starting services"
+    # ─── 8. Nginx reverse proxy (optional) ───
+    step "8/10  Nginx reverse proxy (optional)"
+    if command -v nginx &>/dev/null; then
+        info "nginx detected — it can sit in front of Anubis for TLS, rate limiting, and bot blocking"
+        info "Architecture: nginx (80/443) → Anubis (8080) → API Gateway (9501)"
+        echo
+        if confirm "Configure nginx reverse proxy?"; then
+            cmd_nginx_setup
+        else
+            info "Skipped — run later with:  ./ashchan nginx:setup"
+        fi
+    else
+        info "nginx not installed — skipping reverse proxy setup"
+        info "Install nginx and run:  ./ashchan nginx:setup"
+        info "See docs/NGINX_HARDENING.md for guidance"
+    fi
+
+    # ─── 9. Start services ───
+    step "9/10  Starting services"
     for svc in "${SVC_NAMES[@]}"; do
         svc_start "$svc"
         sleep 1
@@ -1854,8 +2273,13 @@ cmd_install() {
         info "Then run:  ./ashchan anubis:start"
     fi
 
-    # ─── 9. Health ───
-    step "9/9  Verifying health"
+    # Start nginx if configured
+    if command -v nginx &>/dev/null && [[ -f "$NGINX_CONF_DST" ]]; then
+        nginx_start 2>/dev/null || true
+    fi
+
+    # ─── 10. Health ───
+    step "10/10  Verifying health"
     sleep 3
     local healthy=0
     for svc in "${SVC_NAMES[@]}"; do
@@ -1871,6 +2295,13 @@ cmd_install() {
     elif anubis_is_running; then
         warn "Anubis — not responding yet"
     fi
+    if nginx_is_running; then
+        if nginx_health; then
+            success "nginx (reverse proxy) — healthy"
+        else
+            warn "nginx — running but health check failed (TLS cert may not be configured yet)"
+        fi
+    fi
 
     # ─── Summary ───
     echo
@@ -1880,7 +2311,9 @@ cmd_install() {
     echo
     echo -e "  ${BOLD}Endpoints${NC}"
     separator
-    if anubis_is_running; then
+    if nginx_is_running; then
+        printf "  %-22s https://localhost      ${DIM}(nginx → Anubis → Gateway)${NC}\n" "Public frontend"
+    elif anubis_is_running; then
         printf "  %-22s http://localhost:%s  ${DIM}(via Anubis)${NC}\n" "Public frontend" "${ANUBIS_PORT}"
     fi
     for svc in "${SVC_NAMES[@]}"; do
@@ -1952,6 +2385,12 @@ cmd_help() {
     echo -e "    ${C}build:<service>${NC}    Build one service as static binary"
     echo
     echo -e "  ${BOLD}Security${NC}"
+    echo -e "    ${C}nginx:setup${NC}        Configure nginx reverse proxy (TLS + rate limits)"
+    echo -e "    ${C}nginx:cloudflare${NC}   Setup Cloudflare origin pulls + real IP ranges"
+    echo -e "    ${C}nginx:start${NC}        Start nginx"
+    echo -e "    ${C}nginx:stop${NC}         Stop nginx"
+    echo -e "    ${C}nginx:reload${NC}       Reload nginx config"
+    echo -e "    ${C}nginx:status${NC}       Show nginx status"
     echo -e "    ${C}firewall:setup${NC}     Configure firewall + fail2ban + sysctl hardening"
     echo
     echo -e "  ${BOLD}Quality${NC}"
@@ -1962,7 +2401,7 @@ cmd_help() {
     echo -e "    ${C}clean${NC}              Remove logs, PIDs, caches"
     echo -e "    ${C}help${NC}               Show this help"
     echo
-    echo -e "  ${BOLD}Services:${NC} gateway, auth, boards, media, search, moderation, anubis"
+    echo -e "  ${BOLD}Services:${NC} gateway, auth, boards, media, search, moderation, anubis, nginx"
     echo
     echo -e "  ${BOLD}Options:${NC}"
     echo -e "    ${C}--force${NC}            Force regeneration of certs/env files"
@@ -2003,13 +2442,16 @@ main() {
             if [[ "$target" == "all" ]]; then
                 for svc in "${SVC_NAMES[@]}"; do svc_start "$svc"; sleep 0.5; done
                 anubis_start 2>/dev/null || true
+                nginx_start 2>/dev/null || true
             elif [[ "$target" == "anubis" ]]; then
                 anubis_start
+            elif [[ "$target" == "nginx" ]]; then
+                nginx_start
             else
                 if [[ -n "${SVC_DIRS[$target]+x}" ]]; then
                     svc_start "$target"
                 else
-                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis"
+                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis nginx"
                 fi
             fi
             ;;
@@ -2017,15 +2459,18 @@ main() {
             banner "Stopping services"
             local target="${args[0]:-all}"
             if [[ "$target" == "all" ]]; then
+                nginx_stop 2>/dev/null || true
                 anubis_stop 2>/dev/null || true
                 for svc in "${SVC_NAMES[@]}"; do svc_stop "$svc"; done
             elif [[ "$target" == "anubis" ]]; then
                 anubis_stop
+            elif [[ "$target" == "nginx" ]]; then
+                nginx_stop
             else
                 if [[ -n "${SVC_DIRS[$target]+x}" ]]; then
                     svc_stop "$target"
                 else
-                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis"
+                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis nginx"
                 fi
             fi
             ;;
@@ -2033,22 +2478,28 @@ main() {
             banner "Restarting services"
             local target="${args[0]:-all}"
             if [[ "$target" == "all" ]]; then
+                nginx_stop 2>/dev/null || true
                 anubis_stop 2>/dev/null || true
                 for svc in "${SVC_NAMES[@]}"; do svc_stop "$svc"; done
                 sleep 1
                 for svc in "${SVC_NAMES[@]}"; do svc_start "$svc"; sleep 0.5; done
                 anubis_start 2>/dev/null || true
+                nginx_start 2>/dev/null || true
             elif [[ "$target" == "anubis" ]]; then
                 anubis_stop
                 sleep 1
                 anubis_start
+            elif [[ "$target" == "nginx" ]]; then
+                nginx_stop
+                sleep 1
+                nginx_start
             else
                 if [[ -n "${SVC_DIRS[$target]+x}" ]]; then
                     svc_stop "$target"
                     sleep 1
                     svc_start "$target"
                 else
-                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis"
+                    die "Unknown service: ${target}. Available: ${SVC_NAMES[*]} anubis nginx"
                 fi
             fi
             ;;
@@ -2116,6 +2567,49 @@ main() {
             ;;
         firewall:setup)
             cmd_firewall_setup
+            ;;
+        nginx:setup)
+            cmd_nginx_setup
+            ;;
+        nginx:cloudflare)
+            cmd_nginx_cloudflare
+            ;;
+        nginx:start)
+            banner "Nginx"
+            nginx_start
+            ;;
+        nginx:stop)
+            banner "Nginx"
+            nginx_stop
+            ;;
+        nginx:reload)
+            banner "Nginx"
+            nginx_reload
+            ;;
+        nginx:restart)
+            banner "Nginx"
+            nginx_stop
+            sleep 1
+            nginx_start
+            ;;
+        nginx:status)
+            banner "Nginx"
+            step "nginx reverse proxy status"
+            if nginx_is_running; then
+                success "Running"
+                if nginx_health; then
+                    success "Health: OK"
+                else
+                    warn "Health: not responding (TLS cert may not be configured)"
+                fi
+                info "Config: ${NGINX_CONF_DST}"
+                info "Logs:   /var/log/nginx/"
+                info "Target: http://127.0.0.1:${ANUBIS_PORT} (Anubis)"
+            else
+                info "Not running"
+                info "Start with:  ./ashchan nginx:start"
+            fi
+            echo
             ;;
         lint)
             banner "Lint"
