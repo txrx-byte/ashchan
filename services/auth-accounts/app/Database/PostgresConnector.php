@@ -189,10 +189,32 @@ final class PostgresConnector extends Connector implements ConnectorInterface
         $port = (string) $config['port'];
         // @phpstan-ignore-next-line
         $database = (string) $config['database'];
-        $dsn = "pgsql:host={$host};port={$port};dbname={$database}";
 
+        // Validate host: letters, digits, dots, hyphens, colons (IPv6), brackets only
+        if ($host === '' || !preg_match('/^[\w.\-:\[\]]+$/u', $host)) {
+            throw new \InvalidArgumentException('Invalid database host: ' . $host);
+        }
+
+        // Validate port: numeric, 1–65535
+        $portInt = (int) $port;
+        if (!ctype_digit($port) || $portInt < 1 || $portInt > 65535) {
+            throw new \InvalidArgumentException('Invalid database port: ' . $port);
+        }
+
+        // Validate database name: letters, digits, underscores, hyphens only
+        if ($database === '' || !preg_match('/^[\w\-]+$/u', $database)) {
+            throw new \InvalidArgumentException('Invalid database name: ' . $database);
+        }
+
+        $dsn = "pgsql:host={$host};port={$portInt};dbname={$database}";
+
+        // Validate sslmode against allowed values
         $sslmode = $config['sslmode'] ?? null;
         if (is_string($sslmode)) {
+            $allowedSslModes = ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'];
+            if (!in_array($sslmode, $allowedSslModes, true)) {
+                throw new \InvalidArgumentException('Invalid sslmode: ' . $sslmode);
+            }
             $dsn .= ";sslmode={$sslmode}";
         }
 

@@ -435,21 +435,44 @@ final class AuthController
             $redis = $this->authService->getRedis();
             $key = 'login_attempts:' . hash('sha256', $ip);
             $now = microtime(true);
+
+            // Atomic Lua script: clean expired entries, check count, add new entry
+            // This prevents race conditions where concurrent requests could bypass the limit
+            $luaScript = <<<'LUA'
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local window_start = tonumber(ARGV[2])
+local max_reqs = tonumber(ARGV[3])
+local member = ARGV[4]
+local window = tonumber(ARGV[5])
+redis.call('ZREMRANGEBYSCORE', key, '-inf', window_start)
+local count = redis.call('ZCARD', key)
+if count >= max_reqs then
+    return 1
+end
+redis.call('ZADD', key, now, member)
+redis.call('EXPIRE', key, window)
+return 0
+LUA;
+
             $windowStart = $now - self::LOGIN_RATE_WINDOW;
+            $member = (string) $now . ':' . bin2hex(random_bytes(4));
 
-            // Remove expired entries and count remaining
-            $redis->zRemRangeByScore($key, '-inf', (string) $windowStart);
-            $count = $redis->zCard($key);
+            /** @var int $result */
+            $result = $redis->eval(
+                $luaScript,
+                [
+                    $key,
+                    (string) $now,
+                    (string) $windowStart,
+                    (string) self::LOGIN_RATE_LIMIT,
+                    $member,
+                    (string) self::LOGIN_RATE_WINDOW,
+                ],
+                1
+            );
 
-            if ($count >= self::LOGIN_RATE_LIMIT) {
-                return true;
-            }
-
-            // Record this attempt
-            $redis->zAdd($key, $now, (string) $now . ':' . bin2hex(random_bytes(4)));
-            $redis->expire($key, self::LOGIN_RATE_WINDOW);
-
-            return false;
+            return (int) $result === 1;
         } catch (\Throwable) {
             // If Redis is down, allow the request (fail-open for login)
             return false;

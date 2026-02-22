@@ -58,7 +58,10 @@ final class AuthService
     ) {
         // Use a dedicated HMAC key or fall back to PII_ENCRYPTION_KEY
         $hmacKey = \Hyperf\Support\env('IP_HMAC_KEY', '') ?: \Hyperf\Support\env('PII_ENCRYPTION_KEY', '');
-        $this->ipHmacKey = is_string($hmacKey) && $hmacKey !== '' ? $hmacKey : 'ashchan-default-hmac-key';
+        if (!is_string($hmacKey) || $hmacKey === '') {
+            throw new \RuntimeException('IP_HMAC_KEY or PII_ENCRYPTION_KEY must be configured for secure IP hashing');
+        }
+        $this->ipHmacKey = $hmacKey;
     }
 
     /**
@@ -153,17 +156,20 @@ final class AuthService
 
         // Generate a cryptographically secure 256-bit session token
         $token = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $token);
 
         // @phpstan-ignore-next-line
         Session::create([
             'user_id'    => $user->id,
-            'token'      => hash('sha256', $token),
+            'token'      => $tokenHash,
             'ip_address' => $this->piiEncryption->encrypt($ip),
             'user_agent' => mb_substr($userAgent, 0, 512),
             'expires_at' => date('Y-m-d H:i:s', time() + self::SESSION_TTL),
         ]);
 
         // Cache session in Redis for O(1) validation
+        // SECURITY: Use the SHA-256 hash as the Redis key (not the raw token)
+        // to prevent token exposure if Redis is compromised (RDB dump, MONITOR, etc.)
         $sessionData = [
             'user_id'  => $user->id,
             'username' => $user->username,
@@ -171,7 +177,7 @@ final class AuthService
         ];
         try {
             $this->redis->setex(
-                "session:{$token}",
+                "session:{$tokenHash}",
                 self::SESSION_TTL,
                 (string) json_encode($sessionData, JSON_THROW_ON_ERROR)
             );
@@ -202,10 +208,15 @@ final class AuthService
      */
     public function validateToken(string $token): ?array
     {
+        // Hash the raw token once — used for both Redis and DB lookups.
+        // SECURITY: Raw token is never used as a Redis key to prevent
+        // exposure if Redis storage is compromised.
+        $tokenHash = hash('sha256', $token);
+
         // Fast path: check Redis cache
         $cached = null;
         try {
-            $cached = $this->redis->get("session:{$token}");
+            $cached = $this->redis->get("session:{$tokenHash}");
         } catch (\Throwable) {
             // Redis unavailable — fall through to DB
         }
@@ -229,8 +240,7 @@ final class AuthService
         }
 
         // Slow path: database lookup
-        $hashed = hash('sha256', $token);
-        $session = Session::query()->where('token', $hashed)->first();
+        $session = Session::query()->where('token', $tokenHash)->first();
         if (!$session instanceof Session || $session->isExpired()) {
             return null;
         }
@@ -264,7 +274,7 @@ final class AuthService
         // Re-cache with remaining TTL
         $remaining = max(1, strtotime((string) $session->expires_at) - time());
         try {
-            $this->redis->setex("session:{$token}", $remaining, (string) json_encode($data, JSON_THROW_ON_ERROR));
+            $this->redis->setex("session:{$tokenHash}", $remaining, (string) json_encode($data, JSON_THROW_ON_ERROR));
         } catch (\Throwable) {
             // Non-fatal
         }
@@ -285,14 +295,14 @@ final class AuthService
      */
     public function logout(string $token): void
     {
+        $tokenHash = hash('sha256', $token);
         try {
-            $this->redis->del("session:{$token}");
+            $this->redis->del("session:{$tokenHash}");
         } catch (\Throwable) {
             // Non-fatal if Redis is down
         }
 
-        $hashed = hash('sha256', $token);
-        Session::query()->where('token', $hashed)->delete();
+        Session::query()->where('token', $tokenHash)->delete();
     }
 
     /* ──────────────────────────────────────────────
@@ -320,6 +330,10 @@ final class AuthService
             'ban_expires_at' => $expiresAt,
         ]);
 
+        // Immediately invalidate the ban status cache so token validation
+        // picks up the ban without waiting for the 30s TTL to expire
+        $this->cacheBanStatus($userId, true);
+
         // Bulk-delete all sessions for this user (fixes N+1 query issue).
         // We can't purge Redis keys because we only store the SHA-256 hash
         // in the DB, not the raw token. However, validateToken() now checks
@@ -337,20 +351,43 @@ final class AuthService
     {
         $user = User::findOrFail($userId);
         $user->update(['banned' => false, 'ban_reason' => null, 'ban_expires_at' => null]);
+
+        // Immediately invalidate the ban status cache
+        $this->cacheBanStatus($userId, false);
     }
 
     /**
-     * Check if a user is currently banned (DB lookup).
+     * Check if a user is currently banned.
      *
-     * Used during token validation to ensure banned users can't use cached sessions.
+     * Checks Redis cache first to avoid a DB query on every token validation.
+     * Falls back to DB if Redis is unavailable. Ban status is cached for 30s
+     * to balance responsiveness with performance.
      *
      * @param int $userId The user ID to check
      * @return bool True if the user is currently banned and the ban hasn't expired
      */
     private function isUserBanned(int $userId): bool
     {
+        $cacheKey = "ban:user:{$userId}";
+
+        // Fast path: check Redis cache
+        try {
+            $cached = $this->redis->get($cacheKey);
+            if ($cached === '0') {
+                return false;
+            }
+            if ($cached === '1') {
+                return true;
+            }
+            // Cache miss — fall through to DB
+        } catch (\Throwable) {
+            // Redis unavailable — fall through to DB
+        }
+
+        // Slow path: DB lookup
         $user = User::find($userId);
         if (!$user instanceof User || !$user->banned) {
+            $this->cacheBanStatus($userId, false);
             return false;
         }
 
@@ -359,11 +396,25 @@ final class AuthService
             if (strtotime((string) $user->ban_expires_at) < time()) {
                 // Auto-clear expired ban
                 $user->update(['banned' => false, 'ban_reason' => null, 'ban_expires_at' => null]);
+                $this->cacheBanStatus($userId, false);
                 return false;
             }
         }
 
+        $this->cacheBanStatus($userId, true);
         return true;
+    }
+
+    /**
+     * Cache a user's ban status in Redis (short TTL for responsiveness).
+     */
+    private function cacheBanStatus(int $userId, bool $banned): void
+    {
+        try {
+            $this->redis->setex("ban:user:{$userId}", 30, $banned ? '1' : '0');
+        } catch (\Throwable) {
+            // Non-fatal
+        }
     }
 
     /**
