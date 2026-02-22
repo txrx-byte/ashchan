@@ -22,76 +22,142 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Ban Templates - Ashchan Staff</title>
   <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
-  <link rel="stylesheet" type="text/css" href="/staff/css/ban_templates.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
   <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+  <style>
+    .badge { display:inline-block; padding:2px 8px; border-radius:3px; font-size:0.75rem; font-weight:600; }
+    .badge-active { background:#d1fae5; color:#065f46; }
+    .badge-inactive { background:#fee2e2; color:#991b1b; }
+    .badge-global { background:#dbeafe; color:#1e40af; }
+    .badge-local { background:#f3f4f6; color:#374151; }
+    .badge-zonly { background:#fef3c7; color:#92400e; }
+    .badge-board { display:inline-block; padding:1px 6px; border-radius:3px; font-size:0.7rem; background:#e0e7ff; color:#3730a3; margin:1px; }
+    .tpl-boards { max-width:200px; }
+    .col-status { text-align:center; }
+    .delete-form { display:inline; }
+    .btn-delete { background:#ef4444; color:#fff; border:none; padding:3px 10px; border-radius:3px; cursor:pointer; font-size:0.8rem; }
+    .btn-delete:hover { background:#dc2626; }
+  </style>
 </head>
 <body>
-<header>
-  <h1 id="title">Ban Templates</h1>
-</header>
-<nav id="main-nav">
-  <ul>
-    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
-    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
-    <li><a href="/staff/bans" class="button button-light">Bans</a></li>
-    <li><a href="/staff/ban-templates" class="button button-light">Ban Templates</a></li>
-    <li><a href="/staff/report-categories" class="button button-light">Report Categories</a></li>
+<!-- Navigation Sidebar -->
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+    <li><a href="/staff/bans">Bans</a></li>
+    <li><a href="/staff/ban-templates" class="active">Ban Templates</a></li>
+    <li><a href="/staff/report-categories">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
   </ul>
 </nav>
-<div id="menu">
-  <ul class="right">
-    <li><a class="button button-light" href="/staff/ban-templates/create">Add Template</a></li>
-  </ul>
-</div>
-<div id="content">
+
+<main id="admin-content">
+<header class="content-header">
+  <h1>Ban Templates</h1>
+  <div class="header-actions">
+    <a href="/staff/ban-templates/create" class="button button-primary">+ Add Template</a>
+  </div>
+</header>
+
 <table class="items-table">
 <thead>
   <tr>
     <th>ID</th>
+    <th>Status</th>
     <th>Rule</th>
     <th>Name</th>
-    <th>Public Reason</th>
+    <th>Type</th>
     <th>Ban Length</th>
-    <th>Exclude</th>
-    <th></th>
+    <th>Boards</th>
+    <th>Public Reason</th>
+    <th>Access</th>
+    <th>Actions</th>
   </tr>
 </thead>
 <tbody>
+  <?php if (empty($templates)): ?>
+  <tr><td colspan="10" style="text-align:center;padding:2rem;color:#666;">No ban templates found. Click "Add Template" to create one.</td></tr>
+  <?php else: ?>
   <?php foreach ($templates as $tpl): ?>
   <tr id="tpl-<?= $tpl['id'] ?>">
     <td class="col-id"><?= $tpl['id'] ?></td>
-    <td class="col-rule"><?= htmlspecialchars($tpl['rule']) ?></td>
-    <td class="col-name"><?= htmlspecialchars($tpl['name']) ?></td>
-    <td class="col-reason"><?= nl2br(htmlspecialchars($tpl['public_reason'])) ?></td>
-    <td class="col-length">
-      <div>
-        <?php
-        $days = (int)$tpl['ban_days'];
-        if ($days < 0) {
-          echo 'Permanent';
-        } elseif ($days == 0) {
-          echo 'Warning';
-        } else {
-          echo $days . ' day' . ($days > 1 ? 's' : '');
-        }
-        ?>
-      </div>
-      <?php if ($tpl['ban_type'] === 'global'): ?>
-      <div class="note">Global</div>
-      <?php endif ?>
-      <?php if ($tpl['ban_type'] === 'zonly'): ?>
-      <div class="note note-red">Unappealable</div>
+    <td class="col-status">
+      <?php if ($tpl['active']): ?>
+        <span class="badge badge-active">Active</span>
+      <?php else: ?>
+        <span class="badge badge-inactive">Inactive</span>
       <?php endif ?>
     </td>
-    <td class="col-exclude"><?= htmlspecialchars($tpl['exclude'] ?? '') ?></td>
+    <td class="col-rule"><?= htmlspecialchars((string) $tpl['rule']) ?></td>
+    <td class="col-name"><?= htmlspecialchars((string) $tpl['name']) ?></td>
+    <td>
+      <?php if ($tpl['ban_type'] === 'global'): ?>
+        <span class="badge badge-global">Global</span>
+      <?php elseif ($tpl['ban_type'] === 'zonly'): ?>
+        <span class="badge badge-zonly">Unappealable</span>
+      <?php else: ?>
+        <span class="badge badge-local">Local</span>
+      <?php endif ?>
+    </td>
+    <td class="col-length">
+      <?php
+      $days = (int)$tpl['ban_days'];
+      if ($days < 0) {
+        echo '<strong>Permanent</strong>';
+      } elseif ($days == 0) {
+        echo 'Warning';
+      } else {
+        echo $days . ' day' . ($days > 1 ? 's' : '');
+      }
+      ?>
+    </td>
+    <td class="tpl-boards">
+      <?php
+      $boardStr = trim((string) ($tpl['boards'] ?? ''));
+      if ($boardStr === '') {
+        echo '<span class="badge badge-global">All Boards</span>';
+      } else {
+        foreach (explode(',', $boardStr) as $b) {
+          $b = trim($b);
+          if ($b !== '') {
+            echo '<span class="badge-board">/' . htmlspecialchars($b) . '/</span>';
+          }
+        }
+      }
+      ?>
+    </td>
+    <td class="col-reason"><?= htmlspecialchars(mb_strimwidth((string) $tpl['public_reason'], 0, 80, '…')) ?></td>
+    <td><?= htmlspecialchars((string) ($tpl['access'] ?? 'janitor')) ?></td>
     <td class="col-meta">
-      <a href="/staff/ban-templates/<?= $tpl['id'] ?>/edit">Edit</a>
+      <a href="/staff/ban-templates/<?= $tpl['id'] ?>/edit" class="button button-light button-small">Edit</a>
+      <form class="delete-form" method="POST" action="/staff/ban-templates/<?= $tpl['id'] ?>/delete" onsubmit="return confirm('Delete this template?')">
+        <button type="submit" class="btn-delete">Delete</button>
+      </form>
     </td>
   </tr>
   <?php endforeach ?>
+  <?php endif ?>
 </tbody>
+<tfoot>
+  <tr>
+    <td colspan="10" class="page-nav">
+      <span><?= count($templates) ?> template(s)</span>
+    </td>
+  </tr>
+</tfoot>
 </table>
-</div>
-<footer></footer>
+</main>
+
+<script src="/staff/js/admincore.js"></script>
 </body>
 </html>

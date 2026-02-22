@@ -22,69 +22,110 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title><?= $action === 'create' ? 'Add' : 'Edit' ?> Report Category - Ashchan Staff</title>
   <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
-  <link rel="stylesheet" type="text/css" href="/staff/css/report_categories.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
   <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+  <style>
+    .form-grid { max-width:600px; margin:1rem auto; }
+    .form-grid table { width:100%; border-collapse:collapse; }
+    .form-grid th { text-align:right; padding:8px 12px 8px 0; vertical-align:top; width:160px; font-weight:600; font-size:0.9rem; color:#374151; }
+    .form-grid td { padding:8px 0; }
+    .form-grid input[type="text"],
+    .form-grid input[type="number"],
+    .form-grid select { width:100%; padding:6px 10px; border:1px solid #d1d5db; border-radius:4px; font-size:0.9rem; }
+    .form-grid .note { font-size:0.8rem; color:#6b7280; margin-top:4px; }
+    .form-grid .checkbox-group label { display:block; margin:4px 0; font-size:0.9rem; }
+    .form-grid .checkbox-group input[type="checkbox"] { margin-right:6px; }
+    .btn-submit { background:#3b82f6; color:#fff; border:none; padding:8px 24px; border-radius:4px; cursor:pointer; font-size:0.95rem; font-weight:600; }
+    .btn-submit:hover { background:#2563eb; }
+  </style>
 </head>
-<body data-tips>
-<header>
-  <h1 id="title"><?= $action === 'create' ? 'Add' : 'Edit' ?> Report Category</h1>
-</header>
-<nav id="main-nav">
-  <ul>
-    <li><a class="button button-light" href="/staff/report-categories">Return</a></li>
+<body>
+<!-- Navigation Sidebar -->
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+    <li><a href="/staff/bans">Bans</a></li>
+    <li><a href="/staff/ban-templates">Ban Templates</a></li>
+    <li><a href="/staff/report-categories" class="active">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
   </ul>
 </nav>
-<div id="content">
-<form class="form" action="/staff/report-categories<?= $action === 'edit' && $category ? '/' . $category['id'] : '' ?>" method="POST">
+
+<main id="admin-content">
+<header class="content-header">
+  <h1><?= $action === 'create' ? 'Add' : 'Edit' ?> Report Category</h1>
+  <div class="header-actions">
+    <a href="/staff/report-categories" class="button button-light">&larr; Back to Categories</a>
+  </div>
+</header>
+
+<div class="form-grid">
+<form action="/staff/report-categories<?= $action === 'edit' && $category ? '/' . $category['id'] : '' ?>" method="POST">
   <table>
     <tr>
       <th>Board</th>
       <td>
         <select name="board">
-          <option value="">All Boards</option>
-          <option value="_ws_" <?= ($category['board'] ?? '') === '_ws_' ? 'selected' : '' ?>>All Worksafe</option>
-          <option value="_nws_" <?= ($category['board'] ?? '') === '_nws_' ? 'selected' : '' ?>>All NSFW</option>
-          <?php foreach ($boardList as $board => $label): ?>
-          <option value="<?= $board ?>" <?= ($category['board'] ?? '') === $board ? 'selected' : '' ?>><?= is_numeric($board) ? $label : $board ?></option>
+          <?php foreach ($boardList as $value => $label): ?>
+          <option value="<?= htmlspecialchars((string) $value) ?>" <?= ($category['board'] ?? '') === (string) $value ? 'selected' : '' ?>><?= htmlspecialchars((string) $label) ?></option>
           <?php endforeach ?>
         </select>
       </td>
     </tr>
     <tr>
       <th>Title</th>
-      <td><input type="text" name="title" value="<?= htmlspecialchars($category['title'] ?? '') ?>" required></td>
+      <td><input type="text" name="title" value="<?= htmlspecialchars((string) ($category['title'] ?? '')) ?>" required></td>
     </tr>
     <tr>
       <th>Weight</th>
-      <td><input type="number" name="weight" step="0.01" min="0.01" value="<?= htmlspecialchars((string)($category['weight'] ?? '1')) ?>" required></td>
+      <td>
+        <input type="number" name="weight" step="0.01" min="0.01" value="<?= htmlspecialchars((string)($category['weight'] ?? '1')) ?>" required>
+        <div class="note">Higher weight = higher severity priority</div>
+      </td>
     </tr>
     <tr>
       <th>Exclude Boards</th>
-      <td><input type="text" name="exclude_boards" value="<?= htmlspecialchars($category['exclude_boards'] ?? '') ?>" placeholder="a,b,c (comma-separated)"></td>
+      <td>
+        <input type="text" name="exclude_boards" value="<?= htmlspecialchars((string) ($category['exclude_boards'] ?? '')) ?>" placeholder="a,b,c (comma-separated)">
+        <div class="note">Comma-separated board slugs to exclude from this category</div>
+      </td>
     </tr>
     <tr>
       <th>Filtered Threshold</th>
       <td>
         <input type="number" name="filtered" value="<?= htmlspecialchars((string)($category['filtered'] ?? '0')) ?>" min="0">
-        <span class="note">0 = disabled, >0 = clears before filtering</span>
+        <div class="note">0 = disabled, &gt;0 = auto-clear reports below this threshold</div>
       </td>
     </tr>
     <tr>
       <th>Options</th>
-      <td>
-        <label><input type="checkbox" name="op_only" <?= ($category['op_only'] ?? 0) ? 'checked' : '' ?>> OPs only</label><br>
-        <label><input type="checkbox" name="reply_only" <?= ($category['reply_only'] ?? 0) ? 'checked' : '' ?>> Replies only</label><br>
+      <td class="checkbox-group">
+        <label><input type="checkbox" name="op_only" <?= ($category['op_only'] ?? 0) ? 'checked' : '' ?>> OPs only</label>
+        <label><input type="checkbox" name="reply_only" <?= ($category['reply_only'] ?? 0) ? 'checked' : '' ?>> Replies only</label>
         <label><input type="checkbox" name="image_only" <?= ($category['image_only'] ?? 0) ? 'checked' : '' ?>> Images only</label>
       </td>
     </tr>
     <tr>
-      <td colspan="2">
-        <button class="button btn-submit" type="submit">Save</button>
+      <td></td>
+      <td>
+        <button class="btn-submit" type="submit"><?= $action === 'create' ? 'Create Category' : 'Save Changes' ?></button>
       </td>
     </tr>
   </table>
 </form>
 </div>
-<footer></footer>
+</main>
+
+<script src="/staff/js/admincore.js"></script>
 </body>
 </html>

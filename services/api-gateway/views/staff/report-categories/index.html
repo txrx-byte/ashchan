@@ -22,28 +22,50 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Report Categories - Ashchan Staff</title>
   <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
-  <link rel="stylesheet" type="text/css" href="/staff/css/report_categories.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
   <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+  <style>
+    .badge { display:inline-block; padding:2px 8px; border-radius:3px; font-size:0.75rem; font-weight:600; }
+    .badge-blue { background:#dbeafe; color:#1e40af; }
+    .badge-green { background:#d1fae5; color:#065f46; }
+    .badge-board { background:#f3f4f6; color:#374151; }
+    .delete-form { display:inline; }
+    .btn-delete { background:#ef4444; color:#fff; border:none; padding:3px 10px; border-radius:3px; cursor:pointer; font-size:0.8rem; }
+    .btn-delete:hover { background:#dc2626; }
+    .btn-delete:disabled { background:#fca5a5; cursor:not-allowed; }
+  </style>
 </head>
 <body>
-<header>
-  <h1 id="title">Report Categories</h1>
-</header>
-<nav id="main-nav">
-  <ul>
-    <li><a href="/staff/dashboard" class="button button-light">Dashboard</a></li>
-    <li><a href="/staff/reports" class="button button-light">Reports</a></li>
-    <li><a href="/staff/ban-templates" class="button button-light">Ban Templates</a></li>
-    <li><a href="/staff/report-categories" class="button button-light">Report Categories</a></li>
+<!-- Navigation Sidebar -->
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+    <li><a href="/staff/bans">Bans</a></li>
+    <li><a href="/staff/ban-templates">Ban Templates</a></li>
+    <li><a href="/staff/report-categories" class="active">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
   </ul>
 </nav>
-<div id="menu">
-  <ul>
-    <li><a class="button button-light" href="/staff/report-categories/create">Add Category</a></li>
-  </ul>
-</div>
-<div id="content">
-<table class="items-table items-table-compact">
+
+<main id="admin-content">
+<header class="content-header">
+  <h1>Report Categories</h1>
+  <div class="header-actions">
+    <a href="/staff/report-categories/create" class="button button-primary">+ Add Category</a>
+  </div>
+</header>
+
+<table class="items-table">
 <thead>
   <tr>
     <th>ID</th>
@@ -51,30 +73,62 @@
     <th>Title</th>
     <th>Weight</th>
     <th>Options</th>
-    <th></th>
+    <th>Exclude</th>
+    <th>Actions</th>
   </tr>
 </thead>
 <tbody>
+  <?php if (empty($categories)): ?>
+  <tr><td colspan="7" style="text-align:center;padding:2rem;color:#666;">No report categories found. Click "Add Category" to create one.</td></tr>
+  <?php else: ?>
   <?php foreach ($categories as $cat): ?>
   <tr>
     <td class="col-id"><?= $cat['id'] ?></td>
-    <td class="col-board"><?= htmlspecialchars($cat['board'] ?: 'All') ?></td>
-    <td class="col-title"><?= htmlspecialchars($cat['title']) ?></td>
+    <td class="col-board">
+      <?php
+      $board = (string) ($cat['board'] ?? '');
+      if ($board === '' || $board === '_all_') {
+        echo '<span class="badge badge-board">All Boards</span>';
+      } elseif ($board === '_ws_') {
+        echo '<span class="badge badge-blue">All Worksafe</span>';
+      } elseif ($board === '_nws_') {
+        echo '<span class="badge badge-blue">All NSFW</span>';
+      } else {
+        echo '<span class="badge badge-board">/' . htmlspecialchars($board) . '/</span>';
+      }
+      ?>
+    </td>
+    <td class="col-title"><?= htmlspecialchars((string) $cat['title']) ?></td>
     <td class="col-meta"><?= (float)$cat['weight'] ?></td>
     <td class="col-options">
-      <?php if ($cat['op_only']): ?><span class="note note-blue">OPs only</span><?php endif ?>
-      <?php if ($cat['reply_only']): ?><span class="note note-blue">Replies only</span><?php endif ?>
-      <?php if ($cat['image_only']): ?><span class="note note-blue">Images only</span><?php endif ?>
-      <?php if ($cat['filtered']): ?><span class="note note-green">Filtered (<?= $cat['filtered'] ?>)</span><?php endif ?>
+      <?php if ($cat['op_only'] ?? 0): ?><span class="badge badge-blue">OPs only</span> <?php endif ?>
+      <?php if ($cat['reply_only'] ?? 0): ?><span class="badge badge-blue">Replies only</span> <?php endif ?>
+      <?php if ($cat['image_only'] ?? 0): ?><span class="badge badge-blue">Images only</span> <?php endif ?>
+      <?php if ($cat['filtered'] ?? 0): ?><span class="badge badge-green">Filtered (<?= (int) $cat['filtered'] ?>)</span><?php endif ?>
     </td>
+    <td><?= htmlspecialchars((string) ($cat['exclude_boards'] ?? '')) ?></td>
     <td class="col-meta">
-      <a href="/staff/report-categories/<?= $cat['id'] ?>/edit">Edit</a>
+      <a href="/staff/report-categories/<?= $cat['id'] ?>/edit" class="button button-light button-small">Edit</a>
+      <?php if (($cat['id'] ?? 0) !== 31): ?>
+      <form class="delete-form" method="POST" action="/staff/report-categories/<?= $cat['id'] ?>/delete" onsubmit="return confirm('Delete this category?')">
+        <button type="submit" class="btn-delete">Delete</button>
+      </form>
+      <?php endif ?>
     </td>
   </tr>
   <?php endforeach ?>
+  <?php endif ?>
 </tbody>
+<tfoot>
+  <tr>
+    <td colspan="7" class="page-nav">
+      <span><?= count($categories) ?> category/ies</span>
+    </td>
+  </tr>
+</tfoot>
 </table>
-</div>
-<footer></footer>
+</main>
+
+<script src="/staff/js/admincore.js"></script>
 </body>
 </html>

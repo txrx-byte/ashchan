@@ -22,24 +22,73 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title><?= $action === 'create' ? 'Add' : 'Edit' ?> Ban Template - Ashchan Staff</title>
   <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
-  <link rel="stylesheet" type="text/css" href="/staff/css/ban_templates.css">
+  <link rel="stylesheet" type="text/css" href="/staff/css/admin.css">
   <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
+  <style>
+    .form-grid { max-width:700px; margin:1rem auto; }
+    .form-grid table { width:100%; border-collapse:collapse; }
+    .form-grid th { text-align:right; padding:8px 12px 8px 0; vertical-align:top; width:160px; font-weight:600; font-size:0.9rem; color:#374151; }
+    .form-grid td { padding:8px 0; }
+    .form-grid input[type="text"],
+    .form-grid input[type="number"],
+    .form-grid textarea,
+    .form-grid select { width:100%; padding:6px 10px; border:1px solid #d1d5db; border-radius:4px; font-size:0.9rem; }
+    .form-grid textarea { font-family:inherit; }
+    .form-grid select[multiple] { height:auto; min-height:120px; }
+    .form-grid .note { font-size:0.8rem; color:#6b7280; margin-top:4px; }
+    .form-grid .checkbox-group label { display:block; margin:4px 0; font-size:0.9rem; }
+    .form-grid .checkbox-group input[type="checkbox"] { margin-right:6px; }
+    .btn-submit { background:#3b82f6; color:#fff; border:none; padding:8px 24px; border-radius:4px; cursor:pointer; font-size:0.95rem; font-weight:600; }
+    .btn-submit:hover { background:#2563eb; }
+    .boards-help { font-size:0.8rem; color:#6b7280; margin-top:4px; }
+    .board-scope-toggle { margin-bottom:8px; }
+    .board-scope-toggle label { font-size:0.9rem; cursor:pointer; }
+  </style>
 </head>
-<body data-tips>
-<header>
-  <h1 id="title"><?= $action === 'create' ? 'Add' : 'Edit' ?> Ban Template</h1>
-</header>
-<nav id="main-nav">
-  <ul>
-    <li><a class="button button-light" href="/staff/ban-templates">Return</a></li>
+<body>
+<!-- Navigation Sidebar -->
+<nav id="admin-nav">
+  <div class="admin-logo">Ashchan Admin</div>
+  <ul class="nav-section">
+    <li class="nav-header">Main</li>
+    <li><a href="/staff/admin">Overview</a></li>
+    <li><a href="/staff/dashboard">Dashboard</a></li>
+  </ul>
+  <ul class="nav-section">
+    <li class="nav-header">Moderation</li>
+    <li><a href="/staff/reports">Reports Queue</a></li>
+    <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+    <li><a href="/staff/bans">Bans</a></li>
+    <li><a href="/staff/ban-templates" class="active">Ban Templates</a></li>
+    <li><a href="/staff/report-categories">Report Categories</a></li>
+  </ul>
+  <ul class="nav-section nav-footer">
+    <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
   </ul>
 </nav>
-<div id="content">
-<form class="form" action="/staff/ban-templates<?= $action === 'edit' && $template ? '/' . $template['id'] : '' ?>" method="POST">
+
+<main id="admin-content">
+<header class="content-header">
+  <h1><?= $action === 'create' ? 'Add' : 'Edit' ?> Ban Template</h1>
+  <div class="header-actions">
+    <a href="/staff/ban-templates" class="button button-light">&larr; Back to Templates</a>
+  </div>
+</header>
+
+<?php
+  $selectedBoards = [];
+  if ($template && !empty($template['boards'])) {
+    $selectedBoards = array_map('trim', explode(',', (string) $template['boards']));
+  }
+  $isGlobal = empty($selectedBoards);
+?>
+
+<div class="form-grid">
+<form action="/staff/ban-templates<?= $action === 'edit' && $template ? '/' . $template['id'] : '' ?>" method="POST">
   <table>
     <tr>
       <th>Name</th>
-      <td><input type="text" name="name" value="<?= htmlspecialchars($template['name'] ?? '') ?>" required></td>
+      <td><input type="text" name="name" value="<?= htmlspecialchars((string) ($template['name'] ?? '')) ?>" required></td>
     </tr>
     <tr>
       <th>Rule</th>
@@ -68,16 +117,37 @@
       <th>Ban Days</th>
       <td>
         <input type="number" name="ban_days" value="<?= htmlspecialchars((string)($template['ban_days'] ?? '1')) ?>" min="-1">
-        <span class="note">-1 = Permanent, 0 = Warning</span>
+        <div class="note">-1 = Permanent, 0 = Warning only</div>
       </td>
     </tr>
     <tr>
       <th>Public Reason</th>
-      <td><textarea name="public_reason" rows="3"><?= htmlspecialchars($template['public_reason'] ?? '') ?></textarea></td>
+      <td><textarea name="public_reason" rows="3" required><?= htmlspecialchars((string) ($template['public_reason'] ?? '')) ?></textarea></td>
     </tr>
     <tr>
       <th>Private Reason</th>
-      <td><textarea name="private_reason" rows="2"><?= htmlspecialchars($template['private_reason'] ?? '') ?></textarea></td>
+      <td><textarea name="private_reason" rows="2"><?= htmlspecialchars((string) ($template['private_reason'] ?? '')) ?></textarea></td>
+    </tr>
+    <tr>
+      <th>Board Scope</th>
+      <td>
+        <div class="board-scope-toggle">
+          <label><input type="radio" name="board_scope" value="global" <?= $isGlobal ? 'checked' : '' ?> onchange="toggleBoardSelect()"> Global (all boards)</label>
+          <label><input type="radio" name="board_scope" value="specific" <?= !$isGlobal ? 'checked' : '' ?> onchange="toggleBoardSelect()"> Specific boards only</label>
+        </div>
+        <div id="board-select-wrapper" style="<?= $isGlobal ? 'display:none' : '' ?>">
+          <?php if (!empty($boards)): ?>
+          <select name="boards[]" id="boards-select" multiple size="<?= min(count($boards), 10) ?>">
+            <?php foreach ($boards as $slug): ?>
+            <option value="<?= htmlspecialchars((string) $slug) ?>" <?= in_array($slug, $selectedBoards) ? 'selected' : '' ?>>/<?= htmlspecialchars((string) $slug) ?>/</option>
+            <?php endforeach ?>
+          </select>
+          <div class="boards-help">Hold Ctrl/Cmd to select multiple boards. Leave empty for all boards.</div>
+          <?php else: ?>
+          <div class="note">No boards found in database. Template will apply to all boards.</div>
+          <?php endif ?>
+        </div>
+      </td>
     </tr>
     <tr>
       <th>Action</th>
@@ -94,8 +164,8 @@
     <tr>
       <th>Exclude</th>
       <td>
-        <input type="text" name="exclude" value="<?= htmlspecialchars($template['exclude'] ?? '') ?>" placeholder="__nofile__ or __nws__">
-        <span class="note">__nofile__ = requires image, __nws__ = not on NSFW boards</span>
+        <input type="text" name="exclude" value="<?= htmlspecialchars((string) ($template['exclude'] ?? '')) ?>" placeholder="__nofile__ or __nws__">
+        <div class="note">__nofile__ = requires image, __nws__ = not on NSFW boards</div>
       </td>
     </tr>
     <tr>
@@ -111,22 +181,46 @@
     </tr>
     <tr>
       <th>Options</th>
-      <td>
-        <label><input type="checkbox" name="publicban" <?= ($template['publicban'] ?? 0) ? 'checked' : '' ?>> Public Ban</label><br>
-        <label><input type="checkbox" name="is_public" <?= ($template['is_public'] ?? 0) ? 'checked' : '' ?>> Display on ban page</label><br>
-        <label><input type="checkbox" name="can_warn" <?= ($template['can_warn'] ?? 1) ? 'checked' : '' ?>> Can Warn</label><br>
-        <label><input type="checkbox" name="appealable" <?= ($template['appealable'] ?? 1) ? 'checked' : '' ?>> Appealable</label><br>
+      <td class="checkbox-group">
+        <label><input type="checkbox" name="publicban" <?= ($template['publicban'] ?? 0) ? 'checked' : '' ?>> Public Ban</label>
+        <label><input type="checkbox" name="is_public" <?= ($template['is_public'] ?? 0) ? 'checked' : '' ?>> Display on ban page</label>
+        <label><input type="checkbox" name="can_warn" <?= ($template['can_warn'] ?? 1) ? 'checked' : '' ?>> Can Warn</label>
+        <label><input type="checkbox" name="appealable" <?= ($template['appealable'] ?? 1) ? 'checked' : '' ?>> Appealable</label>
         <label><input type="checkbox" name="blacklist_image" <?= ($template['blacklist_image'] ?? 0) ? 'checked' : '' ?>> Blacklist Image</label>
+        <?php if ($action === 'edit'): ?>
+        <label><input type="checkbox" name="active" <?= ($template['active'] ?? 1) ? 'checked' : '' ?>> Active</label>
+        <?php endif ?>
       </td>
     </tr>
     <tr>
-      <td colspan="2">
-        <button class="button btn-submit" type="submit">Save</button>
+      <td></td>
+      <td>
+        <button class="btn-submit" type="submit"><?= $action === 'create' ? 'Create Template' : 'Save Changes' ?></button>
       </td>
     </tr>
   </table>
 </form>
 </div>
-<footer></footer>
+</main>
+
+<script src="/staff/js/admincore.js"></script>
+<script>
+function toggleBoardSelect() {
+  var scope = document.querySelector('input[name="board_scope"]:checked');
+  var wrapper = document.getElementById('board-select-wrapper');
+  var select = document.getElementById('boards-select');
+  if (scope && scope.value === 'global') {
+    wrapper.style.display = 'none';
+    // Deselect all boards so the form submits empty
+    if (select) {
+      for (var i = 0; i < select.options.length; i++) {
+        select.options[i].selected = false;
+      }
+    }
+  } else {
+    wrapper.style.display = '';
+  }
+}
+</script>
 </body>
 </html>

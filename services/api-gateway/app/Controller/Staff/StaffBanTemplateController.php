@@ -23,6 +23,8 @@ namespace App\Controller\Staff;
 
 use App\Model\BanTemplate;
 use App\Service\ModerationService;
+use App\Service\ViewService;
+use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -40,6 +42,7 @@ class StaffBanTemplateController
 {
     public function __construct(
         private ModerationService $modService,
+        private ViewService $viewService,
         private HttpResponse $response,
     ) {}
 
@@ -52,19 +55,21 @@ class StaffBanTemplateController
         $staffInfo = $this->getStaffInfo();
         
         if (!$staffInfo['is_manager']) {
-            return $this->response->json(['error' => 'Permission denied'], 403);
+            return $this->response->redirect('/staff/login');
         }
         
         $templates = BanTemplate::query()
             ->orderBy('rule')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->toArray();
         
-        return $this->response->json([
-            'templates' => $templates->toArray(),
+        $html = $this->viewService->render('staff/ban-templates/index', [
+            'templates' => $templates,
             'isManager' => true,
             'isAdmin' => $staffInfo['is_admin'],
         ]);
+        return $this->response->html($html);
     }
 
     /**
@@ -76,15 +81,19 @@ class StaffBanTemplateController
         $staffInfo = $this->getStaffInfo();
         
         if (!$staffInfo['is_manager']) {
-            return $this->response->json(['error' => 'Permission denied'], 403);
+            return $this->response->redirect('/staff/login');
         }
         
-        return $this->response->json([
+        $boards = $this->getBoardSlugs();
+        
+        $html = $this->viewService->render('staff/ban-templates/update', [
             'template' => null,
             'action' => 'create',
             'banTypes' => ['local' => 'Local', 'global' => 'Global', 'zonly' => 'Unappealable'],
             'accessLevels' => ['janitor' => 'Janitor', 'mod' => 'Moderator', 'manager' => 'Manager', 'admin' => 'Admin'],
+            'boards' => $boards,
         ]);
+        return $this->response->html($html);
     }
 
     /**
@@ -110,9 +119,17 @@ class StaffBanTemplateController
                 return $this->response->json(['error' => "Field '{$field}' is required"], 400);
             }
         }
+
+        // Handle boards: array from multi-select → comma-separated string
+        $boardsValue = '';
+        if (isset($data['boards']) && is_array($data['boards'])) {
+            $boardsValue = implode(',', array_filter(array_map('trim', $data['boards'])));
+        } elseif (isset($data['boards']) && is_string($data['boards'])) {
+            $boardsValue = $data['boards'];
+        }
         
         try {
-            $template = BanTemplate::create([
+            BanTemplate::create([
                 'name' => $data['name'],
                 'rule' => $data['rule'],
                 'ban_type' => $data['ban_type'],
@@ -127,7 +144,7 @@ class StaffBanTemplateController
                 'save_type' => $data['save_type'] ?? '',
                 'blacklist_image' => isset($data['blacklist_image']) ? 1 : 0,
                 'access' => $data['access'] ?? 'janitor',
-                'boards' => '',
+                'boards' => $boardsValue,
                 'exclude' => $data['exclude'] ?? '',
                 'appealable' => isset($data['appealable']) ? 1 : 0,
                 'active' => 1,
@@ -148,20 +165,24 @@ class StaffBanTemplateController
         $staffInfo = $this->getStaffInfo();
         
         if (!$staffInfo['is_manager']) {
-            return $this->response->json(['error' => 'Permission denied'], 403);
+            return $this->response->redirect('/staff/login');
         }
         
         $template = BanTemplate::find($id);
         if (!$template) {
-            return $this->response->json(['error' => 'Template not found'], 404);
+            return $this->response->redirect('/staff/ban-templates');
         }
         
-        return $this->response->json([
+        $boards = $this->getBoardSlugs();
+        
+        $html = $this->viewService->render('staff/ban-templates/update', [
             'template' => $template->toArray(),
             'action' => 'edit',
             'banTypes' => ['local' => 'Local', 'global' => 'Global', 'zonly' => 'Unappealable'],
             'accessLevels' => ['janitor' => 'Janitor', 'mod' => 'Moderator', 'manager' => 'Manager', 'admin' => 'Admin'],
+            'boards' => $boards,
         ]);
+        return $this->response->html($html);
     }
 
     /**
@@ -178,12 +199,20 @@ class StaffBanTemplateController
         
         $template = BanTemplate::find($id);
         if (!$template) {
-            return $this->response->json(['error' => 'Template not found'], 404);
+            return $this->response->redirect('/staff/ban-templates');
         }
         
         /** @var array<string, mixed> $data */
         
         $data = $request->all();
+
+        // Handle boards: array from multi-select → comma-separated string
+        $boardsValue = '';
+        if (isset($data['boards']) && is_array($data['boards'])) {
+            $boardsValue = implode(',', array_filter(array_map('trim', $data['boards'])));
+        } elseif (isset($data['boards']) && is_string($data['boards'])) {
+            $boardsValue = $data['boards'];
+        }
         
         try {
             $template->update([
@@ -200,6 +229,7 @@ class StaffBanTemplateController
                 'save_type' => $data['save_type'] ?? $template->getAttribute('save_type'),
                 'blacklist_image' => isset($data['blacklist_image']) ? 1 : 0,
                 'access' => $data['access'] ?? $template->getAttribute('access'),
+                'boards' => $boardsValue,
                 'exclude' => $data['exclude'] ?? $template->getAttribute('exclude'),
                 'appealable' => isset($data['appealable']) ? 1 : 0,
                 'active' => isset($data['active']) ? 1 : 0,
@@ -225,14 +255,32 @@ class StaffBanTemplateController
         
         $template = BanTemplate::find($id);
         if (!$template) {
-            return $this->response->json(['error' => 'Template not found'], 404);
+            return $this->response->redirect('/staff/ban-templates');
         }
         
         try {
             $template->delete();
-            return $this->response->json(['status' => 'success']);
+            return $this->response->redirect('/staff/ban-templates');
         } catch (\Throwable $e) {
             return $this->response->json(['error' => 'An internal error occurred'], 500);
+        }
+    }
+
+    /**
+     * Get all board slugs from the database.
+     *
+     * @return string[]
+     */
+    private function getBoardSlugs(): array
+    {
+        try {
+            $rows = Db::table('boards')
+                ->where('archived', false)
+                ->orderBy('slug')
+                ->pluck('slug');
+            return $rows->toArray();
+        } catch (\Throwable) {
+            return [];
         }
     }
 

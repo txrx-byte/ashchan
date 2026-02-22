@@ -21,7 +21,7 @@ declare(strict_types=1);
 namespace App\Controller\Staff;
 
 use App\Service\SiteConfigService;
-use App\Service\TemplateRenderer;
+use App\Service\ViewService;
 use Hyperf\Context\Context;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
@@ -37,7 +37,7 @@ final class SiteSettingsController
 {
     public function __construct(
         private SiteConfigService $configService,
-        private TemplateRenderer $renderer,
+        private ViewService $viewService,
         private HttpResponse $response,
     ) {}
 
@@ -62,7 +62,7 @@ final class SiteSettingsController
         }
         ksort($grouped);
 
-        $html = $this->renderer->render('staff/site-settings/index.html', [
+        $html = $this->viewService->render('staff/site-settings/index', [
             'title' => 'Site Settings',
             'username' => $user['username'] ?? 'Admin',
             'level' => $level,
@@ -124,7 +124,7 @@ final class SiteSettingsController
         $history = $this->configService->getAuditLog($key);
         $currentValue = $this->configService->get($key);
 
-        $html = $this->renderer->render('staff/site-settings/audit.html', [
+        $html = $this->viewService->render('staff/site-settings/audit', [
             'title' => 'Setting Audit: ' . $key,
             'username' => $user['username'] ?? 'Admin',
             'level' => $level,

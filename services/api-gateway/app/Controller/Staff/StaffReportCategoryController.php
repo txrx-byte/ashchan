@@ -22,6 +22,8 @@ namespace App\Controller\Staff;
 
 
 use App\Model\ReportCategory;
+use App\Service\ViewService;
+use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\PostMapping;
@@ -38,6 +40,7 @@ use Psr\Http\Message\ResponseInterface;
 class StaffReportCategoryController
 {
     public function __construct(
+        private ViewService $viewService,
         private HttpResponse $response,
     ) {}
 
@@ -50,7 +53,7 @@ class StaffReportCategoryController
         $staffInfo = $this->getStaffInfo();
         
         if (!$staffInfo['is_manager']) {
-            return $this->response->json(['error' => 'Permission denied'], 403);
+            return $this->response->redirect('/staff/login');
         }
         
         $categories = ReportCategory::query()
@@ -58,10 +61,11 @@ class StaffReportCategoryController
             ->orderBy('weight', 'desc')
             ->get();
         
-        return $this->response->json([
+        $html = $this->viewService->render('staff/report-categories/index', [
             'categories' => $categories->toArray(),
             'isManager' => true,
         ]);
+        return $this->response->html($html);
     }
 
     /**
@@ -73,14 +77,15 @@ class StaffReportCategoryController
         $staffInfo = $this->getStaffInfo();
         
         if (!$staffInfo['is_manager']) {
-            return $this->response->json(['error' => 'Permission denied'], 403);
+            return $this->response->redirect('/staff/login');
         }
         
-        return $this->response->json([
+        $html = $this->viewService->render('staff/report-categories/update', [
             'category' => null,
             'action' => 'create',
             'boardList' => $this->getBoardList(true),
         ]);
+        return $this->response->html($html);
     }
 
     /**
@@ -135,19 +140,20 @@ class StaffReportCategoryController
         $staffInfo = $this->getStaffInfo();
         
         if (!$staffInfo['is_manager']) {
-            return $this->response->json(['error' => 'Permission denied'], 403);
+            return $this->response->redirect('/staff/login');
         }
         
         $category = ReportCategory::find($id);
         if (!$category) {
-            return $this->response->json(['error' => 'Category not found'], 404);
+            return $this->response->redirect('/staff/report-categories');
         }
         
-        return $this->response->json([
+        $html = $this->viewService->render('staff/report-categories/update', [
             'category' => $category->toArray(),
             'action' => 'edit',
             'boardList' => $this->getBoardList(true),
         ]);
+        return $this->response->html($html);
     }
 
     /**
@@ -207,17 +213,17 @@ class StaffReportCategoryController
         
         $category = ReportCategory::find($id);
         if (!$category) {
-            return $this->response->json(['error' => 'Category not found'], 404);
+            return $this->response->redirect('/staff/report-categories');
         }
         
         // Don't allow deleting the illegal category (ID 31)
         if ($id === 31) {
-            return $this->response->json(['error' => 'Cannot delete the illegal content category'], 400);
+            return $this->response->redirect('/staff/report-categories');
         }
         
         try {
             $category->delete();
-            return $this->response->json(['status' => 'success']);
+            return $this->response->redirect('/staff/report-categories');
         } catch (\Throwable $e) {
             return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
@@ -241,12 +247,27 @@ class StaffReportCategoryController
      */
     private function getBoardList(bool $allowSpecial = false): array
     {
-        $boards = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'];
+        try {
+            $slugs = Db::table('boards')
+                ->where('archived', false)
+                ->orderBy('slug')
+                ->pluck('slug')
+                ->toArray();
+        } catch (\Throwable) {
+            $slugs = [];
+        }
+
+        /** @var array<int|string, string> $boards */
+        $boards = [];
         
         if ($allowSpecial) {
-            $boards = ['' => 'All Boards'] + $boards;
+            $boards[''] = 'All Boards';
             $boards['_ws_'] = 'All Worksafe';
             $boards['_nws_'] = 'All NSFW';
+        }
+        
+        foreach ($slugs as $slug) {
+            $boards[(string) $slug] = '/' . $slug . '/';
         }
         
         return $boards;
