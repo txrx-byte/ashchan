@@ -357,11 +357,13 @@ final class ModerationController
         }
 
         if (is_string($board) && $board !== '') {
-            $escapedBoard = str_replace(['%', '_'], ['\%', '\_'], $board);
-            $query->where(function (\Hyperf\Database\Model\Builder $q) use ($escapedBoard): void {
-                $q->where('boards', '')
-                  ->orWhere('boards', 'like', "%{$escapedBoard}%");
-            });
+            // Escape backslash first, then wildcards, to prevent injection
+            $escapedBoard = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $board);
+            $likePattern = '%' . $escapedBoard . '%';
+            $query->whereRaw(
+                '(boards = ? OR boards LIKE ? ESCAPE ?)',
+                ['', $likePattern, '\\']
+            );
         }
 
         $templates = $query->orderBy('rule')->orderBy('name')->get();

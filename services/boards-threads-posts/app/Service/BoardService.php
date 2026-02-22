@@ -826,7 +826,7 @@ final class BoardService
      */
     private function generatePosterId(string $ipAddress, int $threadId): string
     {
-        $salt = (string) env('IP_HASH_SALT', '');
+        $salt = $this->getIpHashSalt();
         $daySalt = date('Y-m-d');
         $raw = hash_hmac('sha256', $ipAddress . '|' . $threadId . '|' . $daySalt, $salt, true);
         // URL-safe base64, 8 chars
@@ -1003,7 +1003,7 @@ final class BoardService
             ->get();
 
         $result = [];
-        $salt = (string) env('IP_HASH_SALT', '');
+        $salt = $this->getIpHashSalt();
 
         foreach ($posts as $post) {
             $encryptedIp = $post->getAttribute('ip_address');
@@ -1063,7 +1063,7 @@ final class BoardService
             ? $this->piiEncryption->decrypt($encryptedIp)
             : '';
 
-        $salt = (string) env('IP_HASH_SALT', '');
+        $salt = $this->getIpHashSalt();
         $hash = substr(hash_hmac('sha256', $plainIp, 'global_ip_hash:' . $salt), 0, 16);
 
         // Wipe plaintext IP from memory
@@ -1082,7 +1082,7 @@ final class BoardService
      */
     public function getPostsByIpHash(string $ipHash, int $limit = 100): array
     {
-        $salt = (string) env('IP_HASH_SALT', '');
+        $salt = $this->getIpHashSalt();
 
         // Query recent posts (with their thread + board info)
         /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */
@@ -1138,5 +1138,19 @@ final class BoardService
         }
 
         return $results;
+    }
+
+    /**
+     * Get the IP hash salt, failing fast if not configured.
+     *
+     * @throws \RuntimeException if IP_HASH_SALT is not set or empty
+     */
+    private function getIpHashSalt(): string
+    {
+        $salt = env('IP_HASH_SALT');
+        if (!is_string($salt) || $salt === '') {
+            throw new \RuntimeException('IP_HASH_SALT environment variable must be configured and non-empty');
+        }
+        return $salt;
     }
 }

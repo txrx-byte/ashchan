@@ -63,8 +63,8 @@ final class MediaService
      */
     public function processUpload(string $tmpPath, string $origName, string $mimeType, int $fileSize): array
     {
-        // Validate
-        $this->validate($tmpPath, $mimeType, $fileSize);
+        // Validate and get the authoritative content-detected MIME type
+        $actualMime = $this->validate($tmpPath, $mimeType, $fileSize);
 
         // Hash for dedup
         $hash = hash_file('sha256', $tmpPath);
@@ -84,31 +84,31 @@ final class MediaService
         // Get dimensions
         [$width, $height] = $this->getImageDimensions($tmpPath);
 
-        // Generate thumbnail
-        $thumbPath = $this->generateThumbnail($tmpPath, $mimeType);
+        // Generate thumbnail using actual MIME
+        $thumbPath = $this->generateThumbnail($tmpPath, $actualMime);
 
         // Upload to object storage
-        // Derive extension from validated MIME type (not user-supplied filename)
+        // Derive extension from content-detected MIME type (authoritative)
         $mimeToExt = [
             'image/jpeg' => 'jpg',
             'image/png'  => 'png',
             'image/gif'  => 'gif',
             'image/webp' => 'webp',
         ];
-        $ext = $mimeToExt[$mimeType] ?? 'jpg';
+        $ext = $mimeToExt[$actualMime] ?? 'jpg';
         $storageKey = date('Y/m/d/') . $hash . '.' . $ext;
         $thumbKey   = date('Y/m/d/') . $hash . '_thumb.' . $ext;
 
-        $this->uploadToStorage($tmpPath, $storageKey, $mimeType);
+        $this->uploadToStorage($tmpPath, $storageKey, $actualMime);
         if ($thumbPath) {
-            $this->uploadToStorage($thumbPath, $thumbKey, $mimeType);
+            $this->uploadToStorage($thumbPath, $thumbKey, $actualMime);
             @unlink($thumbPath);
         }
 
         // Persist metadata
         $media = MediaObject::create([
             'hash_sha256'      => $hash,
-            'mime_type'        => $mimeType,
+            'mime_type'        => $actualMime,
             'file_size'        => $fileSize,
             'width'            => $width,
             'height'           => $height,
@@ -134,7 +134,12 @@ final class MediaService
      * Private helpers
      * ────────────────────────────────────────────── */
 
-    private function validate(string $path, string $mime, int $size): void
+    /**
+     * Validate the upload and return the content-detected MIME type.
+     *
+     * @return string The actual MIME type detected by finfo (authoritative)
+     */
+    private function validate(string $path, string $mime, int $size): string
     {
         if ($size > $this->maxFileSize) {
             throw new \RuntimeException('File too large (max ' . ($this->maxFileSize / 1048576) . 'MB)');
@@ -144,12 +149,14 @@ final class MediaService
             throw new \RuntimeException('File type not allowed');
         }
 
-        // Double-check actual MIME using fileinfo
+        // Double-check actual MIME using fileinfo — this is authoritative
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $actualMime = $finfo->file($path);
         if ($actualMime === false || !in_array($actualMime, self::ALLOWED_MIMES, true)) {
             throw new \RuntimeException('File type mismatch');
         }
+
+        return $actualMime;
     }
 
     /**
