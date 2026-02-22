@@ -64,7 +64,77 @@
     <input type="text" name="ip" placeholder="Enter IP address (e.g., 192.168.1.1)" value="<?= htmlspecialchars($ip ?? '') ?>" class="search-input" style="max-width: 400px;">
     <button type="submit" class="button button-primary">🔍 Lookup</button>
   </form>
+  <form method="GET" action="/staff/ip-lookup" class="search-form" style="margin-top: 10px;">
+    <input type="text" name="hash" placeholder="Enter IP hash (16-char hex)" value="<?= htmlspecialchars($hash ?? '') ?>" class="search-input" style="max-width: 400px; font-family: monospace;">
+    <button type="submit" class="button button-primary">🔍 Hash Lookup</button>
+  </form>
 </div>
+
+<?php if (!empty($hash_posts) && isset($hash_posts['posts'])): ?>
+<div class="content-section">
+  <h2>Post History for IP Hash: <code style="background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:14px;"><?= htmlspecialchars($hash) ?></code></h2>
+  <p style="color:#666;margin-bottom:15px;"><?= (int)$hash_posts['count'] ?> post(s) found</p>
+  
+  <?php if (!empty($hash_posts['posts'])): ?>
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>Post ID</th>
+        <th>Board</th>
+        <th>Thread</th>
+        <th>Name</th>
+        <th>Subject</th>
+        <th>Content Preview</th>
+        <th>Media</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($hash_posts['posts'] as $post): ?>
+      <tr>
+        <td>
+          <?php if (!empty($post['board_slug']) && !empty($post['thread_id'])): ?>
+            <a href="/<?= htmlspecialchars($post['board_slug']) ?>/thread/<?= (int)$post['thread_id'] ?>#p<?= (int)$post['id'] ?>">#<?= (int)$post['id'] ?></a>
+          <?php else: ?>
+            #<?= (int)$post['id'] ?>
+          <?php endif ?>
+        </td>
+        <td>/<?= htmlspecialchars($post['board_slug'] ?? '?') ?>/</td>
+        <td>
+          <?php if (!empty($post['board_slug']) && !empty($post['thread_id'])): ?>
+            <a href="/<?= htmlspecialchars($post['board_slug']) ?>/thread/<?= (int)$post['thread_id'] ?>"><?= (int)$post['thread_id'] ?></a>
+          <?php else: ?>
+            <?= (int)($post['thread_id'] ?? 0) ?>
+          <?php endif ?>
+        </td>
+        <td><?= htmlspecialchars($post['author_name'] ?? 'Anonymous') ?><?php if (!empty($post['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars($post['tripcode']) ?></span><?php endif ?></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($post['subject'] ?? '') ?></td>
+        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($post['content_preview'] ?? '') ?></td>
+        <td>
+          <?php if (!empty($post['thumb_url'])): ?>
+            <a href="<?= htmlspecialchars($post['media_url'] ?? '#') ?>" target="_blank">
+              <img src="<?= htmlspecialchars($post['thumb_url']) ?>" alt="thumb" style="max-width:50px;max-height:50px;">
+            </a>
+          <?php else: ?>
+            —
+          <?php endif ?>
+        </td>
+        <td style="white-space:nowrap;"><?= htmlspecialchars($post['formatted_time'] ?? '') ?></td>
+      </tr>
+      <?php endforeach ?>
+    </tbody>
+  </table>
+  <?php else: ?>
+  <p style="color: #666;">No posts found for this IP hash.</p>
+  <?php endif ?>
+</div>
+<?php elseif (!empty($hash) && $hash_posts === null): ?>
+<div class="empty-state">
+  <div class="empty-icon">❌</div>
+  <h2>IP Hash Lookup Failed</h2>
+  <p>Could not retrieve post history. The hash must be a 16-character hex string.</p>
+</div>
+<?php endif ?>
 
 <?php if ($info !== null): ?>
 <div class="content-section">

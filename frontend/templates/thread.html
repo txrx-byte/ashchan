@@ -97,6 +97,7 @@
             {% if op.tripcode %}<span class="postertrip">{{ op.tripcode }}</span>{% endif %}
             {% if country_flags and op.country_code %}<span class="flag flag-{{ op.country_code|lower }}" title="{{ op.country_name|default(op.country_code) }}"></span>{% endif %}
             {% if user_ids and op.poster_id %}<span class="posteruid id_{{ op.poster_id }}"> (ID: <span class="hand" title="Highlight posts by this ID">{{ op.poster_id }}</span>)</span>{% endif %}
+            {% if is_staff and op.ip_hash %}<span class="staff-ip-hash"> [<a href="/staff/ip-lookup?hash={{ op.ip_hash }}" class="ip-hash-link" title="View post history for this IP hash">{{ op.ip_hash }}</a>]</span>{% endif %}
           </span><br>
           <span class="dateTime" data-utc="{{ op.created_at }}">{{ op.formatted_time }}</span>
           <span class="postNum mobile">
@@ -113,6 +114,7 @@
             {% if op.capcode %}<span class="capcode">## {{ op.capcode }}</span>{% endif %}
             {% if country_flags and op.country_code %}<span class="flag flag-{{ op.country_code|lower }}" title="{{ op.country_name|default(op.country_code) }}"></span>{% endif %}
             {% if user_ids and op.poster_id %}<span class="posteruid id_{{ op.poster_id }}"> (ID: <span class="hand" title="Highlight posts by this ID">{{ op.poster_id }}</span>)</span>{% endif %}
+            {% if is_staff and op.ip_hash %}<span class="staff-ip-hash"> [<a href="/staff/ip-lookup?hash={{ op.ip_hash }}" class="ip-hash-link" title="View post history for this IP hash">{{ op.ip_hash }}</a>]</span>{% endif %}
           </span>
           <span class="dateTime" data-utc="{{ op.created_at }}">{{ op.formatted_time }}</span>
           <span class="postNum desktop">
@@ -159,6 +161,7 @@
             {% if reply.tripcode %}<span class="postertrip">{{ reply.tripcode }}</span>{% endif %}
             {% if country_flags and reply.country_code %}<span class="flag flag-{{ reply.country_code|lower }}" title="{{ reply.country_name|default(reply.country_code) }}"></span>{% endif %}
             {% if user_ids and reply.poster_id %}<span class="posteruid id_{{ reply.poster_id }}"> (ID: <span class="hand" title="Highlight posts by this ID">{{ reply.poster_id }}</span>)</span>{% endif %}
+            {% if is_staff and reply.ip_hash %}<span class="staff-ip-hash"> [<a href="/staff/ip-lookup?hash={{ reply.ip_hash }}" class="ip-hash-link" title="View post history for this IP hash">{{ reply.ip_hash }}</a>]</span>{% endif %}
           </span><br>
           <span class="dateTime" data-utc="{{ reply.created_at }}">{{ reply.formatted_time }}</span>
           <span class="postNum mobile">
@@ -174,6 +177,7 @@
             {% if reply.capcode %}<span class="capcode">## {{ reply.capcode }}</span>{% endif %}
             {% if country_flags and reply.country_code %}<span class="flag flag-{{ reply.country_code|lower }}" title="{{ reply.country_name|default(reply.country_code) }}"></span>{% endif %}
             {% if user_ids and reply.poster_id %}<span class="posteruid id_{{ reply.poster_id }}"> (ID: <span class="hand" title="Highlight posts by this ID">{{ reply.poster_id }}</span>)</span>{% endif %}
+            {% if is_staff and reply.ip_hash %}<span class="staff-ip-hash"> [<a href="/staff/ip-lookup?hash={{ reply.ip_hash }}" class="ip-hash-link" title="View post history for this IP hash">{{ reply.ip_hash }}</a>]</span>{% endif %}
           </span>
           <span class="dateTime" data-utc="{{ reply.created_at }}">{{ reply.formatted_time }}</span>
           <span class="postNum desktop">

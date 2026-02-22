@@ -23,6 +23,7 @@ namespace App\Controller\Staff;
 use App\Service\AuthenticationService;
 use App\Service\ModerationService;
 use App\Service\PiiEncryptionService;
+use App\Service\ProxyClient;
 use App\Service\ViewService;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
@@ -44,6 +45,7 @@ final class StaffToolsController
         private AuthenticationService $authService,
         private ModerationService $modService,
         private PiiEncryptionService $piiEncryption,
+        private ProxyClient $proxyClient,
         private HttpResponse $response,
         private RequestInterface $request,
         private ViewService $viewService,
@@ -72,21 +74,30 @@ final class StaffToolsController
     }
 
     /**
-     * IP Lookup tool
+     * IP Lookup tool - supports both raw IP and IP hash lookup
      */
     #[GetMapping(path: 'ip-lookup')]
     public function ipLookup(): ResponseInterface
     {
         $ip = (string) $this->request->query('ip', '');
+        $hash = (string) $this->request->query('hash', '');
         $info = null;
-        
+        $hashPosts = null;
+
         if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
             $info = $this->getIpInfo($ip);
+        }
+
+        // IP hash lookup: query the boards backend for post history
+        if ($hash !== '' && preg_match('/^[0-9a-f]{16}$/', $hash)) {
+            $hashPosts = $this->getPostsByIpHash($hash);
         }
         
         $html = $this->viewService->render('staff/tools/ip-lookup', [
             'ip' => $ip,
             'info' => $info,
+            'hash' => $hash,
+            'hash_posts' => $hashPosts,
         ]);
         return $this->response->html($html);
     }
@@ -516,6 +527,41 @@ final class StaffToolsController
             'ban_count' => count($bans),
             'report_count' => count($reports),
         ];
+    }
+
+    /**
+     * Fetch post history by IP hash from the boards backend.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function getPostsByIpHash(string $hash): ?array
+    {
+        $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
+        $headers = [
+            'Content-Type' => 'application/json',
+        ];
+        if (!empty($staffInfo['level'])) {
+            $headers['X-Staff-Level'] = (string) $staffInfo['level'];
+        }
+
+        $result = $this->proxyClient->forward(
+            'boards',
+            'GET',
+            '/api/v1/posts/by-ip-hash/' . urlencode($hash),
+            $headers
+        );
+
+        if ($result['status'] >= 400) {
+            return null;
+        }
+
+        $body = $result['body'] ?? '';
+        if (!is_string($body)) {
+            return null;
+        }
+
+        $decoded = json_decode($body, true);
+        return is_array($decoded) ? $decoded : null;
     }
 
     /**

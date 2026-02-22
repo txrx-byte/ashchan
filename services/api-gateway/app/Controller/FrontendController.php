@@ -653,9 +653,17 @@ final class FrontendController
      */
     private function fetchJson(string $service, string $path): array
     {
-        $result = $this->proxyClient->forward($service, 'GET', $path, [
+        $headers = [
             'Content-Type' => 'application/json',
-        ]);
+        ];
+
+        // Forward staff level so backends can include staff-only data (e.g. IP hashes)
+        $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
+        if (!empty($staffInfo['level'])) {
+            $headers['X-Staff-Level'] = (string) $staffInfo['level'];
+        }
+
+        $result = $this->proxyClient->forward($service, 'GET', $path, $headers);
 
         if ($result['status'] >= 400) {
             // Log the error but don't return an error array that breaks destructuring

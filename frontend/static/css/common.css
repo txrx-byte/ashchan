@@ -752,6 +752,21 @@ table.postForm > tbody > tr > td > input[name="subject"] {
   cursor: pointer;
 }
 
+/* Staff-only IP hash display */
+.staff-ip-hash {
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+}
+.staff-ip-hash .ip-hash-link {
+  color: #117743;
+  text-decoration: none;
+  cursor: pointer;
+}
+.staff-ip-hash .ip-hash-link:hover {
+  color: #d00;
+  text-decoration: underline;
+}
+
 /* Country flags (CSS-only using background images) */
 .flag {
   display: inline-block;

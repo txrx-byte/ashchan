@@ -259,7 +259,7 @@ final class BoardService
      * Returns threads with OP + latest N replies.
      * @return array{threads: array<int, array<string, mixed>>, page: int, total_pages: int, total: int}
      */
-    public function getThreadIndex(Board $board, int $page = 1, int $perPage = 15): array
+    public function getThreadIndex(Board $board, int $page = 1, int $perPage = 15, bool $includeIpHash = false): array
     {
         $threads = Thread::query()
             ->where('board_id', $board->id)
@@ -319,9 +319,9 @@ final class BoardService
                 'image_count'     => $thread->image_count,
                 'bumped_at'       => $thread->bumped_at,
                 'created_at'      => $thread->created_at,
-                'op'              => $this->formatPostOutput($op),
-                'latest_replies'  => $latestReplies->map(function (Post $r) {
-                    return $this->formatPostOutput($r);
+                'op'              => $this->formatPostOutput($op, [], $includeIpHash),
+                'latest_replies'  => $latestReplies->map(function (Post $r) use ($includeIpHash) {
+                    return $this->formatPostOutput($r, [], $includeIpHash);
                 })->toArray(),
                 'omitted_posts'   => $omittedPosts,
                 'omitted_images'  => $omittedImages,
@@ -343,7 +343,7 @@ final class BoardService
     /**
      * @return array<string, mixed>|null
      */
-    public function getThread(int $threadId): ?array
+    public function getThread(int $threadId, bool $includeIpHash = false): ?array
     {
         /** @var Thread|null $thread */
         $thread = Thread::find($threadId);
@@ -378,9 +378,9 @@ final class BoardService
             'archived'      => $thread->archived,
             'reply_count'   => $thread->reply_count,
             'image_count'   => $thread->image_count,
-            'op'            => $this->formatPostOutput($op, ($op ? ($backlinks[(string)$op->id] ?? []) : [])),
-            'replies'       => $replies->map(function (Post $r) use ($backlinks) {
-                return $this->formatPostOutput($r, $backlinks[(string)$r->id] ?? []);
+            'op'            => $this->formatPostOutput($op, ($op ? ($backlinks[(string)$op->id] ?? []) : []), $includeIpHash),
+            'replies'       => $replies->map(function (Post $r) use ($backlinks, $includeIpHash) {
+                return $this->formatPostOutput($r, $backlinks[(string)$r->id] ?? [], $includeIpHash);
             })->toArray(),
         ];
     }
@@ -699,7 +699,7 @@ final class BoardService
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function getPostsAfter(int $threadId, int $afterId): array
+    public function getPostsAfter(int $threadId, int $afterId, bool $includeIpHash = false): array
     {
         // Note: Comparing UUIDs with '>' is not strictly chronological for v4 UUIDs,
         // but 'created_at' > would be better. However, let's keep it consistent with request for now,
@@ -722,7 +722,7 @@ final class BoardService
             ->get();
 
         /** @var array<int, array<string, mixed>> $result */
-        $result = $posts->map(fn(Post $p) => $this->formatPostOutput($p))
+        $result = $posts->map(fn(Post $p) => $this->formatPostOutput($p, [], $includeIpHash))
             ->filter()
             ->values()
             ->toArray();
@@ -737,10 +737,10 @@ final class BoardService
      * @param array<int> $backlinks
      * @return ($post is null ? null : array<string, mixed>)
      */
-    private function formatPostOutput(?Post $post, array $backlinks = []): ?array
+    private function formatPostOutput(?Post $post, array $backlinks = [], bool $includeIpHash = false): ?array
     {
         if (!$post) return null;
-        return [
+        $output = [
             'id'               => $post->id,
             'board_post_no'    => $post->board_post_no,
             'author_name'      => $post->author_name,
@@ -763,6 +763,12 @@ final class BoardService
             'spoiler_image'    => $post->spoiler_image,
             'backlinks'        => $backlinks,
         ];
+
+        if ($includeIpHash) {
+            $output['ip_hash'] = $this->generateGlobalIpHash($post);
+        }
+
+        return $output;
     }
 
     private function toTimestamp(mixed $dt): int
@@ -1032,5 +1038,101 @@ final class BoardService
         }
 
         return $this->piiEncryption->decrypt($encryptedIp);
+    }
+
+    /**
+     * Generate a deterministic, global IP hash for a post.
+     *
+     * Unlike generatePosterId() which rotates per-thread & per-day,
+     * this hash is stable across all threads and time so staff can
+     * track a poster across the site by the same hash.
+     *
+     * Uses HMAC-SHA256 with a dedicated salt prefix to prevent
+     * rainbow-table attacks and ensure domain separation from poster IDs.
+     *
+     * @return string 16-char hex hash (64 bits of entropy)
+     */
+    private function generateGlobalIpHash(Post $post): string
+    {
+        $encryptedIp = $post->getAttribute('ip_address');
+        $plainIp = is_string($encryptedIp) && $encryptedIp !== ''
+            ? $this->piiEncryption->decrypt($encryptedIp)
+            : '';
+
+        $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
+        $hash = substr(hash_hmac('sha256', $plainIp, 'global_ip_hash:' . $salt), 0, 16);
+
+        // Wipe plaintext IP from memory
+        $this->piiEncryption->wipe($plainIp);
+
+        return $hash;
+    }
+
+    /**
+     * Find all posts across the site matching a global IP hash (Staff only).
+     *
+     * Iterates over recent posts, decrypts IPs, and compares hashes.
+     * Limited to the most recent N posts for performance.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getPostsByIpHash(string $ipHash, int $limit = 100): array
+    {
+        $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
+
+        // Query recent posts (with their thread + board info)
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */
+        $posts = Post::query()
+            ->where('deleted', false)
+            ->orderByDesc('created_at')
+            ->limit(5000) // scan window
+            ->get();
+
+        $results = [];
+        foreach ($posts as $post) {
+            /** @var Post $post */
+            $encryptedIp = $post->getAttribute('ip_address');
+            $plainIp = is_string($encryptedIp) && $encryptedIp !== ''
+                ? $this->piiEncryption->decrypt($encryptedIp)
+                : '';
+
+            $postHash = substr(hash_hmac('sha256', $plainIp, 'global_ip_hash:' . $salt), 0, 16);
+            $this->piiEncryption->wipe($plainIp);
+
+            if ($postHash === $ipHash) {
+                // Load thread/board info for context
+                /** @var Thread|null $thread */
+                $thread = Thread::find($post->thread_id);
+                $boardSlug = '';
+                if ($thread) {
+                    /** @var Board|null $board */
+                    $board = Board::find($thread->board_id);
+                    $boardSlug = $board ? $board->slug : '';
+                }
+
+                $results[] = [
+                    'id'              => $post->id,
+                    'board_post_no'   => $post->board_post_no,
+                    'board_slug'      => $boardSlug,
+                    'thread_id'       => $post->thread_id,
+                    'author_name'     => $post->author_name,
+                    'tripcode'        => $post->tripcode,
+                    'subject'         => $post->subject,
+                    'content_preview' => $post->content_preview,
+                    'content_html'    => $post->content_html,
+                    'media_url'       => $post->media_url,
+                    'thumb_url'       => $post->thumb_url,
+                    'created_at'      => $this->toTimestamp($post->created_at),
+                    'formatted_time'  => $this->formatTime($post->created_at),
+                    'ip_hash'         => $ipHash,
+                ];
+
+                if (count($results) >= $limit) {
+                    break;
+                }
+            }
+        }
+
+        return $results;
     }
 }

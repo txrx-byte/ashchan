@@ -42,7 +42,8 @@ final class ThreadController
         }
         $pageInput = $request->query('page', '1');
         $page = max(1, is_numeric($pageInput) ? (int) $pageInput : 1);
-        $data = $this->boardService->getThreadIndex($board, $page);
+        $includeIpHash = $this->isStaffMod($request);
+        $data = $this->boardService->getThreadIndex($board, $page, 15, $includeIpHash);
         return $this->response->json($data);
     }
 
@@ -69,9 +70,10 @@ final class ThreadController
     }
 
     /** GET /api/v1/boards/{slug}/threads/{id} */
-    public function show(string $slug, int $id): ResponseInterface
+    public function show(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
-        $data = $this->boardService->getThread($id);
+        $includeIpHash = $this->isStaffMod($request);
+        $data = $this->boardService->getThread($id, $includeIpHash);
         if (!$data) {
             return $this->response->json(['error' => 'Thread not found'])->withStatus(404);
         }
@@ -184,7 +186,8 @@ final class ThreadController
     {
         $afterInput = $request->query('after', '0');
         $after = is_numeric($afterInput) ? (int) $afterInput : 0;
-        $posts = $this->boardService->getPostsAfter($id, $after);
+        $includeIpHash = $this->isStaffMod($request);
+        $posts = $this->boardService->getPostsAfter($id, $after, $includeIpHash);
         return $this->response->json(['posts' => $posts]);
     }
 
@@ -218,6 +221,55 @@ final class ThreadController
             ?: $request->server('remote_addr', '127.0.0.1');
 
         return is_string($ip) ? $ip : '127.0.0.1';
+    }
+
+    /**
+     * Check if the requesting staff user is at least a moderator.
+     *
+     * The API gateway forwards X-Staff-Level for authenticated staff.
+     * Levels: admin(3), manager(2), mod(1), janitor(0).
+     * Only mod+ (level >= 1) can see IP hashes.
+     */
+    private function isStaffMod(RequestInterface $request): bool
+    {
+        $level = $request->getHeaderLine('X-Staff-Level');
+        if ($level === '') {
+            return false;
+        }
+        // Accept both numeric ("1") and named ("mod", "manager", "admin") levels
+        $numericLevel = match (strtolower($level)) {
+            'admin'    => 3,
+            'manager'  => 2,
+            'mod', 'moderator' => 1,
+            'janitor'  => 0,
+            default    => is_numeric($level) ? (int) $level : -1,
+        };
+        return $numericLevel >= 1;
+    }
+
+    /** GET /api/v1/posts/by-ip-hash/{hash} – Staff IP hash history lookup */
+    public function postsByIpHash(RequestInterface $request, string $hash): ResponseInterface
+    {
+        // Validate staff access (mod+)
+        if (!$this->isStaffMod($request)) {
+            return $this->response->json(['error' => 'Forbidden'])->withStatus(403);
+        }
+
+        // Validate hash format (16-char hex)
+        if (!preg_match('/^[0-9a-f]{16}$/', $hash)) {
+            return $this->response->json(['error' => 'Invalid IP hash format'])->withStatus(400);
+        }
+
+        $limitInput = $request->query('limit', '100');
+        $limit = min(500, max(1, is_numeric($limitInput) ? (int) $limitInput : 100));
+
+        $posts = $this->boardService->getPostsByIpHash($hash, $limit);
+
+        return $this->response->json([
+            'ip_hash' => $hash,
+            'count'   => count($posts),
+            'posts'   => $posts,
+        ]);
     }
 
     /** DELETE /api/v1/boards/{slug}/posts/{id} – Staff delete post */

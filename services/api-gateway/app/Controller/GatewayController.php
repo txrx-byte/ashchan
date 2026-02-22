@@ -137,6 +137,12 @@ final class GatewayController
             'User-Agent'      => $request->getHeaderLine('User-Agent'),
         ];
 
+        // Forward staff level from authenticated session (set by StaffAuthMiddleware)
+        $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
+        if (!empty($staffInfo['level'])) {
+            $headers['X-Staff-Level'] = (string) $staffInfo['level'];
+        }
+
         // Forward body
         $body = $request->getBody()->getContents();
 
