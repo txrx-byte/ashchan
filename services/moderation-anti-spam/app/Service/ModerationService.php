@@ -27,7 +27,6 @@ use App\Model\ModerationDecision;
 use App\Model\Report;
 use App\Model\ReportCategory;
 use App\Model\ReportClearLog;
-use Hyperf\Di\Annotation\Inject;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -37,11 +36,17 @@ use Psr\Log\LoggerInterface;
  */
 final class ModerationService
 {
-    #[Inject]
     private LoggerInterface $logger;
 
-    #[Inject]
     private PiiEncryptionService $piiEncryption;
+
+    public function __construct(
+        LoggerInterface $logger,
+        PiiEncryptionService $piiEncryption
+    ) {
+        $this->logger = $logger;
+        $this->piiEncryption = $piiEncryption;
+    }
 
     /**
      * Weight thresholds (from OpenYotsuba ReportQueue)

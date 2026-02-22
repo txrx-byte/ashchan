@@ -145,11 +145,13 @@ final class BoardService
      */
     public function listAllBoards(): array
     {
-        return Board::query()
+        /** @var array<int, array<string, mixed>> $boards */
+        $boards = Board::query()
             ->orderBy('category')
             ->orderBy('slug')
             ->get()
             ->toArray();
+        return $boards;
     }
 
     /**
@@ -159,14 +161,14 @@ final class BoardService
     public function createBoard(array $data): Board
     {
         // The DB requires 'name' (NOT NULL), use title as name
-        $title = $data['title'] ?? '';
+        $title = (string) ($data['title'] ?? '');
         
         $board = new Board();
-        $board->slug = $data['slug'];
+        $board->slug = (string) $data['slug'];
         $board->title = $title;
-        $board->setAttribute('name', $title ?: $data['slug']);
-        $board->subtitle = $data['subtitle'] ?? '';
-        $board->category = $data['category'] ?? '';
+        $board->setAttribute('name', $title ?: (string) $data['slug']);
+        $board->subtitle = (string) ($data['subtitle'] ?? '');
+        $board->category = (string) ($data['category'] ?? '');
         $board->nsfw = (bool) ($data['nsfw'] ?? false);
         $board->max_threads = (int) ($data['max_threads'] ?? 200);
         $board->bump_limit = (int) ($data['bump_limit'] ?? 300);
@@ -177,7 +179,7 @@ final class BoardService
         $board->staff_only = (bool) ($data['staff_only'] ?? false);
         $board->user_ids = (bool) ($data['user_ids'] ?? false);
         $board->country_flags = (bool) ($data['country_flags'] ?? false);
-        $board->rules = $data['rules'] ?? '';
+        $board->rules = (string) ($data['rules'] ?? '');
         $board->save();
 
         $this->invalidateBoardCaches();
@@ -195,13 +197,13 @@ final class BoardService
         ];
         foreach ($fillable as $field) {
             if (array_key_exists($field, $data)) {
-                $board->{$field} = $data[$field];
+                $board->{$field} = (string) $data[$field];
             }
         }
 
         // Keep name in sync with title
         if (array_key_exists('title', $data)) {
-            $board->setAttribute('name', $data['title'] ?: $board->slug);
+            $board->setAttribute('name', ((string) $data['title']) ?: $board->slug);
         }
 
         $booleans = ['nsfw', 'text_only', 'require_subject', 'archived', 'staff_only', 'user_ids', 'country_flags'];
@@ -877,9 +879,11 @@ final class BoardService
         try {
             /** @var \GeoIp2\Database\Reader $reader */
             $record = $reader->country($ipAddress);
-            $code = $record->country->isoCode;
-            $name = $record->country->name;
-            return [$code, $name];
+            /** @phpstan-ignore-next-line */
+            $code = $record->country->isoCode ?? null;
+            /** @phpstan-ignore-next-line */
+            $name = $record->country->name ?? null;
+            return [is_string($code) ? $code : null, is_string($name) ? $name : null];
         } catch (\Throwable $e) {
             return [null, null];
         }

@@ -110,7 +110,7 @@ class StaffAuthMiddleware implements MiddlewareInterface
         ]);
         
         // Enforce access level requirements per path prefix
-        $accessDenied = $this->checkPathAccessLevel($path, $level);
+        $accessDenied = $this->checkPathAccessLevel($path, (string) $level);
         if ($accessDenied !== null) {
             return $accessDenied;
         }
@@ -177,14 +177,14 @@ class StaffAuthMiddleware implements MiddlewareInterface
     {
         $cookies = $request->getCookieParams();
         $sessionToken = $cookies['staff_session'] ?? null;
-        if (!$sessionToken || !is_string($sessionToken) || $sessionToken === '') {
+        if (!$sessionToken || !is_string($sessionToken)) {
             return;
         }
 
         try {
             $tokenHash = hash('sha256', $sessionToken);
             $validation = $this->authService->validateSession($tokenHash);
-            if (!($validation['valid'] ?? false) || !isset($validation['user'])) {
+            if (!$validation['valid'] || !isset($validation['user'])) {
                 return;
             }
 

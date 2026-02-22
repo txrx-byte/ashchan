@@ -24,4 +24,7 @@ parameters:
         - '#Static call to instance method Hyperf\DbConnection\Db::.*#'
         - '#Static call to instance method Hyperf\HttpServer\Router\Router::.*#'
         # Hyperf Model::getAttribute() returns mixed; explicit casts are intentional
-        - '#Cannot cast mixed to (int|float|string)\.#'
+        - '#Cannot cast mixed to (int|float|string)\.#'        # GeoIp2 is an optional runtime dependency, not required in composer.json
+        - '#class GeoIp2\\Database\\Reader#'
+        # Hyperf Model __callStatic provides find()
+        - '#Call to an undefined static method App\\Model\\Board::find\(\)\.#'

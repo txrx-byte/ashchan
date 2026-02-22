@@ -81,7 +81,7 @@ final class AutopurgeController
         Db::table('autopurge_rules')->insert([
             'pattern' => trim((string) ($body['pattern'] ?? '')),
             'is_regex' => isset($body['is_regex']),
-            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'boards' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'purge_threads' => isset($body['purge_threads']),
             'purge_replies' => isset($body['purge_replies']),
             'ban_length_days' => (int)($body['ban_length_days'] ?? 0),
@@ -137,7 +137,7 @@ final class AutopurgeController
         Db::table('autopurge_rules')->where('id', $id)->update([
             'pattern' => trim((string) ($body['pattern'] ?? '')),
             'is_regex' => isset($body['is_regex']),
-            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'boards' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'purge_threads' => isset($body['purge_threads']),
             'purge_replies' => isset($body['purge_replies']),
             'ban_length_days' => (int)($body['ban_length_days'] ?? 0),

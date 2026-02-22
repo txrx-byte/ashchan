@@ -109,7 +109,7 @@ final class CapcodeController
             'tripcode' => $tripcode,
             'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
-            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'boards' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'created_by' => $user['id'] ?? null,
             'created_at' => date('Y-m-d H:i:s'),
@@ -173,7 +173,7 @@ final class CapcodeController
             'name' => $name,
             'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
-            'boards' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'boards' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
@@ -206,9 +206,14 @@ final class CapcodeController
             if ($user) {
                 $this->authService->logAuditAction(
                     (int) $user['id'],
+                    (string) ($user['username'] ?? 'system'),
                     $action,
+                    'capcode',
+                    null,
+                    null,
                     $details,
-                    $this->request->getHeaderLine('X-Real-IP') ?: $this->request->getServerParams()['remote_addr'] ?? '0.0.0.0'
+                    (string) ($this->request->getHeaderLine('X-Real-IP') ?: $this->request->getServerParams()['remote_addr'] ?? '0.0.0.0'),
+                    $this->request->getHeaderLine('User-Agent')
                 );
             }
         } catch (\Throwable $e) {

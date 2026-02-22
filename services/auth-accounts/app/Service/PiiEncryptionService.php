@@ -170,13 +170,16 @@ final class PiiEncryptionService
 
     /**
      * Securely wipe a string from memory.
+     *
+     * @param-out string|null $value
      */
     public function wipe(string &$value): void
     {
+        $length = strlen($value);
         try {
             sodium_memzero($value);
         } catch (\SodiumException $e) {
-            $value = str_repeat("\0", strlen($value));
+            $value = str_repeat("\0", $length);
         }
     }
 

@@ -105,7 +105,9 @@ class StaffReportController extends AbstractController
         );
 
         // Enrich reports with post media data from boards service
-        $data['reports'] = $this->enrichReportsWithMedia($data['reports'] ?? []);
+        /** @var array<int, array<string, mixed>> $reports */
+        $reports = $data['reports'] ?? [];
+        $data['reports'] = $this->enrichReportsWithMedia($reports);
         
         return $this->response->json($data);
     }
@@ -126,7 +128,7 @@ class StaffReportController extends AbstractController
         // Collect unique board:no pairs
         $lookups = [];
         foreach ($reports as $r) {
-            $key = ($r['board'] ?? '') . ':' . ($r['no'] ?? 0);
+            $key = (string) ($r['board'] ?? '') . ':' . (int) ($r['no'] ?? 0);
             if (!isset($lookups[$key])) {
                 $lookups[$key] = ['board' => $r['board'], 'no' => (int) $r['no']];
             }
@@ -147,20 +149,21 @@ class StaffReportController extends AbstractController
                 $body,
             );
 
-            if (($resp['status'] ?? 0) !== 200) {
+            if ($resp['status'] !== 200) {
                 return $reports;
             }
 
-            /** @var array{results?: array<string, array<string, mixed>>} $payload */
-            $payload = json_decode((string) ($resp['body'] ?? '{}'), true);
-            $results = $payload['results'] ?? [];
+            $payload = json_decode((string) ($resp['body']), true);
+            $results = is_array($payload) && isset($payload['results']) && is_array($payload['results'])
+                ? $payload['results']
+                : [];
         } catch (\Throwable) {
             return $reports;
         }
 
         // Merge media data into each report's post object
         foreach ($reports as &$report) {
-            $key = ($report['board'] ?? '') . ':' . ($report['no'] ?? 0);
+            $key = (string) ($report['board'] ?? '') . ':' . (int) ($report['no'] ?? 0);
             if (!isset($results[$key])) {
                 continue;
             }

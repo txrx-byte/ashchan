@@ -52,8 +52,13 @@ class PiiCleanupCommand extends HyperfCommand
 
     public function handle(): void
     {
-        $dryRun = (bool) $this->input->getOption('dry-run');
-        $table = $this->input->getOption('table');
+        $input = $this->input;
+        if (!$input) {
+            $this->error('No input available.');
+            return;
+        }
+        $dryRun = (bool) $input->getOption('dry-run');
+        $table = $input->getOption('table');
 
         if ($dryRun) {
             $this->info('DRY RUN: No data will be modified.');

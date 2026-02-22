@@ -71,8 +71,8 @@ final class SfsSubmissionService
 
         $result = [];
         foreach ($reports as $report) {
-            /** @var object $report */
-            $ipRaw = is_string($report->ip_address) ? $report->ip_address : '';
+            /** @var object{id: int, post_id: int, board_slug: string, ip_address: string, post_content: string, evidence_snapshot: string|null, reporter_id: string|null, status: string, created_at: string} $report */
+            $ipRaw = $report->ip_address;
 
             // Decrypt IP for masking (show partial for admin context)
             $decryptedIp = $this->encryption->decrypt($ipRaw);
@@ -124,11 +124,11 @@ final class SfsSubmissionService
             return ['success' => false, 'message' => 'Report not found or already processed'];
         }
 
-        /** @var object $report */
+        /** @var object{id: int, post_id: int, board_slug: string, ip_address: string, post_content: string|null, evidence_snapshot: string|null, reporter_id: string|null, status: string, created_at: string} $report */
         $report = $reports[0];
 
         // Decrypt the IP address in memory
-        $encryptedIp = is_string($report->ip_address) ? $report->ip_address : '';
+        $encryptedIp = $report->ip_address;
         $decryptedIp = $this->encryption->decrypt($encryptedIp);
 
         if ($decryptedIp === '[DECRYPTION_FAILED]' || $decryptedIp === '') {
@@ -174,7 +174,9 @@ final class SfsSubmissionService
             return ['success' => true, 'message' => 'Report submitted to StopForumSpam'];
         } catch (\Throwable $e) {
             // Wipe decrypted IP even on failure
-            $this->encryption->wipe($decryptedIp);
+            if (is_string($decryptedIp)) {
+                $this->encryption->wipe($decryptedIp);
+            }
 
             $this->logSfsAction($reportId, $adminUserId, 'submission_failed');
             $this->logger->error("SFS submission failed for report #{$reportId}: " . $e->getMessage());

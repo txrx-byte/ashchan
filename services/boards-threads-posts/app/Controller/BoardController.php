@@ -80,8 +80,7 @@ final class BoardController
 
     /** POST /api/v1/admin/boards - Create a new board */
     public function store(RequestInterface $request): ResponseInterface
-    {
-        $data = $request->all();
+    {        /** @var array<string, mixed> $data */        $data = $request->all();
 
         if (empty($data['slug']) || !is_string($data['slug'])) {
             return $this->response->json(['error' => 'Board slug is required'])->withStatus(400);
@@ -114,6 +113,7 @@ final class BoardController
             return $this->response->json(['error' => 'Board not found'])->withStatus(404);
         }
 
+        /** @var array<string, mixed> $data */
         $data = $request->all();
 
         try {

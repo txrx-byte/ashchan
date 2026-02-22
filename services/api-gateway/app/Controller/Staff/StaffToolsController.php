@@ -249,7 +249,7 @@ final class StaffToolsController
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $this->logStaffAction('update_level', 'Changed ' . $user->username . ' level: ' . $user->access_level . ' -> ' . $newLevel);
+        $this->logStaffAction('update_level', 'Changed ' . (string) $user->username . ' level: ' . (string) $user->access_level . ' -> ' . $newLevel);
 
         return $this->response->json(['success' => true]);
     }
@@ -279,7 +279,7 @@ final class StaffToolsController
         ]);
 
         $newStatus = !$user->is_active ? 'activated' : 'deactivated';
-        $this->logStaffAction('toggle_active', $newStatus . ' staff account: ' . $user->username);
+        $this->logStaffAction('toggle_active', $newStatus . ' staff account: ' . (string) $user->username);
 
         return $this->response->json(['success' => true, 'is_active' => !$user->is_active]);
     }
@@ -305,7 +305,7 @@ final class StaffToolsController
 
         Db::table('staff_users')->where('id', $id)->delete();
 
-        $this->logStaffAction('delete_account', 'Deleted staff account: ' . $user->username);
+        $this->logStaffAction('delete_account', 'Deleted staff account: ' . (string) $user->username);
 
         return $this->response->json(['success' => true]);
     }
@@ -555,13 +555,18 @@ final class StaffToolsController
             return null;
         }
 
-        $body = $result['body'] ?? '';
+        $body = $result['body'];
         if (!is_string($body)) {
             return null;
         }
 
         $decoded = json_decode($body, true);
-        return is_array($decoded) ? $decoded : null;
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $decoded */
+        return $decoded;
     }
 
     /**

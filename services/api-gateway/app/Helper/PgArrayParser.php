@@ -36,7 +36,7 @@ final class PgArrayParser
     public static function parse(mixed $value): array
     {
         if (is_array($value)) {
-            return $value;
+            return array_map(static fn(mixed $v): string => (string) $v, $value);
         }
 
         if (!is_string($value) || $value === '' || $value === '{}') {
@@ -50,7 +50,7 @@ final class PgArrayParser
         }
 
         // Handle quoted elements and simple CSV
-        return str_getcsv($inner);
+        return array_map('strval', array_filter(str_getcsv($inner), fn(?string $v): bool => $v !== null));
     }
 
     /**

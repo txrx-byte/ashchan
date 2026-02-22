@@ -96,7 +96,7 @@ final class DmcaController
             'claimant_email' => trim((string) ($body['claimant_email'] ?? '')),
             'claimant_phone' => trim((string) ($body['claimant_phone'] ?? '')),
             'copyrighted_work' => trim((string) ($body['copyrighted_work'] ?? '')),
-            'infringing_urls' => '{' . implode(',', array_map(fn($u) => '"' . str_replace('"', '\\"', $u) . '"', $infringingUrls)) . '}',
+            'infringing_urls' => '{' . implode(',', array_map(fn(mixed $u) => '"' . str_replace('"', '\\"', (string) $u) . '"', $infringingUrls)) . '}',
             'statement' => trim((string) ($body['statement'] ?? '')),
             'signature' => trim((string) ($body['signature'] ?? '')),
             'status' => 'pending',

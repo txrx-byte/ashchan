@@ -212,9 +212,9 @@ class SpurService
         // Check for anonymous tunnels (VPN/Proxy/TOR)
         $anonymousTunnels = 0;
         foreach ($context['tunnels'] as $tunnel) {
-            if (!empty($tunnel['anonymous']) && in_array($tunnel['type'] ?? '', self::ANONYMOUS_TUNNEL_TYPES, true)) {
+            if (!empty($tunnel['anonymous']) && in_array($tunnel['type'], self::ANONYMOUS_TUNNEL_TYPES, true)) {
                 $anonymousTunnels++;
-                $operator = $tunnel['operator'] ?? 'unknown';
+                $operator = $tunnel['operator'];
                 $result['reasons'][] = "Spur: anonymous {$tunnel['type']} detected ({$operator})";
             }
         }
@@ -307,21 +307,21 @@ class SpurService
 
         return [
             'risks' => is_array($data['risks'] ?? null)
-                ? array_map('strval', $data['risks'])
+                ? array_map(static fn(mixed $v): string => (string) $v, $data['risks'])
                 : [],
             'tunnels' => $tunnels,
             'infrastructure' => (string) ($data['infrastructure'] ?? ''),
             'client' => [
                 'proxies' => is_array($client['proxies'] ?? null)
-                    ? array_map('strval', $client['proxies'])
+                    ? array_map(static fn(mixed $v): string => (string) $v, $client['proxies'])
                     : [],
                 'behaviors' => is_array($client['behaviors'] ?? null)
-                    ? array_map('strval', $client['behaviors'])
+                    ? array_map(static fn(mixed $v): string => (string) $v, $client['behaviors'])
                     : [],
                 'count' => (int) ($client['count'] ?? 0),
                 'countries' => (int) ($client['countries'] ?? 0),
                 'types' => is_array($client['types'] ?? null)
-                    ? array_map('strval', $client['types'])
+                    ? array_map(static fn(mixed $v): string => (string) $v, $client['types'])
                     : [],
             ],
             'location' => [

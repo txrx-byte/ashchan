@@ -200,7 +200,7 @@ final class FourChanApiService
                 }
 
                 if ($entry['omitted_posts'] > 0) {
-                    $entry['omitted_images'] = max(0, ($entry['omitted_images'] ?? 0) - $shownImageCount);
+                    $entry['omitted_images'] = max(0, (int) $entry['omitted_images'] - $shownImageCount);
                 }
 
                 if (!empty($lastRepliesFormatted)) {
@@ -309,7 +309,7 @@ final class FourChanApiService
                     ->where('deleted', false)
                     ->whereNotNull('media_url')
                     ->count();
-                $shownImages = $latestReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
+                $shownImages = $latestReplies->filter(fn(object $r): bool => $r instanceof Post && (bool) $r->media_url)->count();
                 $opFormatted['omitted_images'] = max(0, $totalImages - $shownImages);
             }
 
@@ -402,12 +402,14 @@ final class FourChanApiService
      */
     public function getArchive(Board $board): array
     {
-        return Thread::query()
+        /** @var array<int> $ids */
+        $ids = Thread::query()
             ->where('board_id', $board->id)
             ->where('archived', true)
             ->orderByDesc('updated_at')
             ->pluck('id')
             ->toArray();
+        return $ids;
     }
 
     /* ──────────────────────────────────────────────
@@ -539,7 +541,7 @@ final class FourChanApiService
         ];
 
         // is_archived
-        if ($board->archived !== null && !$board->archived) {
+        if (!$board->archived) {
             // Board supports archiving (not itself archived)
             $result['is_archived'] = 1;
         }
@@ -691,7 +693,7 @@ final class FourChanApiService
         return (int) Post::query()
             ->where('thread_id', $threadId)
             ->where('deleted', false)
-            ->distinct('ip_address')
+            ->distinct()
             ->count('ip_address');
     }
 

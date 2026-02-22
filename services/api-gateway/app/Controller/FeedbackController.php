@@ -173,7 +173,11 @@ final class FeedbackController
         return (string) ($serverParams['remote_addr'] ?? '127.0.0.1');
     }
 
-    /** Return a JSON response. */
+    /**
+     * Return a JSON response.
+     *
+     * @param array<string, mixed> $data
+     */
     private function json(array $data, int $status = 200): ResponseInterface
     {
         return $this->response->json($data)->withStatus($status);

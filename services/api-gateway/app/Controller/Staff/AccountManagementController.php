@@ -76,7 +76,7 @@ final class AccountManagementController
         Db::table('staff_users')->insertGetId([
             'username' => trim((string) ($body['username'] ?? '')), 'email' => trim((string) ($body['email'] ?? '')),
             'password_hash' => password_hash((string) ($body['password'] ?? ''), PASSWORD_ARGON2ID),
-            'access_level' => $body['access_level'] ?? 'janitor', 'board_access' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'access_level' => $body['access_level'] ?? 'janitor', 'board_access' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => true, 'created_at' => date('Y-m-d H:i:s'),
         ]);
         return $this->response->json(['success' => true, 'redirect' => '/staff/accounts']);
@@ -105,7 +105,7 @@ final class AccountManagementController
         $body = (array) $this->request->getParsedBody();
         Db::table('staff_users')->where('id', $id)->update([
             'access_level' => $body['access_level'] ?? $user->access_level,
-            'board_access' => '{' . implode(',', array_map(fn($b) => '"' . $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'board_access' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
             'is_active' => isset($body['is_active']) ? 1 : 0,
             'updated_at' => date('Y-m-d H:i:s'),
         ]);

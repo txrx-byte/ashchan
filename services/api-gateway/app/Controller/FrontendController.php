@@ -174,7 +174,7 @@ final class FrontendController
             'board_slug'     => $slug,
             'board_title'    => $board['title'],
             'board_subtitle' => $board['subtitle'],
-            'page_title'     => '/' . $slug . '/ - ' . $board['title'],
+            'page_title'     => '/' . $slug . '/ - ' . (string) ($board['title'] ?? ''),
             'page_num'       => $page,
             'total_pages'    => $totalPages,
             'threads'        => $threads,
@@ -322,13 +322,16 @@ final class FrontendController
 
     private function getStaffLevel(): string
     {
+        /** @var array<string, mixed> $staffInfo */
         $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
-        return $staffInfo['level'] ?? '';
+        return (string) ($staffInfo['level'] ?? '');
     }
 
     /**
      * Check if a board requires staff access and deny non-staff users.
      * Returns a redirect response if denied, or null if access is granted.
+     *
+     * @param array<string, mixed> $board
      */
     private function checkStaffOnlyAccess(RequestInterface $request, array $board): ?ResponseInterface
     {
@@ -339,7 +342,11 @@ final class FrontendController
         return null;
     }
 
-    /** Get extra CSS link tag for staff-only boards (janichan.css). */
+    /**
+     * Get extra CSS link tag for staff-only boards (janichan.css).
+     *
+     * @param array<string, mixed> $board
+     */
     private function getExtraCss(array $board): string
     {
         if (!empty($board['staff_only'])) {
@@ -348,7 +355,11 @@ final class FrontendController
         return '';
     }
 
-    /** Get the capcode value for the current staff member on a staff-only board. */
+    /**
+     * Get the capcode value for the current staff member on a staff-only board.
+     *
+     * @param array<string, mixed> $board
+     */
     private function getStaffCapcode(array $board): ?string
     {
         if (empty($board['staff_only'])) {
@@ -637,7 +648,7 @@ final class FrontendController
     /**
      * @return array{
      *  boards?: array<int, array{category: string, title: string, subtitle: string}>,
-     *  board?: array{title: string, subtitle: string},
+     *  board?: array<string, mixed>,
      *  threads?: array<mixed>,
      *  total_pages?: int,
      *  op?: array<mixed>,
@@ -694,7 +705,7 @@ final class FrontendController
         /**
          * @var array{
          *  boards?: array<int, array{category: string, title: string, subtitle: string}>,
-         *  board?: array{title: string, subtitle: string},
+         *  board?: array<string, mixed>,
          *  threads?: array<mixed>,
          *  total_pages?: int,
          *  op?: array<mixed>,

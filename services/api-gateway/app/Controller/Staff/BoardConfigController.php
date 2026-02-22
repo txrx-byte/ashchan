@@ -287,9 +287,17 @@ class BoardConfigController
             if ($user) {
                 $this->authService->logAuditAction(
                     (int) $user['id'],
+                    (string) ($user['username'] ?? 'system'),
                     $action,
+                    'board_config',
+                    null,
+                    null,
                     $details,
-                    $this->request->getHeaderLine('X-Real-IP') ?: $this->request->getServerParams()['remote_addr'] ?? '0.0.0.0',
+                    (string) ($this->request->getHeaderLine('X-Real-IP') ?: $this->request->getServerParams()['remote_addr'] ?? '0.0.0.0'),
+                    $this->request->getHeaderLine('User-Agent'),
+                    null,
+                    null,
+                    '',
                     $board
                 );
             }

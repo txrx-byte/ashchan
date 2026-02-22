@@ -143,8 +143,10 @@ final class FourChanApiController
 
     /**
      * Send a JSON response with proper content-type header.
+     *
+     * @param array<string|int, mixed> $data
      */
-    private function jsonResponse(mixed $data): ResponseInterface
+    private function jsonResponse(array $data): ResponseInterface
     {
         return $this->response->json($data)
             ->withHeader('Content-Type', 'application/json')

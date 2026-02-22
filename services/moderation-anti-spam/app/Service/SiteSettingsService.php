@@ -91,7 +91,7 @@ class SiteSettingsService
             [
                 'value' => $value,
                 'updated_by' => $changedBy,
-                'updated_at' => now(),
+                'updated_at' => date('Y-m-d H:i:s'),
             ]
         );
 
@@ -119,7 +119,7 @@ class SiteSettingsService
     /**
      * Get all site settings.
      *
-     * @return array<string, array{value: string, description: string, updated_at: string|null}>
+     * @return array<string, array{value: string, description: string, updated_at: string|null, updated_by: string|null}>
      */
     public function getAll(): array
     {
@@ -129,9 +129,10 @@ class SiteSettingsService
 
         $result = [];
         foreach ($rows as $row) {
-            $result[$row->key] = [
-                'value' => $row->value,
-                'description' => $row->description ?? '',
+            /** @var object{key: string, value: string, description: string|null, updated_at: string|null, updated_by: string|null} $row */
+            $result[(string) $row->key] = [
+                'value' => (string) $row->value,
+                'description' => (string) ($row->description ?? ''),
                 'updated_at' => $row->updated_at,
                 'updated_by' => $row->updated_by,
             ];
@@ -156,12 +157,13 @@ class SiteSettingsService
 
         $result = [];
         foreach ($rows as $row) {
+            /** @var object{old_value: string|null, new_value: string, changed_by: int|null, changed_at: string, reason: string|null} $row */
             $result[] = [
                 'old_value' => $row->old_value,
-                'new_value' => $row->new_value,
+                'new_value' => (string) $row->new_value,
                 'changed_by' => $row->changed_by,
-                'changed_at' => $row->changed_at,
-                'reason' => $row->reason ?? '',
+                'changed_at' => (string) $row->changed_at,
+                'reason' => (string) ($row->reason ?? ''),
             ];
         }
         return $result;
@@ -182,7 +184,8 @@ class SiteSettingsService
             $rows = Db::table('site_settings')->select(['key', 'value'])->get();
             $this->cache = [];
             foreach ($rows as $row) {
-                $this->cache[$row->key] = $row->value;
+                /** @var object{key: string, value: string} $row */
+                $this->cache[(string) $row->key] = (string) $row->value;
             }
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to load site settings, using defaults', [

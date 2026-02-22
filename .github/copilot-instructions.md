@@ -13,7 +13,7 @@ Ashchan is a privacy-first imageboard running **6 Hyperf 3.1/Swoole microservice
 | search-indexing | `services/search-indexing/` | 9505 | Search backend, event-driven indexing |
 | moderation-anti-spam | `services/moderation-anti-spam/` | 9506 | Risk scoring, moderation queue, bans |
 
-**Request flow:** nginx (80/443) → Anubis (8080) → API Gateway (9501) → backend services. The gateway uses `ProxyClient` (cURL-based, `services/api-gateway/app/Service/ProxyClient.php`) to forward requests with mTLS support. Route resolution is in `GatewayController::ROUTE_MAP`.
+**Request flow:** nginx (80/443) → Anubis (8080) — a proof-of-work challenge proxy that blocks bots, AI scrapers, and automated abuse before forwarding legitimate requests → API Gateway (9501) → backend services. The gateway uses `ProxyClient` (cURL-based, `services/api-gateway/app/Service/ProxyClient.php`) to forward requests with mTLS support. Route resolution is in `GatewayController::ROUTE_MAP`.
 
 **Data stores:** PostgreSQL 16+ (shared DB `ashchan`), Redis 7+ (each service uses a separate `REDIS_DB`), MinIO/S3 for media blobs.
 
@@ -89,13 +89,13 @@ Rate limiting uses Redis sorted-set sliding window (120 req/60s default). Staff 
 - **4chan-compatible API:** Read-only egress in exact 4chan format via `FourChanApiService` (see `docs/FOURCHAN_API.md`)
 
 ## Frontend
-Server-side rendered via Jinja2/Twig templates in `frontend/templates/`. Base layout uses `{% block content %}` inheritance. Staff-only elements gated by `{% if is_staff %}`. Static assets in `frontend/static/{css,js,img}/`.
+Server-side rendered via Twig templates in `frontend/templates/`. Base layout uses `{% block content %}` inheritance. Staff-only elements gated by `{% if is_staff %}`. Static assets in `frontend/static/{css,js,img}/`.
 
 ## Environment Configuration
 Each service has `.env.example` with `__PLACEHOLDER__` tokens. Key categories:
 - `HTTP_PORT`, `MTLS_PORT` — per-service ports
 - `DB_*` — shared PostgreSQL connection
-- `REDIS_DB` — service-specific Redis database number (0=gateway, 2=boards, 3=media)
+- `REDIS_DB` — service-specific Redis database number (0=gateway, 1=auth, 2=boards, 3=media, 4=search, 5=moderation)
 - `*_SERVICE_URL` — inter-service mTLS URLs
 - `MTLS_ENABLED`, `MTLS_CERT_FILE`, `MTLS_KEY_FILE`, `MTLS_CA_FILE` — certificate paths
 

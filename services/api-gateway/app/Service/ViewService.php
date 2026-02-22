@@ -62,7 +62,7 @@ final class ViewService
 
         // Auto-inject CSRF meta tag + fetch interceptor for staff pages
         if (isset($vars['csrf_token']) && $vars['csrf_token'] !== '' && str_contains($template, 'staff/')) {
-            $token = htmlspecialchars($vars['csrf_token'], ENT_QUOTES, 'UTF-8');
+            $token = htmlspecialchars((string) $vars['csrf_token'], ENT_QUOTES, 'UTF-8');
             $csrfSnippet = <<<HTML
 <meta name="csrf-token" content="{$token}">
 <script>

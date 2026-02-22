@@ -335,7 +335,11 @@ final class ThreadController
      */
     public function bulkLookup(RequestInterface $request): ResponseInterface
     {
+        /** @var array<string, mixed>|null $body */
         $body = json_decode((string) $request->getBody(), true);
+        if (!is_array($body)) {
+            return $this->response->json(['results' => []]);
+        }
         $posts = $body['posts'] ?? [];
 
         if (!is_array($posts) || count($posts) === 0) {
@@ -347,7 +351,8 @@ final class ThreadController
 
         $results = [];
         foreach ($posts as $item) {
-            $board = $item['board'] ?? '';
+            /** @var array<string, mixed> $item */
+            $board = (string) ($item['board'] ?? '');
             $no = (int) ($item['no'] ?? 0);
             if ($board === '' || $no === 0) {
                 continue;
@@ -358,6 +363,7 @@ final class ThreadController
                 continue;
             }
 
+            /** @var \App\Model\Post|null $post */
             $post = \App\Model\Post::query()
                 ->join('threads', 'posts.thread_id', '=', 'threads.id')
                 ->join('boards', 'threads.board_id', '=', 'boards.id')
