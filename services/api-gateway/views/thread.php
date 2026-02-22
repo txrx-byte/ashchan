@@ -100,6 +100,8 @@ declare(strict_types=1);
               <span class="name"><?= htmlspecialchars((string) $op['author_name'] ?? 'Anonymous') ?></span>
               <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $op['tripcode']) ?></span><?php endif; ?>
               <?php if (!empty($op['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars((string) $op['capcode']) ?></strong><?php endif; ?>
+              <?php if (!empty($country_flags) && !empty($op['country_code'])): ?><span class="flag flag-<?= htmlspecialchars(strtolower((string) $op['country_code'])) ?>" title="<?= htmlspecialchars((string) ($op['country_name'] ?? $op['country_code'])) ?>"></span><?php endif; ?>
+              <?php if (!empty($user_ids) && !empty($op['poster_id'])): ?><span class="posteruid id_<?= htmlspecialchars((string) $op['poster_id']) ?>"> (ID: <span class="hand" title="Highlight posts by this ID"><?= htmlspecialchars((string) $op['poster_id']) ?></span>)</span><?php endif; ?>
               <?php if (!empty($thread_sticky)): ?><img src="/static/img/sticky.gif" alt="Sticky" title="Sticky" class="stickyIcon"><?php endif; ?>
               <?php if (!empty($thread_locked)): ?><img src="/static/img/closed.gif" alt="Closed" title="Closed" class="closedIcon"><?php endif; ?>
               <br>
@@ -132,6 +134,8 @@ declare(strict_types=1);
               <span class="name"><?= htmlspecialchars((string) $op['author_name'] ?? 'Anonymous') ?></span>
               <?php if (!empty($op['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $op['tripcode']) ?></span><?php endif; ?>
               <?php if (!empty($op['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars((string) $op['capcode']) ?></strong><?php endif; ?>
+              <?php if (!empty($country_flags) && !empty($op['country_code'])): ?><span class="flag flag-<?= htmlspecialchars(strtolower((string) $op['country_code'])) ?>" title="<?= htmlspecialchars((string) ($op['country_name'] ?? $op['country_code'])) ?>"></span><?php endif; ?>
+              <?php if (!empty($user_ids) && !empty($op['poster_id'])): ?><span class="posteruid id_<?= htmlspecialchars((string) $op['poster_id']) ?>"> (ID: <span class="hand" title="Highlight posts by this ID"><?= htmlspecialchars((string) $op['poster_id']) ?></span>)</span><?php endif; ?>
             </span>
             <span class="dateTime" data-utc="<?= htmlspecialchars((string) $op['created_at'] ?? '') ?>"><?= htmlspecialchars((string) $op['formatted_time'] ?? $op['created_at'] ?? '') ?></span>
             <span class="postNum desktop">
@@ -160,6 +164,8 @@ declare(strict_types=1);
               <span class="name"><?= htmlspecialchars((string) $reply['author_name'] ?? 'Anonymous') ?></span>
               <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $reply['tripcode']) ?></span><?php endif; ?>
               <?php if (!empty($reply['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars((string) $reply['capcode']) ?></strong><?php endif; ?>
+              <?php if (!empty($country_flags) && !empty($reply['country_code'])): ?><span class="flag flag-<?= htmlspecialchars(strtolower((string) $reply['country_code'])) ?>" title="<?= htmlspecialchars((string) ($reply['country_name'] ?? $reply['country_code'])) ?>"></span><?php endif; ?>
+              <?php if (!empty($user_ids) && !empty($reply['poster_id'])): ?><span class="posteruid id_<?= htmlspecialchars((string) $reply['poster_id']) ?>"> (ID: <span class="hand" title="Highlight posts by this ID"><?= htmlspecialchars((string) $reply['poster_id']) ?></span>)</span><?php endif; ?>
               <br>
             </span>
             <span class="dateTime postNum" data-utc="<?= htmlspecialchars((string) $reply['created_at'] ?? '') ?>">
@@ -175,6 +181,8 @@ declare(strict_types=1);
               <span class="name"><?= htmlspecialchars((string) $reply['author_name'] ?? 'Anonymous') ?></span>
               <?php if (!empty($reply['tripcode'])): ?><span class="postertrip"><?= htmlspecialchars((string) $reply['tripcode']) ?></span><?php endif; ?>
               <?php if (!empty($reply['capcode'])): ?><strong class="capcode">## <?= htmlspecialchars((string) $reply['capcode']) ?></strong><?php endif; ?>
+              <?php if (!empty($country_flags) && !empty($reply['country_code'])): ?><span class="flag flag-<?= htmlspecialchars(strtolower((string) $reply['country_code'])) ?>" title="<?= htmlspecialchars((string) ($reply['country_name'] ?? $reply['country_code'])) ?>"></span><?php endif; ?>
+              <?php if (!empty($user_ids) && !empty($reply['poster_id'])): ?><span class="posteruid id_<?= htmlspecialchars((string) $reply['poster_id']) ?>"> (ID: <span class="hand" title="Highlight posts by this ID"><?= htmlspecialchars((string) $reply['poster_id']) ?></span>)</span><?php endif; ?>
             </span>
             <span class="dateTime" data-utc="<?= htmlspecialchars((string) $reply['created_at'] ?? '') ?>"><?= htmlspecialchars((string) $reply['formatted_time'] ?? $reply['created_at'] ?? '') ?></span>
             <span class="postNum desktop">

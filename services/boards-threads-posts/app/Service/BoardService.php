@@ -175,6 +175,8 @@ final class BoardService
         $board->text_only = (bool) ($data['text_only'] ?? false);
         $board->require_subject = (bool) ($data['require_subject'] ?? false);
         $board->staff_only = (bool) ($data['staff_only'] ?? false);
+        $board->user_ids = (bool) ($data['user_ids'] ?? false);
+        $board->country_flags = (bool) ($data['country_flags'] ?? false);
         $board->rules = $data['rules'] ?? '';
         $board->save();
 
@@ -202,7 +204,7 @@ final class BoardService
             $board->setAttribute('name', $data['title'] ?: $board->slug);
         }
 
-        $booleans = ['nsfw', 'text_only', 'require_subject', 'archived', 'staff_only'];
+        $booleans = ['nsfw', 'text_only', 'require_subject', 'archived', 'staff_only', 'user_ids', 'country_flags'];
         foreach ($booleans as $field) {
             if (array_key_exists($field, $data)) {
                 $board->{$field} = (bool) $data[$field];
@@ -491,6 +493,9 @@ final class BoardService
 
         /** @var array<string, int> $result */
         $result = Db::transaction(function () use ($board, $data, $nextId) {
+            // Atomically allocate per-board post number
+            $boardPostNo = $this->allocateBoardPostNo($board);
+
             /** @var Thread $thread */
             $thread = Thread::create([
                 'id'       => $nextId,
@@ -511,6 +516,15 @@ final class BoardService
             $rawContent = $data['content'] ?? '';
             $contentHtml = $this->formatter->format(is_string($rawContent) ? $rawContent : '');
 
+            // Generate poster ID and country if board has those features enabled
+            $posterId = $board->user_ids ? $this->generatePosterId(
+                (string) ($data['ip_address'] ?? ''),
+                $nextId
+            ) : null;
+            [$countryCode, $countryName] = $board->country_flags
+                ? $this->resolveCountry((string) ($data['ip_address'] ?? ''))
+                : [null, null];
+
             /** @var Post $post */
             $post = Post::create([
                 'id'                   => $nextId,
@@ -523,6 +537,10 @@ final class BoardService
                 'content'              => $data['content'] ?? '',
                 'content_html'         => $contentHtml,
                 'ip_address'           => $this->piiEncryption->encrypt((string) ($data['ip_address'] ?? '')),
+                'country_code'         => $countryCode,
+                'country_name'         => $countryName,
+                'poster_id'            => $posterId,
+                'board_post_no'        => $boardPostNo,
                 'media_url'            => $data['media_url'] ?? null,
                 'thumb_url'            => $data['thumb_url'] ?? null,
                 'media_filename'       => $data['media_filename'] ?? null,
@@ -562,8 +580,14 @@ final class BoardService
             throw new \RuntimeException('Thread is locked');
         }
 
+        // Resolve board for per-board features
+        $board = $thread->board;
+
         /** @var array<string, int> $result */
-        $result = Db::transaction(function () use ($thread, $data) {
+        $result = Db::transaction(function () use ($thread, $data, $board) {
+            // Atomically allocate per-board post number
+            $boardPostNo = $board ? $this->allocateBoardPostNo($board) : null;
+
             $rawName = $data['name'] ?? '';
             [$name, $trip] = $this->formatter->parseNameTrip(is_string($rawName) ? $rawName : '');
             $rawContent = $data['content'] ?? '';
@@ -571,6 +595,15 @@ final class BoardService
             $rawEmail = $data['email'] ?? '';
             $email = is_string($rawEmail) ? $rawEmail : '';
             $isSage = strtolower(trim($email)) === 'sage';
+
+            // Generate poster ID and country if board has those features enabled
+            $posterId = ($board && $board->user_ids) ? $this->generatePosterId(
+                (string) ($data['ip_address'] ?? ''),
+                $thread->id
+            ) : null;
+            [$countryCode, $countryName] = ($board && $board->country_flags)
+                ? $this->resolveCountry((string) ($data['ip_address'] ?? ''))
+                : [null, null];
 
             /** @var Post $post */
             $post = Post::create([
@@ -584,6 +617,10 @@ final class BoardService
                 'content'              => $data['content'] ?? '',
                 'content_html'         => $contentHtml,
                 'ip_address'           => $this->piiEncryption->encrypt((string) ($data['ip_address'] ?? '')),
+                'country_code'         => $countryCode,
+                'country_name'         => $countryName,
+                'poster_id'            => $posterId,
+                'board_post_no'        => $boardPostNo,
                 'media_url'            => $data['media_url'] ?? null,
                 'thumb_url'            => $data['thumb_url'] ?? null,
                 'media_filename'       => $data['media_filename'] ?? null,
@@ -705,9 +742,13 @@ final class BoardService
         if (!$post) return null;
         return [
             'id'               => $post->id,
+            'board_post_no'    => $post->board_post_no,
             'author_name'      => $post->author_name,
             'tripcode'         => $post->tripcode,
             'capcode'          => $post->capcode,
+            'poster_id'        => $post->poster_id,
+            'country_code'     => $post->country_code,
+            'country_name'     => $post->country_name,
             'subject'          => $post->subject,
             'content_html'     => $post->content_html,
             'content_preview'  => $post->content_preview,
@@ -751,6 +792,91 @@ final class BoardService
         }
         $days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
         return $dt->format('m/d/y') . '(' . $days[(int) $dt->format('w')] . ')' . $dt->format('H:i:s');
+    }
+
+    /**
+     * Atomically allocate the next per-board post number.
+     *
+     * Uses UPDATE ... RETURNING to avoid race conditions.
+     */
+    private function allocateBoardPostNo(Board $board): int
+    {
+        $rows = Db::select(
+            "UPDATE boards SET next_post_no = next_post_no + 1 WHERE id = ? RETURNING next_post_no - 1 AS post_no",
+            [$board->id]
+        );
+        /** @var object{post_no: string|int} $row */
+        $row = $rows[0];
+        return (int) $row->post_no;
+    }
+
+    /**
+     * Generate an 8-char poster ID (like 4chan).
+     *
+     * Deterministic per IP + thread + daily salt so same user always
+     * gets the same ID within a thread on a given day.
+     */
+    private function generatePosterId(string $ipAddress, int $threadId): string
+    {
+        $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
+        $daySalt = date('Y-m-d');
+        $raw = hash_hmac('sha256', $ipAddress . '|' . $threadId . '|' . $daySalt, $salt, true);
+        // URL-safe base64, 8 chars
+        return substr(rtrim(base64_encode($raw), '='), 0, 8);
+    }
+
+    /**
+     * Resolve country code and name from an IP address.
+     *
+     * Tries MaxMind GeoLite2-Country via the geoip2/geoip2 package.
+     * Falls back gracefully to null if DB or package is missing.
+     *
+     * @return array{0: string|null, 1: string|null}  [country_code, country_name]
+     */
+    private function resolveCountry(string $ipAddress): array
+    {
+        if ($ipAddress === '' || $ipAddress === '127.0.0.1' || $ipAddress === '::1') {
+            return [null, null];
+        }
+
+        static $reader = null;
+        static $readerFailed = false;
+
+        if ($readerFailed) {
+            return [null, null];
+        }
+
+        if ($reader === null) {
+            $paths = [
+                '/usr/share/GeoIP/GeoLite2-Country.mmdb',
+                '/var/lib/GeoIP/GeoLite2-Country.mmdb',
+                BASE_PATH . '/data/GeoLite2-Country.mmdb',
+            ];
+            foreach ($paths as $path) {
+                if (file_exists($path)) {
+                    try {
+                        $reader = new \GeoIp2\Database\Reader($path);
+                    } catch (\Throwable $e) {
+                        // Skip
+                    }
+                    break;
+                }
+            }
+            if ($reader === null) {
+                $readerFailed = true;
+                return [null, null];
+            }
+        }
+
+        try {
+            /** @var \GeoIp2\Database\Reader $reader */
+            $record = $reader->country($ipAddress);
+            $code = $record->country->isoCode;
+            $name = $record->country->name;
+            return [$code, $name];
+        } catch (\Throwable $e) {
+            return [null, null];
+        }
     }
 
     /** Remove oldest threads when board exceeds max_threads. */

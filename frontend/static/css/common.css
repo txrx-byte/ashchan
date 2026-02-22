@@ -744,8 +744,24 @@ table.postForm > tbody > tr > td > input[name="subject"] {
 }
 
 /* ID colors */
+.posteruid {
+  font-size: inherit;
+}
+
 .posteruid .hand {
   cursor: pointer;
+}
+
+/* Country flags (CSS-only using background images) */
+.flag {
+  display: inline-block;
+  width: 16px;
+  height: 11px;
+  margin: 0 1px 0 4px;
+  vertical-align: -1px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 /* Auto-update controls */

@@ -38,6 +38,9 @@ use Hyperf\DbConnection\Model\Model;
  * @property string $rules
  * @property bool   $archived
  * @property bool   $staff_only
+ * @property bool   $user_ids
+ * @property bool   $country_flags
+ * @property int    $next_post_no
  * @property string $created_at
  * @property string $updated_at
  */
@@ -52,7 +55,7 @@ class Board extends Model
         'slug', 'title', 'subtitle', 'category', 'nsfw',
         'max_threads', 'bump_limit', 'image_limit',
         'cooldown_seconds', 'text_only', 'require_subject', 'rules',
-        'staff_only',
+        'staff_only', 'user_ids', 'country_flags', 'next_post_no',
     ];
 
     /**
@@ -69,6 +72,9 @@ class Board extends Model
         'require_subject'  => 'boolean',
         'archived'         => 'boolean',
         'staff_only'       => 'boolean',
+        'user_ids'         => 'boolean',
+        'country_flags'    => 'boolean',
+        'next_post_no'     => 'integer',
     ];
 
     /** @return \Hyperf\Database\Model\Relations\HasMany<Thread, $this> */

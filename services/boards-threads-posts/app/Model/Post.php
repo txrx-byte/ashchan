@@ -35,6 +35,9 @@ use Hyperf\DbConnection\Model\Model;
  * @property string|null $content_html
  * @property string|null $ip_address     Encrypted IP address (enc:base64 or NULL after retention)
  * @property string|null $country_code
+ * @property string|null $country_name
+ * @property string|null $poster_id
+ * @property int|null    $board_post_no
  * @property string|null $media_id
  * @property string|null $media_url
  * @property string|null $thumb_url
@@ -67,7 +70,8 @@ class Post extends Model
     protected array $fillable = [
         'id', 'thread_id', 'is_op', 'author_name', 'tripcode', 'capcode',
         'email', 'subject', 'content', 'content_html', 'ip_address',
-        'country_code', 'media_id', 'media_url', 'thumb_url',
+        'country_code', 'country_name', 'poster_id', 'board_post_no',
+        'media_id', 'media_url', 'thumb_url',
         'media_filename', 'media_size', 'media_dimensions', 'media_hash',
         'spoiler_image', 'delete_password_hash',
     ];
@@ -82,6 +86,7 @@ class Post extends Model
         'media_size'     => 'integer',
         'spoiler_image'  => 'boolean',
         'deleted'        => 'boolean',
+        'board_post_no'  => 'integer',
     ];
 
     /** @return \Hyperf\Database\Model\Relations\BelongsTo<Thread, $this> */

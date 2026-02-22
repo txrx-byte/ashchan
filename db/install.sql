@@ -268,7 +268,10 @@ CREATE TABLE IF NOT EXISTS boards (
     require_subject BOOLEAN DEFAULT false,
     rules TEXT,
     archived BOOLEAN DEFAULT false,
-    staff_only BOOLEAN DEFAULT false
+    staff_only BOOLEAN DEFAULT false,
+    user_ids BOOLEAN DEFAULT false,
+    country_flags BOOLEAN DEFAULT false,
+    next_post_no BIGINT DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_boards_archived ON boards(archived);
@@ -310,6 +313,9 @@ CREATE TABLE IF NOT EXISTS posts (
     content_html TEXT,
     ip_address TEXT,
     country_code VARCHAR(4),
+    country_name VARCHAR(64),
+    poster_id VARCHAR(8),
+    board_post_no BIGINT,
     media_id VARCHAR(64),
     media_url TEXT,
     thumb_url TEXT,
@@ -329,6 +335,8 @@ CREATE INDEX IF NOT EXISTS idx_posts_thread_id ON posts(thread_id);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_posts_ip_retention ON posts(created_at) WHERE ip_address IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_email_retention ON posts(created_at) WHERE email IS NOT NULL AND email != '';
+CREATE INDEX IF NOT EXISTS idx_posts_board_post_no ON posts(board_post_no);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_board_post_no_unique ON posts(board_post_no, thread_id);
 
 -- ═══════════════════════════════════════════════════════════════
 -- 4. MODERATION SYSTEM
@@ -847,7 +855,7 @@ WHERE s.is_valid = true AND s.expires_at > NOW();
 COMMENT ON TABLE pii_retention_log IS 'Immutable audit log of automated PII deletion actions. Never contains actual PII.';
 COMMENT ON TABLE sfs_audit_log IS 'Tracks all SFS queue actions including decrypt approvals. Never logs decrypted IPs.';
 COMMENT ON TABLE pii_access_log IS 'Records every instance of PII decryption by staff. Used for accountability.';
-COMMENT ON COLUMN boards.staff_only IS 'When true, only authenticated staff can view and post on this board.';
+COMMENT ON COLUMN boards.staff_only IS 'When true, only authenticated staff can view and post on this board.';\nCOMMENT ON COLUMN boards.user_ids IS 'When true, display per-thread poster IDs (8-char hash derived from IP+thread+salt).';\nCOMMENT ON COLUMN boards.country_flags IS 'When true, display country flags on posts using GeoIP lookup.';\nCOMMENT ON COLUMN boards.next_post_no IS 'Atomic counter for per-board post numbering. Incremented via UPDATE ... RETURNING.';\nCOMMENT ON COLUMN posts.board_post_no IS 'Per-board post number (displayed to users instead of global ID).';\nCOMMENT ON COLUMN posts.poster_id IS '8-character per-thread poster ID derived from HMAC(IP, thread_id || daily_salt).';\nCOMMENT ON COLUMN posts.country_name IS 'Human-readable country name from GeoIP lookup.';
 
 -- ═══════════════════════════════════════════════════════════════
 -- FEEDBACK

@@ -453,7 +453,12 @@ final class FourChanApiService
         // Country code
         if ($post->country_code) {
             $result['country'] = $post->country_code;
-            $result['country_name'] = $this->countryName($post->country_code);
+            $result['country_name'] = $post->country_name ?: $this->countryName($post->country_code);
+        }
+
+        // Poster ID (per-thread unique identifier)
+        if ($post->poster_id) {
+            $result['id'] = $post->poster_id;
         }
 
         // Subject (OP only in 4chan, but we include if present)
@@ -550,8 +555,16 @@ final class FourChanApiService
         }
 
         // forced_anon — not currently in model, skip unless added
-        // user_ids — not currently in model, skip
-        // country_flags — not currently in model, skip
+
+        // user_ids — poster IDs enabled on this board
+        if ($board->user_ids) {
+            $result['user_ids'] = 1;
+        }
+
+        // country_flags — country flags enabled on this board
+        if ($board->country_flags) {
+            $result['country_flags'] = 1;
+        }
 
         return $result;
     }

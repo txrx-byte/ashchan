@@ -142,6 +142,8 @@
             {% if thread.op.tripcode %}
               <span class="postertrip">{{ thread.op.tripcode }}</span>
             {% endif %}
+            {% if country_flags and thread.op.country_code %}<span class="flag flag-{{ thread.op.country_code|lower }}" title="{{ thread.op.country_name|default(thread.op.country_code) }}"></span>{% endif %}
+            {% if user_ids and thread.op.poster_id %}<span class="posteruid id_{{ thread.op.poster_id }}"> (ID: <span class="hand" title="Highlight posts by this ID">{{ thread.op.poster_id }}</span>)</span>{% endif %}
           </span>
           <span class="dateTime" data-utc="{{ thread.op.created_at }}">{{ thread.op.formatted_time }}</span>
           <span class="postNum desktop">
@@ -193,6 +195,8 @@
             {% if reply.tripcode %}
               <span class="postertrip">{{ reply.tripcode }}</span>
             {% endif %}
+            {% if country_flags and reply.country_code %}<span class="flag flag-{{ reply.country_code|lower }}" title="{{ reply.country_name|default(reply.country_code) }}"></span>{% endif %}
+            {% if user_ids and reply.poster_id %}<span class="posteruid id_{{ reply.poster_id }}"> (ID: <span class="hand" title="Highlight posts by this ID">{{ reply.poster_id }}</span>)</span>{% endif %}
           </span>
           <span class="dateTime" data-utc="{{ reply.created_at }}">{{ reply.formatted_time }}</span>
           <span class="postNum desktop">
