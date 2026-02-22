@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AltchaService;
 use App\Service\SiteConfigService;
 use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Contract\RequestInterface;
@@ -51,6 +52,7 @@ final class FeedbackController
     public function __construct(
         private RequestInterface $request,
         private HttpResponse $response,
+        private AltchaService $altcha,
         SiteConfigService $config,
     ) {
         $this->rateLimit = $config->getInt('feedback_rate_limit', 5);
@@ -59,6 +61,15 @@ final class FeedbackController
     /** POST /api/v1/feedback – Submit feedback */
     public function submit(): ResponseInterface
     {
+        // Verify ALTCHA captcha (if enabled)
+        if ($this->altcha->isEnabled()) {
+            $altchaPayload = $this->request->input('altcha');
+            $altchaPayload = is_string($altchaPayload) ? $altchaPayload : '';
+            if (!$this->altcha->verifySolution($altchaPayload)) {
+                return $this->json(['error' => 'Captcha verification failed. Please try again.'], 403);
+            }
+        }
+
         $body = $this->request->getParsedBody();
         if (!is_array($body)) {
             $body = [];

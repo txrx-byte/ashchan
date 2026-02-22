@@ -23,6 +23,7 @@
   <title>ashchan - Feedback</title>
   <link rel="shortcut icon" href="/static/img/favicon.ico">
   <link rel="stylesheet" href="/static/css/common.css">
+  <script src="/static/js/altcha.min.js" defer></script>
   <style>
     body {
       background: #FFFFEE;
@@ -562,6 +563,18 @@
       <strong>Privacy Notice:</strong> Your feedback is submitted securely and stored internally for review by the ashchan team. We collect only the information you provide on this form. Your IP address is recorded solely for anti-spam purposes and is automatically purged after 7 days. We do not share feedback data with third parties. If you include your email, it will be used only to respond to your submission. See our <a href="/legal">privacy policy</a> for more information.
     </div>
 
+    <div class="form-section">
+      <h2>Verification</h2>
+      <p style="margin: 0 0 10px; color: #555; font-size: 10pt;">Please complete the verification below to submit your feedback.</p>
+      <altcha-widget
+        id="feedbackAltcha"
+        challengeurl="/api/v1/altcha/challenge"
+        auto="onsubmit"
+        hidefooter
+        style="display:block; max-width:300px;"
+      ></altcha-widget>
+    </div>
+
     <div class="submit-row">
       <button type="submit" class="submit-btn" id="submitBtn">Submit Feedback</button>
       <span class="submit-note">All fields marked with <span style="color:#DD0000;">*</span> are required.</span>
@@ -691,6 +704,12 @@ function submitFeedback(e) {
     name: document.getElementById('name').value.trim() || null
   };
 
+  // Include ALTCHA verification payload
+  var altchaInput = form.querySelector('input[name="altcha"]');
+  if (altchaInput && altchaInput.value) {
+    payload.altcha = altchaInput.value;
+  }
+
   // Submit
   btn.disabled = true;
   btn.textContent = 'Submitting...';
@@ -713,6 +732,9 @@ function submitFeedback(e) {
       var normalPri = document.querySelector('input[name="priority"][value="normal"]');
       if (normalPri) { normalPri.checked = true; normalPri.closest('.priority-option').classList.add('selected'); }
       document.getElementById('charCount').textContent = '0 / 5000';
+      // Reset ALTCHA widget
+      var aw = document.getElementById('feedbackAltcha');
+      if (aw && aw.reset) aw.reset();
       successEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
       errorEl.textContent = result.data.error || result.data.message || 'An error occurred. Please try again.';

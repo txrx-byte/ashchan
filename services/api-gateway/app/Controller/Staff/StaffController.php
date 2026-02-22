@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Staff;
 
+use App\Service\AltchaService;
 use App\Service\AuthenticationService;
 use App\Service\ModerationService;
 use App\Service\ViewService;
@@ -37,6 +38,7 @@ final class StaffController
     public function __construct(
         private AuthenticationService $authService,
         private ModerationService $modService,
+        private AltchaService $altcha,
         private HttpResponse $response,
         private RequestInterface $request,
         private ViewService $viewService,
@@ -68,6 +70,15 @@ final class StaffController
     {
         if ($this->getUser()) {
             return $this->response->redirect('/staff/admin');
+        }
+
+        // Verify ALTCHA captcha (if enabled)
+        if ($this->altcha->isEnabled()) {
+            $altchaPayload = $this->request->input('altcha');
+            $altchaPayload = is_string($altchaPayload) ? $altchaPayload : '';
+            if (!$this->altcha->verifySolution($altchaPayload)) {
+                return $this->response->redirect('/staff/login?error=' . urlencode('Captcha verification failed. Please try again.'));
+            }
         }
         
         /** @var array<string, mixed> $body */

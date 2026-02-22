@@ -23,6 +23,7 @@ namespace App\Controller;
 use App\Model\BanTemplate;
 use App\Model\Report;
 use App\Model\ReportCategory;
+use App\Service\AltchaService;
 use App\Service\ModerationService;
 use App\Service\SpamService;
 use Hyperf\HttpServer\Annotation\Controller;
@@ -44,6 +45,7 @@ final class ModerationController extends AbstractController
         private ModerationService $modService,
         private SpamService $spamService,
         private \App\Service\PiiEncryptionService $piiEncryption,
+        private AltchaService $altcha,
         private HttpResponse $response,
     ) {}
 
@@ -97,9 +99,13 @@ final class ModerationController extends AbstractController
             return $this->response->json(['error' => 'Invalid category_id']);
         }
 
-        // Verify captcha (if required)
-        if ($captchaToken !== null) {
-            // Captcha verification would go here
+        // Verify ALTCHA captcha
+        if ($this->altcha->isEnabled()) {
+            $altchaPayload = $request->input('altcha');
+            $altchaPayload = is_string($altchaPayload) ? $altchaPayload : '';
+            if (!$this->altcha->verifySolution($altchaPayload)) {
+                return $this->response->json(['error' => 'Captcha verification failed. Please try again.'])->withStatus(403);
+            }
         }
 
         // Get post data (would fetch from boards service in production)

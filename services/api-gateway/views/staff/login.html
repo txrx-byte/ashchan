@@ -20,7 +20,7 @@
   <meta charset="utf-8">
   <meta name="referrer" content="never">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:;">
   <title>Staff Login - Ashchan</title>
   <link rel="stylesheet" type="text/css" href="/staff/css/admincore.css">
   <link rel="stylesheet" type="text/css" href="/staff/css/login.css">
@@ -73,6 +73,16 @@
         <span>Remember me (8 hours)</span>
       </label>
     </div>
+
+    <div class="form-group">
+      <label>Verification</label>
+      <altcha-widget
+        challengeurl="/api/v1/altcha/challenge"
+        auto="onsubmit"
+        hidefooter
+        style="display:block; max-width:100%;"
+      ></altcha-widget>
+    </div>
     
     <div class="form-group">
       <button type="submit" class="button button-primary button-full">
@@ -99,6 +109,7 @@
   </div>
 </div>
 
+<script src="/static/js/altcha.min.js" defer></script>
 <script>
 // Clear form on page load (security)
 document.addEventListener('DOMContentLoaded', function() {
