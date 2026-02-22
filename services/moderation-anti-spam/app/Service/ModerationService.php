@@ -167,14 +167,14 @@ final class ModerationService
                 board,
                 SUM(weight) as total_weight,
                 COUNT(*) as cnt,
-                GROUP_CONCAT(DISTINCT report_category) as cats,
+                STRING_AGG(DISTINCT report_category, \',\') as cats,
                 MAX(ts) as time,
-                ANY_VALUE(id) as id,
-                ANY_VALUE(post_json) as post_json,
-                ANY_VALUE(resto) as resto,
-                ANY_VALUE(post_ip) as post_ip,
-                ANY_VALUE(ws) as ws,
-                ANY_VALUE(cleared_by) as cleared_by
+                MIN(id) as id,
+                MIN(post_json) as post_json,
+                MIN(resto) as resto,
+                MIN(post_ip) as post_ip,
+                MIN(ws) as ws,
+                MIN(cleared_by) as cleared_by
             ')
             ->groupBy('no', 'board');
 

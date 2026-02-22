@@ -448,7 +448,8 @@ final class StaffToolsController
                 $queryHash = hash('sha256', $query);
                 $banQuery->where('host_hash', $queryHash);
             } else {
-                $banQuery->where('reason', 'like', "%{$query}%");
+                $escapedQuery = str_replace(['%', '_'], ['\%', '\_'], $query);
+                $banQuery->where('reason', 'like', "%{$escapedQuery}%");
             }
             
             $bans = $banQuery->limit(20)->get();
@@ -466,7 +467,7 @@ final class StaffToolsController
             $results['reports'] = Db::table('reports')
                 ->select('id', 'board', 'no', 'post_json', 'ts')
                 ->where(function ($q) use ($query) {
-                    $q->where('no', 'like', "%{$query}%")
+                    $q->where('no', (int) $query)
                       ->orWhere('board', $query);
                 })
                 ->limit(20)

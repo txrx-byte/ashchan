@@ -96,7 +96,7 @@ final class BoardService
             // Redis unavailable, fall through to DB
         }
         
-        $board = Board::query()->where('slug', $slug)->where(function (\Hyperf\Database\Model\Builder $query): void { $query->where('nsfw', false)->orWhere('nsfw', true); })->first();
+        $board = Board::query()->where('slug', $slug)->first();
         
         try {
             if (env('APP_ENV', 'production') !== 'local') {
@@ -551,7 +551,7 @@ final class BoardService
                 'media_hash'           => $data['media_hash'] ?? null,
                 'spoiler_image'        => $data['spoiler'] ?? false,
                 'capcode'              => $data['capcode'] ?? null,
-                'delete_password_hash' => (isset($data['password']) && is_string($data['password'])) ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
+                'delete_password_hash' => (isset($data['password']) && is_string($data['password']) && $data['password'] !== '') ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
             ]);
 
             // Prune old threads if over limit
@@ -631,7 +631,7 @@ final class BoardService
                 'media_hash'           => $data['media_hash'] ?? null,
                 'spoiler_image'        => $data['spoiler'] ?? false,
                 'capcode'              => $data['capcode'] ?? null,
-                'delete_password_hash' => (isset($data['password']) && is_string($data['password'])) ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
+                'delete_password_hash' => (isset($data['password']) && is_string($data['password']) && $data['password'] !== '') ? password_hash($data['password'], PASSWORD_BCRYPT) : null,
             ]);
 
             // Update thread counters
@@ -826,7 +826,7 @@ final class BoardService
      */
     private function generatePosterId(string $ipAddress, int $threadId): string
     {
-        $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
+        $salt = (string) env('IP_HASH_SALT', '');
         $daySalt = date('Y-m-d');
         $raw = hash_hmac('sha256', $ipAddress . '|' . $threadId . '|' . $daySalt, $salt, true);
         // URL-safe base64, 8 chars
@@ -1003,7 +1003,7 @@ final class BoardService
             ->get();
 
         $result = [];
-        $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
+        $salt = (string) env('IP_HASH_SALT', '');
 
         foreach ($posts as $post) {
             $encryptedIp = $post->getAttribute('ip_address');
@@ -1063,7 +1063,7 @@ final class BoardService
             ? $this->piiEncryption->decrypt($encryptedIp)
             : '';
 
-        $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
+        $salt = (string) env('IP_HASH_SALT', '');
         $hash = substr(hash_hmac('sha256', $plainIp, 'global_ip_hash:' . $salt), 0, 16);
 
         // Wipe plaintext IP from memory
@@ -1082,7 +1082,7 @@ final class BoardService
      */
     public function getPostsByIpHash(string $ipHash, int $limit = 100): array
     {
-        $salt = (string) env('IP_HASH_SALT', 'ashchan_secret_salt');
+        $salt = (string) env('IP_HASH_SALT', '');
 
         // Query recent posts (with their thread + board info)
         /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */

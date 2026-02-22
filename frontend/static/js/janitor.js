@@ -312,8 +312,6 @@ J.init = function() {
     .UIPanel { background: rgba(0,0,0,0.5); width: 100%; height: 100%; position: fixed; top: 0; left: 0; }
   `;
   document.head.appendChild(style);
-  
-  console.log('Ashchan Janitor Tools initialized');
 };
 
 J.init();

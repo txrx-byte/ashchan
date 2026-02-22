@@ -202,7 +202,7 @@ class StaffReportController extends AbstractController
             $this->modService->clearReport($id, $staffInfo['username']);
             return $this->response->json(['status' => 'success']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -216,7 +216,7 @@ class StaffReportController extends AbstractController
             $this->modService->deleteReport($id);
             return $this->response->json(['status' => 'success']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -260,7 +260,7 @@ class StaffReportController extends AbstractController
                 'ban' => $ban->getSummary(),
             ]);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -280,7 +280,7 @@ class StaffReportController extends AbstractController
             $this->modService->denyBanRequest($id, $staffInfo['username']);
             return $this->response->json(['status' => 'success']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 }

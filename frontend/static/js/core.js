@@ -52,12 +52,12 @@ var StyleSwitcher = {
     }
     
     // Bind style changer selects
-    var selects = $.qsa('.stylechanger select, select[data-cmd="style"]');
+    var selects = $.qsa('.stylechanger select, select[data-cmd="style"], #styleSelector');
     for (var i = 0; i < selects.length; i++) {
       $.on(selects[i], 'change', function() {
         StyleSwitcher.set(this.value);
         // Sync all selects
-        var allSelects = $.qsa('.stylechanger select, select[data-cmd="style"]');
+        var allSelects = $.qsa('.stylechanger select, select[data-cmd="style"], #styleSelector');
         for (var j = 0; j < allSelects.length; j++) {
           allSelects[j].value = this.value;
         }
@@ -69,25 +69,18 @@ var StyleSwitcher = {
   },
   
   set: function(name) {
-    var links = $.tag('link', document.head);
-    for (var i = 0; i < links.length; i++) {
-      var link = links[i];
-      if (link.getAttribute('title')) {
-        if (link.getAttribute('rel') === 'stylesheet' && link.getAttribute('title') === 'switch') {
-          // Main stylesheet - change its href to match selected theme
-          var map = {
-            'Yotsuba': '/static/css/yotsuba.css',
-            'Yotsuba B': '/static/css/yotsuba-b.css',
-            'Futaba': '/static/css/futaba.css',
-            'Burichan': '/static/css/burichan.css',
-            'Photon': '/static/css/photon.css',
-            'Tomorrow': '/static/css/tomorrow.css'
-          };
-          if (map[name]) {
-            link.href = map[name];
-          }
-        }
-        link.disabled = (link.getAttribute('title') !== 'switch');
+    var link = $.id('themeStylesheet');
+    if (link) {
+      var map = {
+        'Yotsuba': '/static/css/yotsuba.css',
+        'Yotsuba B': '/static/css/yotsuba-b.css',
+        'Futaba': '/static/css/futaba.css',
+        'Burichan': '/static/css/burichan.css',
+        'Photon': '/static/css/photon.css',
+        'Tomorrow': '/static/css/tomorrow.css'
+      };
+      if (map[name]) {
+        link.href = map[name];
       }
     }
     localStorage.setItem('ashchan_style', name);
@@ -146,7 +139,7 @@ var PostQuoting = {
   
   quote: function(id) {
     var form = $.id('postForm');
-    var ta = form ? form.querySelector('textarea[name="content"]') : null;
+    var ta = form ? form.querySelector('textarea[name="com"]') : null;
     if (!ta) return;
     
     // Show form if hidden
@@ -209,66 +202,8 @@ var ImageExpansion = {
 };
 
 // ---- Quote Preview ----
-var QuotePreview = {
-  previewEl: null,
-  
-  init: function() {
-    $.on(document, 'mouseover', function(e) {
-      var target = e.target;
-      if (target.tagName === 'A' && ($.hasClass(target, 'quotelink') || $.hasClass(target, 'quoteLink'))) {
-        QuotePreview.show(target);
-      }
-    });
-    
-    $.on(document, 'mouseout', function(e) {
-      var target = e.target;
-      if (target.tagName === 'A' && ($.hasClass(target, 'quotelink') || $.hasClass(target, 'quoteLink'))) {
-        QuotePreview.hide();
-      }
-    });
-  },
-  
-  show: function(link) {
-    var href = link.getAttribute('href') || '';
-    var match = href.match(/#p(\d+)/);
-    if (!match) return;
-    
-    var postId = match[1];
-    var post = $.id('p' + postId);
-    if (!post) return;
-    
-    QuotePreview.hide();
-    
-    var preview = document.createElement('div');
-    preview.className = 'preview posthover';
-    preview.innerHTML = post.innerHTML;
-    
-    var rect = link.getBoundingClientRect();
-    preview.style.position = 'absolute';
-    preview.style.left = (rect.right + window.scrollX + 5) + 'px';
-    preview.style.top = (rect.top + window.scrollY) + 'px';
-    preview.style.zIndex = '100';
-    
-    document.body.appendChild(preview);
-    QuotePreview.previewEl = preview;
-    
-    // Adjust if off-screen
-    var previewRect = preview.getBoundingClientRect();
-    if (previewRect.right > window.innerWidth) {
-      preview.style.left = (rect.left + window.scrollX - previewRect.width - 5) + 'px';
-    }
-    if (previewRect.bottom > window.innerHeight) {
-      preview.style.top = (window.innerHeight + window.scrollY - previewRect.height - 10) + 'px';
-    }
-  },
-  
-  hide: function() {
-    if (QuotePreview.previewEl) {
-      QuotePreview.previewEl.remove();
-      QuotePreview.previewEl = null;
-    }
-  }
-};
+// QuotePreview is provided by extension.js with debouncing support.
+// Removed duplicate implementation from core.js.
 
 // ---- Thread Auto-Updater ----
 var ThreadUpdater = {
@@ -278,7 +213,7 @@ var ThreadUpdater = {
   countdown: 0,
   
   init: function() {
-    if (!document.body.classList.contains('is_thread')) return;
+    if (!document.body.getAttribute('data-thread-id')) return;
     
     var ctrl = $.id('autoUpdateCtrl');
     if (!ctrl) return;
@@ -440,7 +375,6 @@ function init() {
   PostForm.init();
   PostQuoting.init();
   ImageExpansion.init();
-  QuotePreview.init();
   ThreadUpdater.init();
   BoardNav.init();
   PostHighlight.init();

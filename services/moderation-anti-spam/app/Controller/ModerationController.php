@@ -205,7 +205,7 @@ final class ModerationController
             $this->modService->clearReport($id, $staffUsername);
             return $this->response->json(['status' => 'cleared']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -219,7 +219,7 @@ final class ModerationController
             $this->modService->deleteReport($id);
             return $this->response->json(['status' => 'deleted']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -313,7 +313,7 @@ final class ModerationController
                 'ban' => $ban->getSummary(),
             ]);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -333,7 +333,7 @@ final class ModerationController
             $this->modService->denyBanRequest($id, $denierUsername);
             return $this->response->json(['status' => 'denied']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -357,9 +357,10 @@ final class ModerationController
         }
 
         if (is_string($board) && $board !== '') {
-            $query->where(function (\Hyperf\Database\Model\Builder $q) use ($board): void {
+            $escapedBoard = str_replace(['%', '_'], ['\%', '\_'], $board);
+            $query->where(function (\Hyperf\Database\Model\Builder $q) use ($escapedBoard): void {
                 $q->where('boards', '')
-                  ->orWhere('boards', 'like', "%{$board}%");
+                  ->orWhere('boards', 'like', "%{$escapedBoard}%");
             });
         }
 
@@ -501,7 +502,7 @@ final class ModerationController
                 'ban' => $ban->getSummary(),
             ], 201);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -583,7 +584,7 @@ final class ModerationController
                 'decision' => $decision->toArray(),
             ]);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -621,7 +622,7 @@ final class ModerationController
 
             return $this->response->json(['status' => 'dismissed']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 

@@ -287,7 +287,6 @@ J.init = function() {
         }
     }
     
-    console.log('Ashchan Mod Tools initialized');
 };
 
 J.init();

@@ -157,7 +157,11 @@ final class ModerationController extends AbstractController
     #[GetMapping(path: 'reports')]
     public function listReports(RequestInterface $request): ResponseInterface
     {
-        // In production, verify staff authentication here
+        $staffUsername = $this->getAuthenticatedStaffUsername();
+        if ($staffUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
+        }
+
         $board = $request->query('board');
         $cleared = (bool) $request->query('cleared', false);
         $page = max(1, (int) $request->query('page', 1));
@@ -177,6 +181,11 @@ final class ModerationController extends AbstractController
     #[GetMapping(path: 'reports/count')]
     public function countReports(): ResponseInterface
     {
+        $staffUsername = $this->getAuthenticatedStaffUsername();
+        if ($staffUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
+        }
+
         $counts = $this->modService->countReportsByBoard();
 
         return $this->response->json([
@@ -201,7 +210,7 @@ final class ModerationController extends AbstractController
             $this->modService->clearReport($id, $staffUsername);
             return $this->response->json(['status' => 'cleared']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -211,11 +220,16 @@ final class ModerationController extends AbstractController
     #[\Hyperf\HttpServer\Annotation\DeleteMapping(path: 'reports/{id:\d+}')]
     public function deleteReport(int $id): ResponseInterface
     {
+        $staffUsername = $this->getAuthenticatedStaffUsername();
+        if ($staffUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
+        }
+
         try {
             $this->modService->deleteReport($id);
             return $this->response->json(['status' => 'deleted']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -313,7 +327,7 @@ final class ModerationController extends AbstractController
                 'ban' => $ban->getSummary(),
             ]);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -333,7 +347,7 @@ final class ModerationController extends AbstractController
             $this->modService->denyBanRequest($id, $denierUsername);
             return $this->response->json(['status' => 'denied']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -504,7 +518,7 @@ final class ModerationController extends AbstractController
                 'ban' => $ban->getSummary(),
             ], 201);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 

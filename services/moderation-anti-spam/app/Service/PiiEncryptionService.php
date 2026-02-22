@@ -23,22 +23,41 @@ use Hyperf\Logger\LoggerFactory;
 use Psr\Log\LoggerInterface;
 
 /**
- * PII Encryption Service using libsodium (AES-256-GCM equivalent via XChaCha20-Poly1305).
+ * PII Encryption Service using libsodium (XChaCha20-Poly1305 AEAD).
  *
- * Provides envelope encryption for personally identifiable information at rest.
- * Uses XChaCha20-Poly1305 (IETF AEAD) which is the recommended libsodium AEAD cipher.
+ * Provides authenticated encryption for personally identifiable information at rest.
+ * Uses XChaCha20-Poly1305 (IETF AEAD) — the recommended libsodium AEAD cipher.
  *
  * Key hierarchy:
- *   KEK (Key Encryption Key) = derived from PII_ENCRYPTION_KEY env var via Argon2ID
- *   DEK (Data Encryption Key) = random key, encrypted with KEK, stored in config/cache
+ *   KEK (Key Encryption Key) = derived from PII_ENCRYPTION_KEY env var via BLAKE2b
+ *                               with a fixed application-specific salt to prevent
+ *                               key reuse across different contexts.
+ *   DEK (Data Encryption Key) = random per-value nonce provides per-ciphertext uniqueness.
  *
- * For simplicity in this implementation, we use the KEK directly as the DEK.
- * In production, implement proper envelope encryption with key rotation.
+ * Wire format: "enc:" || base64(nonce || ciphertext || tag)
+ *   - nonce:      24 bytes (XCHACHA20_NPUB)
+ *   - ciphertext: len(plaintext) bytes
+ *   - tag:        16 bytes (Poly1305 MAC)
+ *
+ * Security notes:
+ *   - Each encrypt() call generates a fresh random nonce (no nonce reuse)
+ *   - Decryption authenticates before decrypting (AEAD)
+ *   - Key material is wiped from memory on object destruction
+ *   - For production key rotation, implement envelope encryption with versioned DEKs
  */
 final class PiiEncryptionService
 {
     private LoggerInterface $logger;
     private string $encryptionKey;
+
+    /**
+     * Application-specific salt for key derivation.
+     *
+     * This ensures the same PII_ENCRYPTION_KEY produces different derived keys
+     * when used in different application contexts, preventing cross-context
+     * key reuse. The salt is not secret — its purpose is domain separation.
+     */
+    private const KEY_DERIVATION_SALT = 'ashchan-pii-encryption-v1';
 
     public function __construct(LoggerFactory $loggerFactory)
     {
@@ -51,13 +70,41 @@ final class PiiEncryptionService
             return;
         }
 
-        // Derive a fixed-length key from the provided secret using BLAKE2b
-        // This ensures we always have a SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES-length key
+        // Derive a fixed-length key using BLAKE2b with an application-specific salt.
+        // The salt provides domain separation so the same master key produces
+        // different derived keys for different purposes.
         $this->encryptionKey = sodium_crypto_generichash(
             $rawKey,
-            '',
+            self::KEY_DERIVATION_SALT,
             SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES
         );
+
+        // Wipe the raw key from local scope immediately.
+        // sodium_memzero sets the variable to null/empty; we've already
+        // derived our key so the raw value is no longer needed.
+        try {
+            sodium_memzero($rawKey);
+        } catch (\SodiumException) {
+            // Best-effort wipe
+        }
+    }
+
+    /**
+     * Securely wipe the derived key from memory on destruction.
+     *
+     * Important in long-lived Swoole worker processes where objects may persist
+     * across many requests. Ensures key material doesn't linger in memory
+     * after the service is no longer needed.
+     */
+    public function __destruct()
+    {
+        if ($this->encryptionKey !== '') {
+            // Use str_repeat to overwrite with zeros instead of sodium_memzero,
+            // because sodium_memzero sets the variable to null which conflicts
+            // with the string type declaration on this property.
+            $length = strlen($this->encryptionKey);
+            $this->encryptionKey = str_repeat("\0", $length);
+        }
     }
 
     /**
@@ -71,8 +118,12 @@ final class PiiEncryptionService
     /**
      * Encrypt a PII value.
      *
-     * Returns a base64-encoded string: nonce || ciphertext || tag
+     * Returns a base64-encoded string prefixed with 'enc:': nonce || ciphertext || tag.
      * Returns the original value if encryption is not configured.
+     *
+     * @param string $plaintext The sensitive data to encrypt
+     * @return string Encrypted string in "enc:<base64>" format, or raw value if encryption disabled
+     * @throws \RuntimeException If encryption fails (e.g., libsodium error)
      */
     public function encrypt(string $plaintext): string
     {
@@ -85,10 +136,7 @@ final class PiiEncryptionService
         }
 
         try {
-            // Generate a random nonce (24 bytes for XChaCha20-Poly1305)
             $nonce = random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES);
-
-            // Additional authenticated data: empty for now, could include table/column context
             $aad = '';
 
             $ciphertext = sodium_crypto_aead_xchacha20poly1305_ietf_encrypt(
@@ -98,8 +146,12 @@ final class PiiEncryptionService
                 $this->encryptionKey
             );
 
-            // Prepend 'enc:' marker so we can distinguish encrypted from plaintext
-            return 'enc:' . base64_encode($nonce . $ciphertext);
+            $result = 'enc:' . base64_encode($nonce . $ciphertext);
+
+            // Wipe intermediate sensitive values
+            sodium_memzero($nonce);
+
+            return $result;
         } catch (\SodiumException $e) {
             $this->logger->error('PII encryption failed: ' . $e->getMessage());
             throw new \RuntimeException('Failed to encrypt PII data');
@@ -111,6 +163,9 @@ final class PiiEncryptionService
      *
      * Expects a base64-encoded string prefixed with 'enc:'.
      * If the value is not encrypted (no prefix), returns it as-is (migration compatibility).
+     *
+     * @param string $ciphertext The encrypted string (or raw string for migration compat)
+     * @return string The decrypted plaintext, or '[DECRYPTION_FAILED]' on error
      */
     public function decrypt(string $ciphertext): string
     {
@@ -122,7 +177,7 @@ final class PiiEncryptionService
             return '';
         }
 
-        // Not encrypted (legacy data or plaintext)
+        // Migration compatibility: unencrypted values lack the 'enc:' prefix
         if (!str_starts_with($ciphertext, 'enc:')) {
             return $ciphertext;
         }
@@ -135,8 +190,9 @@ final class PiiEncryptionService
             }
 
             $nonceLength = SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES;
-            if (strlen($decoded) < $nonceLength) {
-                $this->logger->error('PII decryption failed: data too short');
+            $minLength = $nonceLength + SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES;
+            if (strlen($decoded) < $minLength) {
+                $this->logger->error('PII decryption failed: data too short (expected at least ' . $minLength . ' bytes, got ' . strlen($decoded) . ')');
                 return '[DECRYPTION_FAILED]';
             }
 
@@ -152,7 +208,7 @@ final class PiiEncryptionService
             );
 
             if ($plaintext === false) {
-                $this->logger->error('PII decryption failed: authentication failed');
+                $this->logger->error('PII decryption failed: authentication failed (tampered or wrong key)');
                 return '[DECRYPTION_FAILED]';
             }
 
@@ -165,11 +221,16 @@ final class PiiEncryptionService
 
     /**
      * Encrypt a value only if it's not already encrypted.
+     *
+     * Useful during data migration to avoid double-encrypting existing values.
+     *
+     * @param string $value The value to conditionally encrypt
+     * @return string The encrypted value
      */
     public function encryptIfNeeded(string $value): string
     {
         if (str_starts_with($value, 'enc:')) {
-            return $value; // Already encrypted
+            return $value;
         }
         return $this->encrypt($value);
     }
@@ -177,6 +238,10 @@ final class PiiEncryptionService
     /**
      * Securely wipe a string from memory.
      *
+     * Uses libsodium's sodium_memzero() which overwrites memory with zeros.
+     * Falls back to manual zeroing if sodium fails.
+     *
+     * @param string $value The string to wipe (passed by reference, will be zeroed)
      * @param-out string|null $value
      */
     public function wipe(string &$value): void
@@ -184,16 +249,15 @@ final class PiiEncryptionService
         $length = strlen($value);
         try {
             sodium_memzero($value);
-        } catch (\SodiumException $e) {
-            // Best effort: overwrite with zeros
+        } catch (\SodiumException) {
             $value = str_repeat("\0", $length);
         }
     }
 
     /**
-     * Generate a new random encryption key (for key rotation or initial setup).
+     * Generate a new random encryption key for initial setup or key rotation.
      *
-     * @return string Hex-encoded key suitable for PII_ENCRYPTION_KEY env var
+     * @return string Hex-encoded key suitable for the PII_ENCRYPTION_KEY env var
      */
     public static function generateKey(): string
     {

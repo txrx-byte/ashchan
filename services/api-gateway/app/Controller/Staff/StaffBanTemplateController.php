@@ -135,7 +135,7 @@ class StaffBanTemplateController
             
             return $this->response->redirect('/staff/ban-templates');
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -207,7 +207,7 @@ class StaffBanTemplateController
             
             return $this->response->redirect('/staff/ban-templates');
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -232,7 +232,7 @@ class StaffBanTemplateController
             $template->delete();
             return $this->response->json(['status' => 'success']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 

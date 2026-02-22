@@ -357,7 +357,6 @@ final class FourChanApiService
             ->get();
 
         $posts = [];
-        $isFirst = true;
 
         foreach ($allPosts as $post) {
             /** @var Post $post */
@@ -385,7 +384,6 @@ final class FourChanApiService
             }
 
             $posts[] = $this->removeNulls($formatted);
-            $isFirst = false;
         }
 
         return ['posts' => $posts];

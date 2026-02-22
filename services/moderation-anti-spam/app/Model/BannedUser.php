@@ -120,7 +120,11 @@ class BannedUser extends Model
     public function scopeActive(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
         return $query->where('active', 1)
-                     ->where('length', '>', \Carbon\Carbon::now());
+                     ->where(function (\Hyperf\Database\Model\Builder $q): void {
+                         // Include permanent bans (NULL length) and unexpired timed bans
+                         $q->whereNull('length')
+                           ->orWhere('length', '>', \Carbon\Carbon::now());
+                     });
     }
 
     /**

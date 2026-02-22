@@ -68,11 +68,7 @@ VALUES (
     'admin',
     ARRAY['all'],
     true
-) ON CONFLICT (username) DO UPDATE SET
-    password_hash = EXCLUDED.password_hash,
-    access_level = EXCLUDED.access_level,
-    access_flags = EXCLUDED.access_flags,
-    is_active = EXCLUDED.is_active;
+) ON CONFLICT (username) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 3. CAPCODES

@@ -74,6 +74,7 @@ class Post extends Model
         'media_id', 'media_url', 'thumb_url',
         'media_filename', 'media_size', 'media_dimensions', 'media_hash',
         'spoiler_image', 'delete_password_hash',
+        'deleted', 'deleted_at',
     ];
 
     /**

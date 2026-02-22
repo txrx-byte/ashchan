@@ -122,7 +122,7 @@ class StaffReportCategoryController
             
             return $this->response->redirect('/staff/report-categories');
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -189,7 +189,7 @@ class StaffReportCategoryController
             
             return $this->response->redirect('/staff/report-categories');
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 
@@ -219,7 +219,7 @@ class StaffReportCategoryController
             $category->delete();
             return $this->response->json(['status' => 'success']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()], 500);
+            return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
 

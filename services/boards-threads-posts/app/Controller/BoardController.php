@@ -101,7 +101,7 @@ final class BoardController
             $board = $this->boardService->createBoard($data);
             return $this->response->json(['board' => $board->toArray()])->withStatus(201);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()])->withStatus(500);
+            return $this->response->json(['error' => 'An internal error occurred'])->withStatus(500);
         }
     }
 
@@ -120,7 +120,7 @@ final class BoardController
             $board = $this->boardService->updateBoard($board, $data);
             return $this->response->json(['board' => $board->toArray()]);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()])->withStatus(500);
+            return $this->response->json(['error' => 'An internal error occurred'])->withStatus(500);
         }
     }
 
@@ -136,7 +136,7 @@ final class BoardController
             $this->boardService->deleteBoard($board);
             return $this->response->json(['status' => 'deleted']);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()])->withStatus(500);
+            return $this->response->json(['error' => 'An internal error occurred'])->withStatus(500);
         }
     }
 }

@@ -46,9 +46,9 @@ final class MediaService
 
     public function __construct()
     {
-        $this->storageBucket   = getenv('OBJECT_STORAGE_BUCKET') ?: 'ashchan';
-        $this->storageEndpoint = getenv('OBJECT_STORAGE_ENDPOINT') ?: 'http://minio:9000';
-        $this->maxFileSize     = (int) (getenv('MAX_FILE_SIZE') ?: 4194304); // 4MB
+        $this->storageBucket   = (string) \Hyperf\Support\env('OBJECT_STORAGE_BUCKET', 'ashchan');
+        $this->storageEndpoint = (string) \Hyperf\Support\env('OBJECT_STORAGE_ENDPOINT', 'http://minio:9000');
+        $this->maxFileSize     = (int) \Hyperf\Support\env('MAX_FILE_SIZE', 4194304); // 4MB
     }
 
     /**
@@ -88,7 +88,14 @@ final class MediaService
         $thumbPath = $this->generateThumbnail($tmpPath, $mimeType);
 
         // Upload to object storage
-        $ext = pathinfo($origName, PATHINFO_EXTENSION) ?: 'jpg';
+        // Derive extension from validated MIME type (not user-supplied filename)
+        $mimeToExt = [
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/gif'  => 'gif',
+            'image/webp' => 'webp',
+        ];
+        $ext = $mimeToExt[$mimeType] ?? 'jpg';
         $storageKey = date('Y/m/d/') . $hash . '.' . $ext;
         $thumbKey   = date('Y/m/d/') . $hash . '_thumb.' . $ext;
 

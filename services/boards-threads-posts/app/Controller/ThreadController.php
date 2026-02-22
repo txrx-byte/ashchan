@@ -128,7 +128,7 @@ final class ThreadController
             $result = $this->boardService->createThread($board, $data);
             return $this->response->json($result)->withStatus(201);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()])->withStatus(500);
+            return $this->response->json(['error' => 'An internal error occurred'])->withStatus(500);
         }
     }
 
@@ -177,7 +177,7 @@ final class ThreadController
         } catch (\RuntimeException $e) {
             return $this->response->json(['error' => $e->getMessage()])->withStatus(422);
         } catch (\Throwable $e) {
-            return $this->response->json(['error' => $e->getMessage()])->withStatus(500);
+            return $this->response->json(['error' => 'An internal error occurred'])->withStatus(500);
         }
     }
 
@@ -220,7 +220,17 @@ final class ThreadController
             ?: $request->getHeaderLine('X-Real-IP')
             ?: $request->server('remote_addr', '127.0.0.1');
 
-        return is_string($ip) ? $ip : '127.0.0.1';
+        if (!is_string($ip) || $ip === '') {
+            return '127.0.0.1';
+        }
+
+        // X-Forwarded-For may contain a comma-separated list; take the leftmost (client) IP
+        if (str_contains($ip, ',')) {
+            $ip = trim(explode(',', $ip, 2)[0]);
+        }
+
+        // Validate the IP address format
+        return filter_var($ip, FILTER_VALIDATE_IP) !== false ? $ip : '127.0.0.1';
     }
 
     /**

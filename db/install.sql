@@ -106,8 +106,6 @@ CREATE TABLE IF NOT EXISTS staff_users (
     CONSTRAINT failed_login_check CHECK (failed_login_attempts >= 0)
 );
 
-CREATE INDEX IF NOT EXISTS idx_staff_username ON staff_users(username);
-CREATE INDEX IF NOT EXISTS idx_staff_email ON staff_users(email);
 CREATE INDEX IF NOT EXISTS idx_staff_level ON staff_users(access_level);
 CREATE INDEX IF NOT EXISTS idx_staff_active ON staff_users(is_active);
 
@@ -294,6 +292,7 @@ CREATE TABLE IF NOT EXISTS threads (
 
 CREATE INDEX IF NOT EXISTS idx_threads_board_id ON threads(board_id);
 CREATE INDEX IF NOT EXISTS idx_threads_bumped_at ON threads(bumped_at DESC);
+CREATE INDEX IF NOT EXISTS idx_threads_board_listing ON threads(board_id, bumped_at DESC) WHERE archived = false;
 
 CREATE TABLE IF NOT EXISTS posts (
     id BIGSERIAL PRIMARY KEY,
@@ -337,6 +336,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_ip_retention ON posts(created_at) WHERE ip_
 CREATE INDEX IF NOT EXISTS idx_posts_email_retention ON posts(created_at) WHERE email IS NOT NULL AND email != '';
 CREATE INDEX IF NOT EXISTS idx_posts_board_post_no ON posts(board_post_no);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_board_post_no_unique ON posts(board_post_no, thread_id);
+CREATE INDEX IF NOT EXISTS idx_posts_not_deleted ON posts(thread_id, created_at) WHERE deleted = false;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 4. MODERATION SYSTEM
@@ -746,8 +746,6 @@ CREATE TABLE IF NOT EXISTS site_settings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX IF NOT EXISTS idx_site_settings_key ON site_settings(key);
 
 CREATE TABLE IF NOT EXISTS site_settings_audit_log (
     id BIGSERIAL PRIMARY KEY,

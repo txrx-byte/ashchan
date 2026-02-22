@@ -109,7 +109,7 @@ final class CapcodeController
             'tripcode' => $tripcode,
             'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
-            'boards' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'boards' => \App\Helper\PgArrayParser::toPgArray((array) ($body['boards'] ?? [])),
             'is_active' => isset($body['is_active']),
             'created_by' => $user['id'] ?? null,
             'created_at' => date('Y-m-d H:i:s'),
@@ -173,7 +173,7 @@ final class CapcodeController
             'name' => $name,
             'label' => trim((string) ($body['label'] ?? '')),
             'color' => $body['color'] ?? '#0000FF',
-            'boards' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'boards' => \App\Helper\PgArrayParser::toPgArray((array) ($body['boards'] ?? [])),
             'is_active' => isset($body['is_active']),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);

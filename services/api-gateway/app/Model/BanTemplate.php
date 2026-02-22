@@ -136,9 +136,10 @@ class BanTemplate extends Model
         \Hyperf\Database\Model\Builder $query,
         string $board
     ): \Hyperf\Database\Model\Builder {
-        return $query->where(function ($q) use ($board) {
+        $escapedBoard = str_replace(['%', '_'], ['\%', '\_'], $board);
+        return $query->where(function ($q) use ($escapedBoard) {
             $q->where('boards', '')
-              ->orWhere('boards', 'like', "%{$board}%");
+              ->orWhere('boards', 'like', "%{$escapedBoard}%");
         });
     }
 

@@ -73,4 +73,26 @@ final class PgArrayParser
         }
         return $result;
     }
+
+    /**
+     * Build a safe PostgreSQL text[] array literal from a PHP array.
+     *
+     * Properly escapes backslashes and double-quotes to prevent injection.
+     *
+     * @param array<mixed> $values PHP array of values to encode
+     * @return string PostgreSQL array literal (e.g. '{"a","b","c"}')
+     */
+    public static function toPgArray(array $values): string
+    {
+        if ($values === []) {
+            return '{}';
+        }
+
+        $escaped = array_map(
+            static fn(mixed $v): string => '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], (string) $v) . '"',
+            $values
+        );
+
+        return '{' . implode(',', $escaped) . '}';
+    }
 }

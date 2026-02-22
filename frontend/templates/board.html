@@ -81,9 +81,9 @@
               <li>Read the <a href="/rules">Rules</a> before posting.</li>
             </ul>
             <p class="privacy-notice" style="font-size: 11px; color: #888; margin: 4px 0 0 0;">
-              By posting, you agree to our <a href="/legal/privacy" target="_blank">Privacy Policy</a>.
+              By posting, you agree to our <a href="/legal/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
               Your IP is encrypted and auto-deleted after 30 days.
-              Spam may be reported to <a href="https://www.stopforumspam.com" target="_blank" rel="noopener">SFS</a>.
+              Spam may be reported to <a href="https://www.stopforumspam.com" target="_blank" rel="noopener noreferrer" rel="noopener noreferrer">SFS</a>.
             </p>
           </td>
         </tr>
@@ -158,10 +158,10 @@
         {% if thread.op.media_url %}
         <div class="file" id="f{{ thread.op.id }}">
           <div class="fileText" id="fT{{ thread.op.id }}">
-            File: <a href="{{ thread.op.media_url }}" target="_blank">{{ thread.op.media_filename }}</a>
+            File: <a href="{{ thread.op.media_url }}" target="_blank" rel="noopener noreferrer">{{ thread.op.media_filename }}</a>
             ({{ thread.op.media_size_human }}, {{ thread.op.media_dimensions }})
           </div>
-          <a class="fileThumb" href="{{ thread.op.media_url }}" target="_blank">
+          <a class="fileThumb" href="{{ thread.op.media_url }}" target="_blank" rel="noopener noreferrer">
             <img src="{{ thread.op.thumb_url }}" alt="{{ thread.op.media_size_human }}" loading="lazy"
                  style="max-width:250px;max-height:250px;">
           </a>
@@ -211,10 +211,10 @@
         {% if reply.media_url %}
         <div class="file" id="f{{ reply.id }}">
           <div class="fileText" id="fT{{ reply.id }}">
-            File: <a href="{{ reply.media_url }}" target="_blank">{{ reply.media_filename }}</a>
+            File: <a href="{{ reply.media_url }}" target="_blank" rel="noopener noreferrer">{{ reply.media_filename }}</a>
             ({{ reply.media_size_human }})
           </div>
-          <a class="fileThumb" href="{{ reply.media_url }}" target="_blank">
+          <a class="fileThumb" href="{{ reply.media_url }}" target="_blank" rel="noopener noreferrer">
             <img src="{{ reply.thumb_url }}" alt="{{ reply.media_size_human }}" loading="lazy"
                  style="max-width:125px;max-height:125px;">
           </a>
