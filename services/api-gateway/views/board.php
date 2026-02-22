@@ -34,6 +34,33 @@ declare(strict_types=1);
   [<a href="javascript:void(0);" onclick="var f=document.getElementById('postForm');f.style.display=f.style.display==='none'?'table':'none';">Start a New Thread</a>]
 </div>
 
+<!-- Blotter -->
+<?php if (!empty($blotter)): ?>
+<div id="blotter" class="desktop">
+  <table>
+    <tbody>
+      <?php foreach ($blotter as $entry): ?>
+      <tr>
+        <td class="blotter-date"><?= date('m/d/y', $entry['created_at']) ?></td>
+        <td<?= $entry['is_important'] ? ' class="redtxt"' : '' ?>><?= htmlspecialchars((string) $entry['content']) ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2">
+          <span id="blotterHide" class="blotter-ctrl pointer">[<a href="javascript:void(0);" onclick="document.getElementById('blotter').classList.add('hidden');document.getElementById('blotterShow').style.display='block';">Hide</a>]</span>
+          <span id="blotterShowAll" class="blotter-ctrl pointer">[<a href="javascript:void(0);" onclick="window.open('/blotter','_blank');">Show All</a>]</span>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+<div id="blotterShow" class="desktop" style="display:none;text-align:center;font-size:11px;margin:5px 0;">
+  [<a href="javascript:void(0);" onclick="document.getElementById('blotter').classList.remove('hidden');this.parentNode.style.display='none';">Show Blotter</a>]
+</div>
+<?php endif; ?>
+
 <!-- Post Form -->
 <form name="post" action="/<?= htmlspecialchars((string) $board_slug) ?>/threads" method="post" enctype="multipart/form-data">
   <input type="hidden" name="MAX_FILE_SIZE" value="4194304">

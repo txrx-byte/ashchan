@@ -256,33 +256,48 @@
 /** BLOTTER **/
 #blotter {
   width: 468px;
-  margin: auto;
+  margin: 5px auto;
+  text-align: center;
+}
+
+#blotter.hidden {
+  display: none;
+}
+
+#blotter table {
+  margin: 0 auto;
 }
 
 #blotter td {
   vertical-align: top;
   font-size: 11px;
+  text-align: left;
+  padding: 1px 4px;
 }
 
 .blotter-date {
-  width: 50px;
-  text-align: center;
+  width: 55px;
+  text-align: left;
+  white-space: nowrap;
+  font-weight: normal;
 }
 
 #blotter tfoot {
   text-align: right;
 }
 
-#blotter-msgs s {
-  background-color: inherit !important;
-  color: inherit !important;
-  text-decoration: line-through;
+#blotter tfoot td {
+  text-align: right;
+  padding-top: 2px;
 }
 
-s.blotter-online {
-  text-decoration: none;
+.blotter-ctrl {
   font-size: 11px;
-  cursor: pointer;
+  margin-left: 10px;
+}
+
+.blotter-ctrl a {
+  text-decoration: none;
 }
 
 hr.pointed {

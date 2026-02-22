@@ -103,27 +103,6 @@
 </div>
 <?php endif; ?>
 
-<!-- Blotter -->
-<?php if (!empty($blotter)): ?>
-<div id="blotter" class="desktop">
-  <s id="showBlotter" class="blotter-online pointer" title="Show Blotter" data-cmd="blotter-t">&#9654; Show Blotter</s>
-  <s id="hideBlotter" class="blotter-online pointer" style="display:none" title="Hide Blotter" data-cmd="blotter-t">&#9660; Hide Blotter</s>
-  <div id="blotter-msgs" style="display:none">
-    <table>
-      <tbody>
-        <?php foreach ($blotter as $entry): ?>
-        <tr>
-          <td class="blotter-date"><?= date('m/d/y', $entry['created_at']) ?></td>
-          <td<?= $entry['is_important'] ? ' class="redtxt"' : '' ?>><?= htmlspecialchars((string) $entry['content']) ?></td>
-        </tr>
-        <?php endforeach; ?>
-      </tbody>
-    </table>
-    <hr class="pointed">
-  </div>
-</div>
-<?php endif; ?>
-
 <?= $__content ?? '' ?>
 
 <!-- Bottom Board Navigation -->
