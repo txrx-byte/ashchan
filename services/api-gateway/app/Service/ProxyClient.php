@@ -20,39 +20,44 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use Hyperf\Redis\Redis;
+use Hyperf\Contract\ConfigInterface;
+
+use function Hyperf\Support\env;
 
 /**
  * Lightweight HTTP client for proxying requests to backend services.
  * Supports mTLS (mutual TLS) for secure service-to-service communication.
+ *
+ * Uses Hyperf config injection instead of raw getenv() for Swoole compatibility.
+ * cURL calls are coroutine-safe under SWOOLE_HOOK_ALL (includes SWOOLE_HOOK_CURL).
  */
 final class ProxyClient
 {
     /** @var array<string, string> Service name → base URL */
-    private array $services;
+    private readonly array $services;
 
     /** @var string Path to client certificate for outbound mTLS */
-    private string $clientCert;
+    private readonly string $clientCert;
 
     /** @var string Path to client key for outbound mTLS */
-    private string $clientKey;
+    private readonly string $clientKey;
 
     /** @var string Path to CA certificate for peer verification */
-    private string $caCert;
+    private readonly string $caCert;
 
-    public function __construct()
+    public function __construct(ConfigInterface $config)
     {
         $this->services = [
-            'auth'       => getenv('AUTH_SERVICE_URL')       ?: 'http://auth-accounts:9502',
-            'boards'     => getenv('BOARDS_SERVICE_URL')     ?: 'http://boards-threads-posts:9503',
-            'media'      => getenv('MEDIA_SERVICE_URL')      ?: 'http://media-uploads:9504',
-            'search'     => getenv('SEARCH_SERVICE_URL')     ?: 'http://search-indexing:9505',
-            'moderation' => getenv('MODERATION_SERVICE_URL') ?: 'http://moderation-anti-spam:9506',
+            'auth'       => (string) ($config->get('services.auth.url') ?: env('AUTH_SERVICE_URL', 'http://auth-accounts:9502')),
+            'boards'     => (string) ($config->get('services.boards.url') ?: env('BOARDS_SERVICE_URL', 'http://boards-threads-posts:9503')),
+            'media'      => (string) ($config->get('services.media.url') ?: env('MEDIA_SERVICE_URL', 'http://media-uploads:9504')),
+            'search'     => (string) ($config->get('services.search.url') ?: env('SEARCH_SERVICE_URL', 'http://search-indexing:9505')),
+            'moderation' => (string) ($config->get('services.moderation.url') ?: env('MODERATION_SERVICE_URL', 'http://moderation-anti-spam:9506')),
         ];
 
-        $this->clientCert = getenv('MTLS_CLIENT_CERT_FILE') ?: '/etc/mtls/gateway/gateway.crt';
-        $this->clientKey  = getenv('MTLS_CLIENT_KEY_FILE')  ?: '/etc/mtls/gateway/gateway.key';
-        $this->caCert     = getenv('MTLS_CA_FILE')          ?: '/etc/mtls/ca/ca.crt';
+        $this->clientCert = (string) env('MTLS_CLIENT_CERT_FILE', '/etc/mtls/gateway/gateway.crt');
+        $this->clientKey  = (string) env('MTLS_CLIENT_KEY_FILE', '/etc/mtls/gateway/gateway.key');
+        $this->caCert     = (string) env('MTLS_CA_FILE', '/etc/mtls/ca/ca.crt');
     }
 
         /**

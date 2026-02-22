@@ -41,6 +41,11 @@ final class RateLimitMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
+        // Skip rate limiting for health checks
+        if ($request->getUri()->getPath() === '/health') {
+            return $handler->handle($request);
+        }
+
         $ip = $this->getClientIp($request);
         $key = 'ratelimit:gateway:' . hash('sha256', $ip);
         $now = time();
@@ -63,12 +68,23 @@ return {count, 1}
 LUA;
 
         $member = $now . ':' . random_int(0, 99999);
-        /** @var array{int, int} $result */
-        $result = $this->redis->eval(
-            $luaScript,
-            [$key, (string) $now, (string) self::WINDOW, (string) self::MAX_REQS, (string) $member],
-            1
-        );
+
+        try {
+            /** @var array{int, int}|false $result */
+            $result = $this->redis->eval(
+                $luaScript,
+                [$key, (string) $now, (string) self::WINDOW, (string) self::MAX_REQS, (string) $member],
+                1
+            );
+        } catch (\Throwable) {
+            // Redis unavailable — fail open to avoid blocking all traffic
+            return $handler->handle($request);
+        }
+
+        if (!is_array($result)) {
+            // Unexpected Redis response — fail open
+            return $handler->handle($request);
+        }
 
         $count = (int) $result[0];
         $allowed = (int) $result[1];

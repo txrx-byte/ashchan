@@ -80,7 +80,10 @@ final class SiteMessageController
         $user = \Hyperf\Context\Context::get('staff_user');
         Db::table('site_messages')->insert([
             'title' => trim((string) ($body['title'] ?? '')),
-            'message' => trim((string) ($body['message'] ?? '')),
+            'message' => $this->sanitizeHtmlContent(
+                trim((string) ($body['message'] ?? '')),
+                isset($body['is_html'])
+            ),
             'is_html' => isset($body['is_html']),
             'boards' => \App\Helper\PgArrayParser::toPgArray((array) ($body['boards'] ?? [])),
             'is_active' => isset($body['is_active']),
@@ -135,7 +138,10 @@ final class SiteMessageController
 
         Db::table('site_messages')->where('id', $id)->update([
             'title' => trim((string) ($body['title'] ?? '')),
-            'message' => trim((string) ($body['message'] ?? '')),
+            'message' => $this->sanitizeHtmlContent(
+                trim((string) ($body['message'] ?? '')),
+                isset($body['is_html'])
+            ),
             'is_html' => isset($body['is_html']),
             'boards' => \App\Helper\PgArrayParser::toPgArray((array) ($body['boards'] ?? [])),
             'is_active' => isset($body['is_active']),
@@ -150,12 +156,11 @@ final class SiteMessageController
     #[PostMapping(path: '{id:\d+}/delete')]
     public function delete(int $id): ResponseInterface
     {
-        $message = Db::table('site_messages')->where('id', $id)->first();
-        if (!$message) {
+        $deleted = Db::table('site_messages')->where('id', $id)->delete();
+        if ($deleted === 0) {
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        Db::table('site_messages')->where('id', $id)->delete();
         return $this->response->json(['success' => true]);
     }
 
@@ -170,6 +175,10 @@ final class SiteMessageController
 
         if ($isHtml) {
             $message = strip_tags($message, '<p><br><strong><em><a><ul><ol><li>');
+            // Remove all on* event handlers and javascript: URIs from remaining tags
+            $message = (string) preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']|\s+on\w+\s*=\s*\S+/i', '', $message);
+            $message = (string) preg_replace('/href\s*=\s*["\']\s*javascript\s*:[^"\']*["\']/i', 'href="#"', $message);
+            $message = (string) preg_replace('/href\s*=\s*["\']\s*data\s*:[^"\']*["\']/i', 'href="#"', $message);
         } else {
             $message = nl2br(htmlspecialchars($message));
         }
@@ -178,5 +187,25 @@ final class SiteMessageController
             'title' => htmlspecialchars($title),
             'preview' => $message,
         ]);
+    }
+
+    /**
+     * Sanitize HTML content before storage.
+     * Strips dangerous tags, event handlers, and javascript: URIs.
+     */
+    private function sanitizeHtmlContent(string $content, bool $isHtml): string
+    {
+        if (!$isHtml) {
+            return $content;
+        }
+
+        $safe = strip_tags($content, '<p><br><strong><em><a><ul><ol><li>');
+        // Remove on* event handler attributes
+        $safe = (string) preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']|\s+on\w+\s*=\s*\S+/i', '', $safe);
+        // Neutralize javascript: and data: URIs in href
+        $safe = (string) preg_replace('/href\s*=\s*["\']\s*javascript\s*:[^"\']*["\']/i', 'href="#"', $safe);
+        $safe = (string) preg_replace('/href\s*=\s*["\']\s*data\s*:[^"\']*["\']/i', 'href="#"', $safe);
+
+        return $safe;
     }
 }

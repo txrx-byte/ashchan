@@ -23,22 +23,29 @@ namespace App\Exception\Handler;
 use Hyperf\ExceptionHandler\ExceptionHandler;
 use Hyperf\HttpMessage\Stream\SwooleStream;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LoggerInterface;
 use Throwable;
+
+use function Hyperf\Support\env;
 
 class AppExceptionHandler extends ExceptionHandler
 {
+    public function __construct(
+        private LoggerInterface $logger,
+    ) {}
+
     public function handle(Throwable $throwable, ResponseInterface $response): ResponseInterface
     {
-        // Log the full error to stdout so we can see it in podman logs
-        $msg = sprintf(
-            "[AppExceptionHandler] %s: %s in %s:%d\n%s",
-            get_class($throwable),
-            $throwable->getMessage(),
-            $throwable->getFile(),
-            $throwable->getLine(),
-            $throwable->getTraceAsString()
-        );
-        fwrite(STDERR, $msg . "\n");
+        // Structured logging instead of raw STDERR (works with log aggregation)
+        $this->logger->error('Unhandled exception', [
+            'exception' => get_class($throwable),
+            'message' => $throwable->getMessage(),
+            'file' => $throwable->getFile(),
+            'line' => $throwable->getLine(),
+            'trace' => env('APP_ENV', 'production') !== 'production'
+                ? $throwable->getTraceAsString()
+                : null,
+        ]);
 
         $this->stopPropagation();
 

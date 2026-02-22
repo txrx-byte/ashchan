@@ -20,23 +20,27 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use Hyperf\Contract\ConfigInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
+use function Hyperf\Support\env;
+
 /**
  * CORS middleware for cross-origin requests.
+ * Uses Hyperf config injection for Swoole-safe env access.
  */
 final class CorsMiddleware implements MiddlewareInterface
 {
     /** @var string[] */
-    private array $allowedOrigins;
+    private readonly array $allowedOrigins;
 
-    public function __construct()
+    public function __construct(ConfigInterface $config)
     {
-        $origins = getenv('CORS_ORIGINS') ?: '*';
-        $this->allowedOrigins = $origins === '*' ? ['*'] : explode(',', $origins);
+        $origins = (string) ($config->get('cors.origins') ?: env('CORS_ORIGINS', '*'));
+        $this->allowedOrigins = $origins === '*' ? ['*'] : array_map('trim', explode(',', $origins));
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface

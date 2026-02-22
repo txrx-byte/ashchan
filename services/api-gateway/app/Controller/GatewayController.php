@@ -25,6 +25,8 @@ use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 
+use function Hyperf\Support\env;
+
 /**
  * Gateway controller that proxies API requests to the correct backend service.
  *
@@ -62,10 +64,10 @@ final class GatewayController
             return $this->response->raw('Invalid path')->withStatus(400);
         }
 
-        $minioUrl  = getenv('OBJECT_STORAGE_ENDPOINT') ?: 'http://localhost:9000';
-        $bucket    = getenv('OBJECT_STORAGE_BUCKET')   ?: 'ashchan';
-        $accessKey = getenv('OBJECT_STORAGE_ACCESS_KEY') ?: 'minioadmin';
-        $secretKey = getenv('OBJECT_STORAGE_SECRET_KEY') ?: 'minioadmin';
+        $minioUrl  = (string) env('OBJECT_STORAGE_ENDPOINT', 'http://localhost:9000');
+        $bucket    = (string) env('OBJECT_STORAGE_BUCKET', 'ashchan');
+        $accessKey = (string) env('OBJECT_STORAGE_ACCESS_KEY', 'minioadmin');
+        $secretKey = (string) env('OBJECT_STORAGE_SECRET_KEY', 'minioadmin');
         
         $url = rtrim($minioUrl, '/') . '/' . $bucket . '/' . $path;
         $date = gmdate('D, d M Y H:i:s T');
@@ -101,7 +103,7 @@ final class GatewayController
         }
 
         // Fallback: try local disk (with realpath validation to prevent traversal)
-        $baseDir = getenv('LOCAL_STORAGE_PATH') ?: '/workspaces/ashchan/data/media';
+        $baseDir = (string) env('LOCAL_STORAGE_PATH', '/workspaces/ashchan/data/media');
         $localPath = $baseDir . '/' . $path;
         $realLocal = realpath($localPath);
         $realBase  = realpath($baseDir);

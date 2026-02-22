@@ -33,6 +33,8 @@ use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Hyperf\DbConnection\Db;
 use Psr\Http\Message\ResponseInterface;
 
+use function Hyperf\Coroutine\parallel;
+
 /**
  * StaffToolsController - Admin tools functionality
  */
@@ -430,50 +432,73 @@ final class StaffToolsController
      *
      * @return array<string, mixed>
      */
+    /**
+     * @return array<string, mixed>
+     */
     private function performSearch(string $query, string $type): array
     {
+        /** @var array<string, mixed> $results */
         $results = [
             'bans' => [],
             'reports' => [],
             'posts' => [],
         ];
+
+        // Build parallel closures for independent searches
+        $tasks = [];
         
         // Search bans — use host_hash for IP lookups (encrypted IPs can't be searched with LIKE)
         if ($type === 'all' || $type === 'bans') {
-            $banQuery = Db::table('banned_users')
-                ->select('id', 'board', 'host', 'reason', 'now', 'length', 'admin');
-            
-            // If query looks like an IP, search by hash; otherwise search by reason text
-            if (filter_var($query, FILTER_VALIDATE_IP)) {
-                $queryHash = hash('sha256', $query);
-                $banQuery->where('host_hash', $queryHash);
-            } else {
-                $escapedQuery = str_replace(['%', '_'], ['\%', '\_'], $query);
-                $banQuery->where('reason', 'like', "%{$escapedQuery}%");
-            }
-            
-            $bans = $banQuery->limit(20)->get();
-            // Decrypt host IPs for staff display
-            $results['bans'] = $bans->map(function ($ban) {
-                $ban->host = is_string($ban->host) && $ban->host !== ''
-                    ? $this->piiEncryption->decrypt($ban->host)
-                    : '';
-                return $ban;
-            });
+            $tasks['bans'] = function () use ($query) {
+                $banQuery = Db::table('banned_users')
+                    ->select('id', 'board', 'host', 'reason', 'now', 'length', 'admin');
+                
+                // If query looks like an IP, search by hash; otherwise search by reason text
+                if (filter_var($query, FILTER_VALIDATE_IP)) {
+                    $queryHash = hash('sha256', $query);
+                    $banQuery->where('host_hash', $queryHash);
+                } else {
+                    $escapedQuery = str_replace(['%', '_'], ['\%', '\_'], $query);
+                    $banQuery->where('reason', 'like', "%{$escapedQuery}%");
+                }
+                
+                $bans = $banQuery->limit(20)->get();
+                return $bans->map(function ($ban) {
+                    $ban->host = is_string($ban->host) && $ban->host !== ''
+                        ? $this->piiEncryption->decrypt($ban->host)
+                        : '';
+                    return $ban;
+                });
+            };
         }
         
         // Search reports
         if ($type === 'all' || $type === 'reports') {
-            $results['reports'] = Db::table('reports')
-                ->select('id', 'board', 'no', 'post_json', 'ts')
-                ->where(function ($q) use ($query) {
-                    $q->where('no', (int) $query)
-                      ->orWhere('board', $query);
-                })
-                ->limit(20)
-                ->get();
+            $tasks['reports'] = static function () use ($query) {
+                return Db::table('reports')
+                    ->select('id', 'board', 'no', 'post_json', 'ts')
+                    ->where(function ($q) use ($query) {
+                        $q->where('no', (int) $query)
+                          ->orWhere('board', $query);
+                    })
+                    ->limit(20)
+                    ->get();
+            };
+        }
+
+        // Run all tasks in parallel when there are multiple
+        if (count($tasks) > 1) {
+            $parallelResults = parallel($tasks);
+            foreach ($parallelResults as $key => $value) {
+                $results[$key] = $value;
+            }
+        } else {
+            foreach ($tasks as $key => $task) {
+                $results[$key] = $task();
+            }
         }
         
+        /** @var array<string, mixed> $results */
         return $results;
     }
 
@@ -486,30 +511,28 @@ final class StaffToolsController
     {
         $ipHash = hash('sha256', $ip);
 
-        // Get ban history for IP — use host_hash for lookup
-        $bans = Db::table('banned_users')
-            ->select('id', 'board', 'reason', 'now', 'length', 'admin', 'active')
-            ->where('host_hash', $ipHash)
-            ->orderBy('now', 'desc')
-            ->limit(10)
-            ->get();
-        
-        // Get reports from IP — use ip_hash for lookup
-        $reports = Db::table('reports')
-            ->select('id', 'board', 'no', 'ts', 'cleared')
-            ->where('ip_hash', $ipHash)
-            ->orderBy('ts', 'desc')
-            ->limit(10)
-            ->get();
-        
-        // Get user actions — use ip_hash for lookup
-        $actions = Db::table('user_actions')
-            ->select('action', 'board', 'postno', 'time')
-            ->where('ip_hash', $ipHash)
-            ->orderBy('time', 'desc')
-            ->limit(10)
-            ->get();
-        
+        // Execute independent DB queries in parallel using Swoole coroutines
+        [$bans, $reports, $actions] = parallel([
+            static fn () => Db::table('banned_users')
+                ->select('id', 'board', 'reason', 'now', 'length', 'admin', 'active')
+                ->where('host_hash', $ipHash)
+                ->orderBy('now', 'desc')
+                ->limit(10)
+                ->get(),
+            static fn () => Db::table('reports')
+                ->select('id', 'board', 'no', 'ts', 'cleared')
+                ->where('ip_hash', $ipHash)
+                ->orderBy('ts', 'desc')
+                ->limit(10)
+                ->get(),
+            static fn () => Db::table('user_actions')
+                ->select('action', 'board', 'postno', 'time')
+                ->where('ip_hash', $ipHash)
+                ->orderBy('time', 'desc')
+                ->limit(10)
+                ->get(),
+        ]);
+
         // Basic geolocation (would use GeoIP2 in production)
         $geoInfo = [
             'ip' => $ip,
@@ -525,8 +548,8 @@ final class StaffToolsController
             'reports' => $reports,
             'actions' => $actions,
             'geo' => $geoInfo,
-            'ban_count' => count($bans),
-            'report_count' => count($reports),
+            'ban_count' => is_countable($bans) ? count($bans) : 0,
+            'report_count' => is_countable($reports) ? count($reports) : 0,
         ];
     }
 
@@ -619,7 +642,18 @@ final class StaffToolsController
             $matched = false;
             
             if ($filter->regex) {
-                $matched = @preg_match('/' . (string) $filter->pattern . '/i', $content);
+                // Prevent ReDoS: use SOH delimiter to avoid injection,
+                // and enforce a strict backtrack limit
+                $safePattern = str_replace('\0', '', (string) $filter->pattern);
+                $delimiter = chr(1);
+                $oldLimit = (int) ini_get('pcre.backtrack_limit');
+                ini_set('pcre.backtrack_limit', '10000');
+                $matched = @preg_match($delimiter . $safePattern . $delimiter . 'iu', $content);
+                ini_set('pcre.backtrack_limit', (string) $oldLimit);
+                if ($matched === false) {
+                    // Invalid regex pattern — skip this filter
+                    continue;
+                }
             } else {
                 $matched = stripos($content, (string) $filter->pattern) !== false;
             }

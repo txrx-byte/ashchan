@@ -152,12 +152,11 @@ final class AutopurgeController
     #[PostMapping(path: '{id:\d+}/delete')]
     public function delete(int $id): ResponseInterface
     {
-        $rule = Db::table('autopurge_rules')->where('id', $id)->first();
-        if (!$rule) {
+        $deleted = Db::table('autopurge_rules')->where('id', $id)->delete();
+        if ($deleted === 0) {
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        Db::table('autopurge_rules')->where('id', $id)->delete();
         return $this->response->json(['success' => true]);
     }
 
@@ -176,9 +175,15 @@ final class AutopurgeController
 
         $matched = false;
         if ($isRegex) {
-            $matched = @preg_match('/' . $pattern . '/i', $sampleText);
+            // Prevent ReDoS: validate regex and set backtrack limit
+            $safePattern = str_replace('\0', '', $pattern);
+            $delimiter = chr(1); // Use SOH as delimiter to avoid delimiter injection
+            $oldLimit = (int) ini_get('pcre.backtrack_limit');
+            ini_set('pcre.backtrack_limit', '10000');
+            $matched = @preg_match($delimiter . $safePattern . $delimiter . 'iu', $sampleText);
+            ini_set('pcre.backtrack_limit', (string) $oldLimit);
             if ($matched === false) {
-                return $this->response->json(['error' => 'Invalid regex pattern']);
+                return $this->response->json(['error' => 'Invalid regex pattern: ' . preg_last_error_msg()]);
             }
         } else {
             $matched = stripos($sampleText, $pattern) !== false;

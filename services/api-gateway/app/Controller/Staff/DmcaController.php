@@ -147,10 +147,16 @@ final class DmcaController
             'notes' => trim((string) ($body['notes'] ?? '')),
         ]);
 
-        // Log takedowns
+        // Log takedowns — validate structure to prevent unexpected data
         $takedowns = $body['takedowns'] ?? [];
+        if (!is_array($takedowns)) {
+            $takedowns = [];
+        }
         foreach ($takedowns as $takedown) {
-            if (!empty($takedown['board']) && !empty($takedown['post_no'])) {
+            if (!is_array($takedown)) {
+                continue;
+            }
+            if (!empty($takedown['board']) && !empty($takedown['post_no']) && is_string($takedown['board']) && is_numeric($takedown['post_no'])) {
                 Db::table('dmca_takedowns')->insert([
                     'notice_id' => $id,
                     'board' => $takedown['board'],
@@ -169,13 +175,7 @@ final class DmcaController
     #[PostMapping(path: '{id:\d+}/status')]
     public function updateStatus(int $id): ResponseInterface
     {
-        $notice = Db::table('dmca_notices')->where('id', $id)->first();
-        if (!$notice) {
-            return $this->response->json(['error' => 'Not found'], 404);
-        }
-
         /** @var array<string, mixed> $body */
-
         $body = (array) $this->request->getParsedBody();
         $validStatuses = ['pending', 'processed', 'rejected'];
         $status = $body['status'] ?? 'pending';
@@ -184,10 +184,14 @@ final class DmcaController
             return $this->response->json(['error' => 'Invalid status'], 400);
         }
 
-        Db::table('dmca_notices')->where('id', $id)->update([
+        $affected = Db::table('dmca_notices')->where('id', $id)->update([
             'status' => $status,
             'processed_at' => in_array($status, ['processed', 'rejected']) ? date('Y-m-d H:i:s') : null,
         ]);
+
+        if ($affected === 0) {
+            return $this->response->json(['error' => 'Not found'], 404);
+        }
 
         return $this->response->json(['success' => true]);
     }

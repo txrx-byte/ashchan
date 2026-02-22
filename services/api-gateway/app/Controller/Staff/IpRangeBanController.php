@@ -156,12 +156,11 @@ final class IpRangeBanController
     #[PostMapping(path: '{id:\d+}/delete')]
     public function delete(int $id): ResponseInterface
     {
-        $rangeBan = Db::table('ip_range_bans')->where('id', $id)->first();
-        if (!$rangeBan) {
+        $deleted = Db::table('ip_range_bans')->where('id', $id)->delete();
+        if ($deleted === 0) {
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        Db::table('ip_range_bans')->where('id', $id)->delete();
         return $this->response->json(['success' => true]);
     }
 
@@ -177,15 +176,18 @@ final class IpRangeBanController
         }
 
         $matchingBans = Db::table('ip_range_bans')
+            ->select('id', 'reason', 'boards', 'expires_at')
             ->where('is_active', true)
             ->whereRaw('?::inet >= range_start AND ?::inet <= range_end', [$testIp, $testIp])
             ->get();
 
         return $this->response->json([
             'valid' => true,
-            'ip' => $testIp,
             'matches' => count($matchingBans),
-            'bans' => $matchingBans,
+            'bans' => $matchingBans->map(fn ($b) => [
+                'id' => $b->id,
+                'reason' => $b->reason,
+            ])->toArray(),
         ]);
     }
 

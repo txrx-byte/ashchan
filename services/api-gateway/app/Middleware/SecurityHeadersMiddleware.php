@@ -34,13 +34,25 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
     {
         $response = $handler->handle($request);
 
+        // Determine if this is a staff page that needs the CSRF inline script
+        $path = $request->getUri()->getPath();
+        $isStaffPage = str_starts_with($path, '/staff/');
+
+        // Use nonce-based CSP for staff pages to allow the CSRF injection script
+        // while avoiding 'unsafe-inline' for public pages
+        $csp = $isStaffPage
+            ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+
         return $response
             ->withHeader('X-Content-Type-Options', 'nosniff')
             ->withHeader('X-Frame-Options', 'DENY')
             ->withHeader('X-XSS-Protection', '0')
             ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
-            ->withHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-            ->withHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
-            ->withHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+            ->withHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
+            ->withHeader('Content-Security-Policy', $csp)
+            ->withHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+            ->withHeader('Cross-Origin-Opener-Policy', 'same-origin')
+            ->withHeader('Cross-Origin-Resource-Policy', 'same-origin');
     }
 }

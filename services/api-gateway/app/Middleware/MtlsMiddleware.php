@@ -200,13 +200,13 @@ final class MtlsMiddleware implements MiddlewareInterface
 
     /**
      * Deny access with 403 response
+     * Never leak internal mTLS error details in production.
      */
     private function denyAccess(string $reason): ResponseInterface
     {
         $body = json_encode([
             'error' => 'Forbidden',
             'message' => 'mTLS authentication failed',
-            'reason' => $reason,
         ], JSON_PRETTY_PRINT) ?: '{}';
 
         $response = new \Hyperf\HttpMessage\Server\Response();
