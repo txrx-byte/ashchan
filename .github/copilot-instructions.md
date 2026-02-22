@@ -1,106 +1,110 @@
-<!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
-- [x] Verify that the copilot-instructions.md file in the .github directory is created.
+# Ashchan — Copilot Instructions
 
-- [x] Clarify Project Requirements
-	<!-- Ask for project type, language, and frameworks if not specified. Skip if already provided. -->
+## Architecture Overview
 
-- [x] Scaffold the Project
-	<!--
-	Ensure that the previous step has been marked as completed.
-	Call project setup tool with projectType parameter.
-	Run scaffolding command to create project files and folders.
-	Use '.' as the working directory.
-	If no appropriate projectType is available, search documentation using available tools.
-	Otherwise, create the project structure manually using available file creation tools.
-	-->
+Ashchan is a privacy-first imageboard running **6 Hyperf 3.1/Swoole microservices** on PHP-CLI (no containers). Services communicate via HTTP with optional **mTLS** on dedicated ports.
 
-- [x] Customize the Project
-	<!--
-	Verify that all previous steps have been completed successfully and you have marked the step as completed.
-	Develop a plan to modify codebase according to user requirements.
-	Apply modifications using appropriate tools and user-provided references.
-	Skip this step for "Hello World" projects.
-	-->
+| Service | Dir | HTTP Port | Purpose |
+|---------|-----|-----------|---------|
+| api-gateway | `services/api-gateway/` | 9501 | Routing, SSR, rate limiting, staff UI, media proxy |
+| auth-accounts | `services/auth-accounts/` | 9502 | Anonymous/registered identity, consents |
+| boards-threads-posts | `services/boards-threads-posts/` | 9503 | Core domain: boards, threads, posts |
+| media-uploads | `services/media-uploads/` | 9504 | Upload handling, hashing, MinIO/S3 storage |
+| search-indexing | `services/search-indexing/` | 9505 | Search backend, event-driven indexing |
+| moderation-anti-spam | `services/moderation-anti-spam/` | 9506 | Risk scoring, moderation queue, bans |
 
-- [x] Install Required Extensions
-	<!-- ONLY install extensions provided mentioned in the get_project_setup_info. Skip this step otherwise and mark as completed. -->
+**Request flow:** nginx (80/443) → Anubis (8080) → API Gateway (9501) → backend services. The gateway uses `ProxyClient` (cURL-based, `services/api-gateway/app/Service/ProxyClient.php`) to forward requests with mTLS support. Route resolution is in `GatewayController::ROUTE_MAP`.
 
-- [x] Compile the Project
-	<!--
-	Verify that all previous steps have been completed.
-	Install any missing dependencies.
-	Run diagnostics and resolve any issues.
-	Check for markdown files in project folder for relevant instructions on how to do this.
-	-->
+**Data stores:** PostgreSQL 16+ (shared DB `ashchan`), Redis 7+ (each service uses a separate `REDIS_DB`), MinIO/S3 for media blobs.
 
-- [x] Create and Run Task
-	<!--
-	Verify that all previous steps have been completed.
-	Check https://code.visualstudio.com/docs/debugtest/tasks to determine if the project needs a task. If so, use the create_and_run_task to create and launch a task based on package.json, README.md, and project structure.
-	Skip this step otherwise.
-	 -->
+**Async events:** Domain events via Redis streams (`contracts/events/`). CloudEvents-compatible envelope: `{id, type, occurred_at, payload}`.
 
-- [x] Launch the Project
-	<!--
-	Verify that all previous steps have been completed.
-	Prompt user for debug mode, launch only if confirmed.
-	 -->
+## Developer Workflow
 
-- [x] Ensure Documentation is Complete
-	<!--
-	Verify that all previous steps have been completed.
-	Verify that README.md and the copilot-instructions.md file in the .github directory exists and contains current project information.
-	Clean up the copilot-instructions.md file in the .github directory by removing all HTML comments.
-	 -->
+```bash
+make deps          # Install composer deps for all services
+make bootstrap     # Full setup: deps + certs + migrate + seed
+make up / make down  # Start/stop all services
+make start-boards  # Start individual service (gateway|auth|boards|media|search|moderation)
+make health        # Health-check all services on /health endpoints
+make status        # Show running services and ports
+make clean         # Clear runtime caches
+```
 
-<!--
-## Execution Guidelines
-PROGRESS TRACKING:
-- If any tools are available to manage the above todo list, use it to track progress through this checklist.
-- After completing each step, mark it complete and add a summary.
-- Read current todo list status before starting each new step.
+**Run tests:** `composer test` (root-level, runs boards-threads-posts PHPUnit suite) or `cd services/<svc> && composer test`.
 
-COMMUNICATION RULES:
-- Avoid verbose explanations or printing full command outputs.
-- If a step is skipped, state that briefly (e.g. "No extensions needed").
-- Do not explain project structure unless asked.
-- Keep explanations concise and focused.
+**Static analysis:** Each service runs PHPStan at **level 10** (maximum): `cd services/<svc> && composer phpstan`. Bootstrap files (`phpstan-bootstrap.php`) define Swoole constants.
 
-DEVELOPMENT RULES:
-- Use '.' as the working directory unless user specifies otherwise.
-- Avoid adding media or external links unless explicitly requested.
-- Use placeholders only with a note that they should be replaced.
-- Use VS Code API tool only for VS Code extension projects.
-- Once the project is created, it is already opened in Visual Studio Code—do not suggest commands to open this project in Visual Studio again.
-- If the project setup information has additional rules, follow them strictly.
+**Database:** `make migrate` runs `db/install.sql`; `make seed` runs `db/seed.sql`. Direct `psql` with env defaults `DB_HOST=localhost`, `DB_USER=ashchan`, `DB_PASSWORD=ashchan`.
 
-FOLDER CREATION RULES:
-- Always use the current directory as the project root.
-- If you are running any terminal commands, use the '.' argument to ensure that the current working directory is used ALWAYS.
-- Do not create a new folder unless the user explicitly requests it besides a .vscode folder for a tasks.json file.
-- If any of the scaffolding commands mention that the folder name is not correct, let the user know to create a new folder with the correct name and then reopen it again in vscode.
+## Code Conventions
 
-EXTENSION INSTALLATION RULES:
-- Only install extension specified by the get_project_setup_info tool. DO NOT INSTALL any other extensions.
+### Service Structure
+Each service under `services/<name>/` follows:
+```
+app/Controller/   # HTTP controllers (final class, constructor injection)
+app/Service/      # Business logic layer
+app/Model/        # Hyperf ORM models (Eloquent-compatible)
+config/autoload/  # PHP array config (server.php, databases.php, middlewares.php, redis.php)
+config/routes.php # Route definitions
+bin/hyperf.php    # Swoole entry point
+```
 
-PROJECT CONTENT RULES:
-- If the user has not specified project details, assume they want a "Hello World" project as a starting point.
-- Avoid adding links of any type (URLs, files, folders, etc.) or integrations that are not explicitly required.
-- Avoid generating images, videos, or any other media files unless explicitly requested.
-- If you need to use any media assets as placeholders, let the user know that these are placeholders and should be replaced with the actual assets later.
-- Ensure all generated components serve a clear purpose within the user's requested workflow.
-- If a feature is assumed but not confirmed, prompt the user for clarification before including it.
-- If you are working on a VS Code extension, use the VS Code API tool with a query to find relevant VS Code API references and samples related to that query.
+### Controllers
+- Always `final class` with constructor DI
+- Return `Psr\Http\Message\ResponseInterface` via `$this->response->json([...])->withStatus(code)`
+- Input via `RequestInterface`: `$request->all()`, `$request->query()`, `$request->input()`, `$request->file()`
+- Two routing styles coexist: file-based (`Router::get(...)` in `config/routes.php`) and annotation-based (`#[Controller]`, `#[RequestMapping]`)
+- Manual input validation (no form request objects)
 
-TASK COMPLETION RULES:
-- Your task is complete when:
-  - Project is successfully scaffolded and compiled without errors
-  - copilot-instructions.md file in the .github directory exists in the project
-  - README.md file exists and is up to date
-  - User is provided with clear instructions to debug/launch the project
+### Models
+- Extend `Hyperf\DbConnection\Model\Model`
+- `@property` PHPDoc annotations for all columns (PHPStan + IDE support)
+- Explicit `$fillable` arrays; `$casts` for type coercion
+- Accessor pattern: `get{Attribute}Attribute()` for computed properties
+- Table naming: lowercase, plural, snake_case (`staff_users`, `admin_audit_log`)
 
-Before starting a new task in the above plan, update progress in the plan.
--->
-- Work through each checklist item systematically.
-- Keep communication concise and focused.
-- Follow development best practices.
+### Database Schema
+- UUIDs (`gen_random_uuid()`) for user-facing PKs; `BIGSERIAL`/`SERIAL` for internal tables
+- Timestamps: `created_at TIMESTAMPTZ NOT NULL DEFAULT now()`
+- Boolean columns: always `is_` prefix (`is_active`, `is_locked`, `is_anonymous`)
+- JSONB for flexible data (`ban_status`, `metadata`); `TEXT[]` for multi-value fields
+- Index naming: `idx_{table}_{column}`
+- FK cascades: `ON DELETE CASCADE`
+
+### Middleware (Gateway)
+Global stack in `services/api-gateway/config/autoload/middlewares.php`:
+`SecurityHeadersMiddleware → CorsMiddleware → RateLimitMiddleware → AuthMiddleware → StaffAuthMiddleware`
+
+Rate limiting uses Redis sorted-set sliding window (120 req/60s default). Staff context stored in `Hyperf\Context\Context`.
+
+### Caching
+- Redis `setex` with TTLs (300s threads, 60s catalogs)
+- Graceful fallback: always `try/catch` around Redis operations
+- Disabled in `APP_ENV=local`
+
+## API Contracts
+- **OpenAPI specs:** `contracts/openapi/*.yaml` (OpenAPI 3.0.3, per-service)
+- **Event schemas:** `contracts/events/*.json` (JSON Schema draft 2020-12)
+- **4chan-compatible API:** Read-only egress in exact 4chan format via `FourChanApiService` (see `docs/FOURCHAN_API.md`)
+
+## Frontend
+Server-side rendered via Jinja2/Twig templates in `frontend/templates/`. Base layout uses `{% block content %}` inheritance. Staff-only elements gated by `{% if is_staff %}`. Static assets in `frontend/static/{css,js,img}/`.
+
+## Environment Configuration
+Each service has `.env.example` with `__PLACEHOLDER__` tokens. Key categories:
+- `HTTP_PORT`, `MTLS_PORT` — per-service ports
+- `DB_*` — shared PostgreSQL connection
+- `REDIS_DB` — service-specific Redis database number (0=gateway, 2=boards, 3=media)
+- `*_SERVICE_URL` — inter-service mTLS URLs
+- `MTLS_ENABLED`, `MTLS_CERT_FILE`, `MTLS_KEY_FILE`, `MTLS_CA_FILE` — certificate paths
+
+## Key Files
+- `Makefile` — All dev/ops commands
+- `services/api-gateway/config/routes.php` — Complete route map (~240 lines)
+- `services/api-gateway/app/Service/ProxyClient.php` — Inter-service HTTP forwarding
+- `services/boards-threads-posts/app/Service/BoardService.php` — Core domain logic (~1139 lines)
+- `db/install.sql` — Full database schema
+- `config/nginx/nginx.conf` — Production reverse proxy with rate limiting
+- `docs/architecture.md` — System architecture details
+- `docs/SERVICEMESH.md` — mTLS certificate management
