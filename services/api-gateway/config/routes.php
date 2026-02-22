@@ -173,6 +173,11 @@ Router::get('/staff/boards/{slug}/edit', [\App\Controller\Staff\BoardConfigContr
 Router::post('/staff/boards/{slug}/update', [\App\Controller\Staff\BoardConfigController::class, 'update']);
 Router::post('/staff/boards/{slug}/delete', [\App\Controller\Staff\BoardConfigController::class, 'delete']);
 
+// Site Settings (Admin only)
+Router::get('/staff/site-settings', [\App\Controller\Staff\SiteSettingsController::class, 'index']);
+Router::post('/staff/site-settings/update', [\App\Controller\Staff\SiteSettingsController::class, 'update']);
+Router::get('/staff/site-settings/{key}/audit', [\App\Controller\Staff\SiteSettingsController::class, 'audit']);
+
 // ============== Moderation API Routes ==============
 
 // Public report submission

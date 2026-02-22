@@ -46,8 +46,7 @@ use Hyperf\Redis\Redis;
  */
 final class AuthService
 {
-    /** Session lifetime: 7 days in seconds. */
-    private const SESSION_TTL = 86400 * 7;
+    private int $sessionTtl;
 
     /** HMAC key for IP address hashing. Falls back to app-level secret. */
     private string $ipHmacKey;
@@ -55,11 +54,17 @@ final class AuthService
     public function __construct(
         private Redis $redis,
         private PiiEncryptionService $piiEncryption,
+        SiteConfigService $config,
     ) {
-        // Use a dedicated HMAC key or fall back to PII_ENCRYPTION_KEY
-        $hmacKey = \Hyperf\Support\env('IP_HMAC_KEY', '') ?: \Hyperf\Support\env('PII_ENCRYPTION_KEY', '');
-        if (!is_string($hmacKey) || $hmacKey === '') {
-            throw new \RuntimeException('IP_HMAC_KEY or PII_ENCRYPTION_KEY must be configured for secure IP hashing');
+        $this->sessionTtl = $config->getInt('session_ttl', 604800);
+
+        // Use a dedicated HMAC key from DB or fall back to PII_ENCRYPTION_KEY env
+        $hmacKey = $config->get('ip_hmac_key', '');
+        if ($hmacKey === '') {
+            $hmacKey = (string) (\Hyperf\Support\env('PII_ENCRYPTION_KEY', '') ?: '');
+        }
+        if ($hmacKey === '') {
+            throw new \RuntimeException('ip_hmac_key site setting or PII_ENCRYPTION_KEY env must be configured for secure IP hashing');
         }
         $this->ipHmacKey = $hmacKey;
     }
@@ -164,7 +169,7 @@ final class AuthService
             'token'      => $tokenHash,
             'ip_address' => $this->piiEncryption->encrypt($ip),
             'user_agent' => mb_substr($userAgent, 0, 512),
-            'expires_at' => date('Y-m-d H:i:s', time() + self::SESSION_TTL),
+            'expires_at' => date('Y-m-d H:i:s', time() + $this->sessionTtl),
         ]);
 
         // Cache session in Redis for O(1) validation
@@ -178,7 +183,7 @@ final class AuthService
         try {
             $this->redis->setex(
                 "session:{$tokenHash}",
-                self::SESSION_TTL,
+                $this->sessionTtl,
                 (string) json_encode($sessionData, JSON_THROW_ON_ERROR)
             );
         } catch (\Throwable) {
@@ -187,7 +192,7 @@ final class AuthService
 
         return [
             'token'      => $token,
-            'expires_in' => self::SESSION_TTL,
+            'expires_in' => $this->sessionTtl,
             'user'       => $sessionData,
         ];
     }

@@ -2,8 +2,10 @@
 
 ## Overview
 
-Ashchan uses **mTLS (Mutual TLS)** for secure service-to-service communication. This architecture provides:
+Ashchan uses **mTLS (Mutual TLS)** for secure service-to-service communication, combined with **Cloudflare Tunnel** for zero-exposure ingress. This architecture provides:
 
+- **End-to-end encryption** from Cloudflare edge to backend services
+- **Zero public exposure** — origin server has no public IP or open inbound ports
 - **Mutual TLS authentication** between all services
 - **Certificate-based identity** for zero-trust security
 - **Native PHP-CLI deployment** without container dependencies
@@ -14,33 +16,49 @@ Ashchan uses **mTLS (Mutual TLS)** for secure service-to-service communication. 
 ## Architecture Diagram
 
 ```
-                                    ┌─────────────────┐
-                                    │   Public Internet
-                                    └────────┬────────┘
-                                             │
-                                    ┌────────▼────────┐
-                                    │  API Gateway    │
-                                    │  (Port 9501)    │
-                                    │  TLS Termination│
-                                    └────────┬────────┘
-                                             │ mTLS (Port 8443)
-         ┌───────────────────┬───────────────┼───────────────┬───────────────────┐
-         │                   │               │               │                   │
-┌────────▼────────┐ ┌────────▼────────┐ ┌───▼─────────┐ ┌───▼─────────┐ ┌───────▼───────┐
-│ Auth/Accounts   │ │Boards/Threads   │ │ Media/      │ │ Search/     │ │ Moderation/   │
-│ (Port 9502)     │ │ (Port 9503)     │ │ Uploads     │ │ Indexing    │ │ Anti-Spam     │
-│ mTLS:8443       │ │ mTLS:8443       │ │ (Port 9504) │ │ (Port 9505) │ │ (Port 9506)   │
-└────────┬────────┘ └────────┬────────┘ └──────┬──────┘ └──────┬──────┘ └───────┬───────┘
-         │                   │                 │               │                 │
-         └───────────────────┴─────────────────┴───────────────┴─────────────────┘
-                                    │
-              ┌─────────────────────┼─────────────────────┐
-              │                     │                     │
-     ┌────────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
-     │   PostgreSQL    │  │     Redis       │  │     MinIO       │
-     │   (Port 5432)   │  │   (Port 6379)   │  │ (Port 9000/9001)│
-     └─────────────────┘  └─────────────────┘  └─────────────────┘
+╔══════════════════════════════════════════════════════════════════════╗
+║                         PUBLIC INTERNET                                ║
+║  Client ── TLS 1.3 ──▶ Cloudflare Edge (WAF/DDoS/CDN)                  ║
+║                              │ Cloudflare Tunnel (outbound-only)      ║
+╚══════════════════════════════╪═════════════════════════════════════════╝
+╔══════════════════════════════╪═ ORIGIN (no public ports) ═══════════╗
+║                     cloudflared │                                      ║
+║                     nginx (80) ◀┘                                      ║
+║                         │                                              ║
+║                    Anubis (8080) ─ PoW challenge                       ║
+║                         │                                              ║
+║                   Varnish (6081) ─ HTTP cache                          ║
+║                         │                                              ║
+║                 ┌───────▼──────────────────┐                             ║
+║                 │   API Gateway (9501)   │                             ║
+║                 └────────┬─────────────────┘                             ║
+║                          │ mTLS (TLS 1.3)                              ║
+║     ┌──────┬───────┬─────┼──────┬───────┐                              ║
+║     │      │       │     │      │       │                              ║
+║  ┌──▼──┐ ┌─▼───┐ ┌─▼──┐ ┌▼───┐ ┌─▼───┐                              ║
+║  │ Auth│ │Board│ │Media│ │Srch │ │ Mod │                              ║
+║  │ 9502│ │ 9503│ │ 9504│ │ 9505│ │ 9506│                              ║
+║  └──┬──┘ └─┬───┘ └─┬──┘ └┬───┘ └─┬───┘                              ║
+║     └──────┴───────┴─────┴──────┴───────┘                              ║
+║                          │                                              ║
+║          ┌──────────────┼───────────────┐                              ║
+║          │              │               │                              ║
+║     ┌────▼────┐   ┌────▼────┐   ┌────▼────┐                         ║
+║     │PostgreSQL│   │  Redis  │   │  MinIO  │                         ║
+║     │  5432    │   │  6379   │   │  9000   │                         ║
+║     └──────────┘   └─────────┘   └─────────┘                         ║
+╚══════════════════════════════════════════════════════════════════════╝
 ```
+
+### Encryption Layers
+
+| Segment | Encryption | Protocol |
+|---------|-----------|----------|
+| Client ↔ Cloudflare | TLS 1.3 | HTTPS |
+| Cloudflare ↔ Origin | Cloudflare Tunnel | Encrypted tunnel (outbound-only) |
+| Gateway ↔ Services | mTLS (TLS 1.3) | X.509 mutual authentication |
+
+The origin server has **no public IP** and **no open inbound ports**. `cloudflared` creates an outbound-only encrypted connection to Cloudflare's edge network.
 
 ---
 

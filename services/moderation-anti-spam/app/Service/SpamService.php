@@ -35,19 +35,40 @@ use Hyperf\Redis\Redis;
  */
 final class SpamService
 {
-    private const RATE_WINDOW   = 60;  // 60 seconds
-    private const RATE_LIMIT    = 5;   // 5 posts per window
-    private const THREAD_LIMIT  = 1;   // 1 thread per 5 min
-    private const THREAD_WINDOW = 300;
-
-    private const RISK_THRESHOLD_HIGH  = 7;
-    private const RISK_THRESHOLD_BLOCK = 10;
+    private int $rateWindow;
+    private int $rateLimit;
+    private int $threadLimit;
+    private int $threadWindow;
+    private int $riskThresholdHigh;
+    private int $riskThresholdBlock;
+    private int $duplicateFingerprintTtl;
+    private int $captchaTtl;
+    private int $captchaLength;
+    private int $ipReputationTtl;
+    private int $urlCountThreshold;
+    private float $capsRatioThreshold;
+    private int $excessiveLengthThreshold;
 
     public function __construct(
         private Redis $redis,
         private StopForumSpamService $sfsService,
         private SpurService $spurService,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->rateWindow               = $config->getInt('post_rate_window', 60);
+        $this->rateLimit                = $config->getInt('post_rate_limit', 5);
+        $this->threadLimit              = $config->getInt('thread_rate_limit', 1);
+        $this->threadWindow             = $config->getInt('thread_rate_window', 300);
+        $this->riskThresholdHigh        = $config->getInt('risk_threshold_high', 7);
+        $this->riskThresholdBlock       = $config->getInt('risk_threshold_block', 10);
+        $this->duplicateFingerprintTtl  = $config->getInt('duplicate_fingerprint_ttl', 3600);
+        $this->captchaTtl               = $config->getInt('captcha_ttl', 300);
+        $this->captchaLength            = $config->getInt('captcha_length', 6);
+        $this->ipReputationTtl          = $config->getInt('ip_reputation_ttl', 86400);
+        $this->urlCountThreshold        = $config->getInt('url_count_threshold', 3);
+        $this->capsRatioThreshold       = $config->getFloat('caps_ratio_threshold', 0.7);
+        $this->excessiveLengthThreshold = $config->getInt('excessive_length_threshold', 1500);
+    }
 
     /**
      * Run all spam checks on a potential post.
@@ -115,8 +136,8 @@ final class SpamService
             $reasons[] = "IP reputation: {$ipScore}";
         }
 
-        $allowed = $score < self::RISK_THRESHOLD_BLOCK;
-        $captchaRequired = $score >= self::RISK_THRESHOLD_HIGH;
+        $allowed = $score < $this->riskThresholdBlock;
+        $captchaRequired = $score >= $this->riskThresholdHigh;
 
         // Record this attempt
         $this->recordAttempt($ipHash, $score);
@@ -142,24 +163,24 @@ final class SpamService
 
         // Post rate limit
         $postKey = "ratelimit:post:{$ipHash}";
-        $postCount = $this->slidingWindowCount($postKey, $now, self::RATE_WINDOW);
-        if ($postCount >= self::RATE_LIMIT) {
-            return [true, "Post rate limit exceeded ({$postCount}/" . self::RATE_LIMIT . " per " . self::RATE_WINDOW . "s)"];
+        $postCount = $this->slidingWindowCount($postKey, $now, $this->rateWindow);
+        if ($postCount >= $this->rateLimit) {
+            return [true, "Post rate limit exceeded ({$postCount}/" . $this->rateLimit . " per " . $this->rateWindow . "s)"];
         }
 
         // Thread creation rate limit
         if ($isThread) {
             $threadKey = "ratelimit:thread:{$ipHash}";
-            $threadCount = $this->slidingWindowCount($threadKey, $now, self::THREAD_WINDOW);
-            if ($threadCount >= self::THREAD_LIMIT) {
+            $threadCount = $this->slidingWindowCount($threadKey, $now, $this->threadWindow);
+            if ($threadCount >= $this->threadLimit) {
                 return [true, "Thread creation rate limit exceeded"];
             }
             $this->redis->zAdd($threadKey, $now, (string) $now);
-            $this->redis->expire($threadKey, self::THREAD_WINDOW);
+            $this->redis->expire($threadKey, $this->threadWindow);
         }
 
         $this->redis->zAdd($postKey, $now, (string) $now);
-        $this->redis->expire($postKey, self::RATE_WINDOW);
+        $this->redis->expire($postKey, $this->rateWindow);
 
         return [false, ''];
     }
@@ -186,7 +207,7 @@ final class SpamService
             return true;
         }
 
-        $this->redis->setex($key, 3600, '1'); // 1-hour window
+        $this->redis->setex($key, $this->duplicateFingerprintTtl, '1');
         return false;
     }
 
@@ -201,7 +222,7 @@ final class SpamService
 
         // Too many URLs
         $urlCount = preg_match_all('/https?:\/\//', $lower);
-        if ($urlCount > 3) $score += 3;
+        if ($urlCount > $this->urlCountThreshold) $score += 3;
         elseif ($urlCount > 1) $score += 1;
 
         // Excessive caps
@@ -210,11 +231,11 @@ final class SpamService
         if ($alphaLen > 20) {
             $capsOnly = preg_replace('/[^A-Z]/', '', $content);
             $capsLen = mb_strlen(is_string($capsOnly) ? $capsOnly : '');
-            if ($capsLen / $alphaLen > 0.7) $score += 2;
+            if ($capsLen / $alphaLen > $this->capsRatioThreshold) $score += 2;
         }
 
         // Excessive length
-        if (mb_strlen($content) > 1500) $score += 1;
+        if (mb_strlen($content) > $this->excessiveLengthThreshold) $score += 1;
 
         // Repeated characters
         if (preg_match('/(.)\1{9,}/', $content)) $score += 3;
@@ -252,9 +273,9 @@ final class SpamService
 
     private function recordAttempt(string $ipHash, int $score): void
     {
-        if ($score >= self::RISK_THRESHOLD_HIGH) {
+        if ($score >= $this->riskThresholdHigh) {
             $this->redis->incr("ip_reputation:{$ipHash}");
-            $this->redis->expire("ip_reputation:{$ipHash}", 86400);
+            $this->redis->expire("ip_reputation:{$ipHash}", $this->ipReputationTtl);
         }
     }
 
@@ -269,12 +290,12 @@ final class SpamService
     {
         $chars  = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         $answer = '';
-        for ($i = 0; $i < 6; $i++) {
+        for ($i = 0; $i < $this->captchaLength; $i++) {
             $answer .= $chars[random_int(0, strlen($chars) - 1)];
         }
 
         $token = bin2hex(random_bytes(16));
-        $this->redis->setex("captcha:{$token}", 300, $answer); // 5-min expiry
+        $this->redis->setex("captcha:{$token}", $this->captchaTtl, $answer);
 
         return [
             'token'  => $token,

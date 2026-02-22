@@ -31,17 +31,19 @@ class StopForumSpamService
 {
     private const API_URL = 'https://api.stopforumspam.org/api';
     private const REPORT_URL = 'https://www.stopforumspam.com/add.php';
-    private const CONFIDENCE_THRESHOLD = 80;
 
     private LoggerInterface $logger;
     private ?string $apiKey;
+    private int $confidenceThreshold;
 
     public function __construct(
         private ClientFactory $clientFactory,
-        LoggerFactory $loggerFactory
+        LoggerFactory $loggerFactory,
+        SiteConfigService $config,
     ) {
         $this->logger = $loggerFactory->get('sfs');
-        $this->apiKey = is_string($val = env('SFS_API_KEY')) ? $val : null;
+        $this->apiKey = $config->get('sfs_api_key', '') ?: null;
+        $this->confidenceThreshold = $config->getInt('sfs_confidence_threshold', 80);
     }
 
     /**
@@ -91,7 +93,7 @@ class StopForumSpamService
                         }
                         if (isset($entry['appears']) && $entry['appears'] && isset($entry['confidence'])) {
                             $confidence = (float) $entry['confidence'];
-                            if ($confidence >= self::CONFIDENCE_THRESHOLD) {
+                            if ($confidence >= $this->confidenceThreshold) {
                                 $this->logger->info("SFS Block: $type matched with confidence {$confidence}");
                                 return true;
                             }

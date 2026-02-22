@@ -26,30 +26,37 @@ use Hyperf\Redis\Redis;
 use Psr\Log\LoggerInterface;
 
 /**
- * AuthenticationService - Production-ready staff authentication
+ * AuthenticationService - Production-ready staff authentication.
+ * Security thresholds are configured via site_settings (admin panel).
  */
 final class AuthenticationService
 {
     private LoggerInterface $logger;
     
-    // Security constants
-    private const PASSWORD_COST = 12;
-    private const MAX_LOGIN_ATTEMPTS = 5;
-    private const LOCKOUT_DURATION_MINUTES = 30;
+    // Non-configurable structural constants
     private const SESSION_TOKEN_LENGTH = 64;
-    private const SESSION_TIMEOUT_HOURS = 8;
     private const CSRF_TOKEN_LENGTH = 32;
-    private const CSRF_TOKEN_EXPIRY_HOURS = 24;
-    private const SESSION_CACHE_TTL = 60; // Cache validated sessions for 60 seconds
+
+    // Admin-configurable security settings (loaded from site_settings)
+    private int $maxLoginAttempts;
+    private int $lockoutDurationMinutes;
+    private int $sessionTimeoutHours;
+    private int $csrfTokenExpiryHours;
+    private int $sessionCacheTtl;
     
     private PiiEncryptionService $piiEncryption;
     private Redis $redis;
 
-    public function __construct(LoggerFactory $loggerFactory, PiiEncryptionService $piiEncryption, Redis $redis)
+    public function __construct(LoggerFactory $loggerFactory, PiiEncryptionService $piiEncryption, Redis $redis, SiteConfigService $config)
     {
         $this->logger = $loggerFactory->get('auth');
         $this->piiEncryption = $piiEncryption;
         $this->redis = $redis;
+        $this->maxLoginAttempts = $config->getInt('max_login_attempts', 5);
+        $this->lockoutDurationMinutes = $config->getInt('lockout_duration_minutes', 30);
+        $this->sessionTimeoutHours = $config->getInt('staff_session_timeout', 8);
+        $this->csrfTokenExpiryHours = $config->getInt('csrf_token_expiry_hours', 24);
+        $this->sessionCacheTtl = $config->getInt('session_cache_ttl', 60);
     }
     
     /**
@@ -233,7 +240,7 @@ final class AuthenticationService
 
         // Cache the validated session
         try {
-            $this->redis->setex($cacheKey, self::SESSION_CACHE_TTL, (string) json_encode($result));
+            $this->redis->setex($cacheKey, $this->sessionCacheTtl, (string) json_encode($result));
         } catch (\Throwable) {
             // Non-critical
         }
@@ -275,7 +282,7 @@ final class AuthenticationService
         Db::table('csrf_tokens')->insert([
             'user_id' => $userId,
             'token_hash' => $tokenHash,
-            'expires_at' => date('Y-m-d H:i:s', time() + (self::CSRF_TOKEN_EXPIRY_HOURS * 3600)),
+            'expires_at' => date('Y-m-d H:i:s', time() + ($this->csrfTokenExpiryHours * 3600)),
         ]);
         
         // Throttle cleanup: only purge expired tokens every ~5 minutes (probabilistic)
@@ -452,7 +459,7 @@ final class AuthenticationService
             'token_hash' => $tokenHash,
             'ip_address' => $this->piiEncryption->encrypt($ipAddress),
             'user_agent' => $userAgent,
-            'expires_at' => date('Y-m-d H:i:s', time() + (self::SESSION_TIMEOUT_HOURS * 3600)),
+            'expires_at' => date('Y-m-d H:i:s', time() + ($this->sessionTimeoutHours * 3600)),
         ]);
         
         // Update user's current session
@@ -460,7 +467,7 @@ final class AuthenticationService
             ->where('id', $userId)
             ->update([
                 'current_session_token' => $tokenHash,
-                'session_expires_at' => date('Y-m-d H:i:s', time() + (self::SESSION_TIMEOUT_HOURS * 3600)),
+                'session_expires_at' => date('Y-m-d H:i:s', time() + ($this->sessionTimeoutHours * 3600)),
             ]);
         
         return $token;
@@ -548,7 +555,7 @@ final class AuthenticationService
             ->where('created_at', '>', date('Y-m-d H:i:s', time() - 900))
             ->count();
         
-        if ($usernameFailures >= self::MAX_LOGIN_ATTEMPTS) {
+        if ($usernameFailures >= $this->maxLoginAttempts) {
             return ['allowed' => false, 'remaining_seconds' => 900];
         }
         
@@ -602,13 +609,13 @@ final class AuthenticationService
         
         $newFailedCount = (int) ($user->failed_login_attempts ?? 0) + 1;
         
-        if ($newFailedCount >= self::MAX_LOGIN_ATTEMPTS) {
+        if ($newFailedCount >= $this->maxLoginAttempts) {
             // Lock account
             Db::table('staff_users')
                 ->where('id', $userId)
                 ->update([
                     'is_locked' => true,
-                    'locked_until' => date('Y-m-d H:i:s', time() + (self::LOCKOUT_DURATION_MINUTES * 60)),
+                    'locked_until' => date('Y-m-d H:i:s', time() + ($this->lockoutDurationMinutes * 60)),
                     'failed_login_attempts' => $newFailedCount,
                 ]);
         } else {

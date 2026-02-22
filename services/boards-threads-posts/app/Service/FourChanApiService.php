@@ -40,10 +40,18 @@ use function Hyperf\Collection\collect;
  */
 final class FourChanApiService
 {
-    private const DEFAULT_PER_PAGE = 15;
-    private const DEFAULT_MAX_PAGES = 10;
-    private const PREVIEW_REPLIES = 5;
-    private const CATALOG_LAST_REPLIES = 5;
+    private int $defaultPerPage;
+    private int $defaultMaxPages;
+    private int $previewReplies;
+    private int $catalogLastReplies;
+
+    public function __construct(SiteConfigService $config)
+    {
+        $this->defaultPerPage     = $config->getInt('fourchan_per_page', 15);
+        $this->defaultMaxPages    = $config->getInt('fourchan_max_pages', 10);
+        $this->previewReplies     = $config->getInt('fourchan_preview_replies', 5);
+        $this->catalogLastReplies = $config->getInt('fourchan_catalog_replies', 5);
+    }
 
     /* ──────────────────────────────────────────────
      * boards.json
@@ -82,8 +90,8 @@ final class FourChanApiService
      */
     public function getThreadList(Board $board): array
     {
-        $perPage = self::DEFAULT_PER_PAGE;
-        $maxPages = self::DEFAULT_MAX_PAGES;
+        $perPage = $this->defaultPerPage;
+        $maxPages = $this->defaultMaxPages;
 
         $threads = Thread::query()
             ->where('board_id', $board->id)
@@ -128,8 +136,8 @@ final class FourChanApiService
      */
     public function getCatalog(Board $board): array
     {
-        $perPage = self::DEFAULT_PER_PAGE;
-        $maxPages = self::DEFAULT_MAX_PAGES;
+        $perPage = $this->defaultPerPage;
+        $maxPages = $this->defaultMaxPages;
 
         $threads = Thread::query()
             ->where('board_id', $board->id)
@@ -181,7 +189,7 @@ final class FourChanApiService
                 // Add catalog-specific fields
                 $entry['replies'] = $thread->reply_count;
                 $entry['images'] = $thread->image_count;
-                $entry['omitted_posts'] = max(0, $thread->reply_count - self::CATALOG_LAST_REPLIES);
+                $entry['omitted_posts'] = max(0, $thread->reply_count - $this->catalogLastReplies);
                 $entry['omitted_images'] = 0;
 
                 /** @var \Hyperf\Database\Model\Collection<int, Post> $threadReplies */
@@ -195,7 +203,7 @@ final class FourChanApiService
                 $entry['last_modified'] = $this->toTimestamp($thread->updated_at);
 
                 // last_replies: most recent N replies
-                $lastReplies = $threadReplies->take(self::CATALOG_LAST_REPLIES)->reverse()->values();
+                $lastReplies = $threadReplies->take($this->catalogLastReplies)->reverse()->values();
 
                 $lastRepliesFormatted = [];
                 $shownImageCount = 0;
@@ -245,8 +253,8 @@ final class FourChanApiService
      */
     public function getIndexPage(Board $board, int $page): ?array
     {
-        $perPage = self::DEFAULT_PER_PAGE;
-        $maxPages = self::DEFAULT_MAX_PAGES;
+        $perPage = $this->defaultPerPage;
+        $maxPages = $this->defaultMaxPages;
 
         if ($page < 1 || $page > $maxPages) {
             return null;
@@ -310,7 +318,7 @@ final class FourChanApiService
             // Preview replies from batch-loaded data
             /** @var \Hyperf\Database\Model\Collection<int, Post> $threadReplies */
             $threadReplies = $allReplies->get($thread->id, collect());
-            $latestReplies = $threadReplies->take(self::PREVIEW_REPLIES)->reverse()->values();
+            $latestReplies = $threadReplies->take($this->previewReplies)->reverse()->values();
 
             $totalReplies = $thread->reply_count;
             $shownReplies = $latestReplies->count();
@@ -533,8 +541,8 @@ final class FourChanApiService
             'board'             => $board->slug,
             'title'             => $board->title ?: $board->slug,
             'ws_board'          => $board->nsfw ? 0 : 1,
-            'per_page'          => self::DEFAULT_PER_PAGE,
-            'pages'             => self::DEFAULT_MAX_PAGES,
+            'per_page'          => $this->defaultPerPage,
+            'pages'             => $this->defaultMaxPages,
             'max_filesize'      => 4194304,  // 4MB default
             'max_webm_filesize' => 3145728,  // 3MB default
             'max_comment_chars' => 2000,

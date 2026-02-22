@@ -10,8 +10,9 @@
 BIND=:8080
 BIND_NETWORK=tcp
 
-# Target — forward valid requests to the API gateway
-TARGET=http://localhost:9501
+# Target — forward valid requests to Varnish cache (which fronts the API gateway)
+# Previous: http://localhost:9501 (direct to gateway)
+TARGET=http://localhost:6081
 
 # Challenge difficulty (number of leading zeros in PoW hash)
 # 4 = light challenge (~1-2 seconds for real browsers)

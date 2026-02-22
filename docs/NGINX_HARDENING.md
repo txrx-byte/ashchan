@@ -1,47 +1,53 @@
-# Nginx Hardening & Deployment Guide
+# Ashchan nginx Hardening Guide
 
-Production guide for deploying nginx as the public-facing reverse proxy in front
-of Anubis and the Ashchan service mesh. Covers TLS, rate limiting, anti-spam,
-performance tuning, and operational guidance.
+## Overview
 
----
+This document covers deploying and hardening nginx as a **local reverse proxy** in Ashchan's zero-exposure architecture. nginx receives traffic exclusively from `cloudflared` on localhost — no public ports are open.
 
 ## Architecture
 
 ```
-┌──────────────┐     ┌────────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Internet   │────▶│  nginx (80/443)│────▶│ Anubis (8080)│────▶│ API Gateway  │
-│              │     │  TLS + limits  │     │  PoW + bots  │     │  (9501)      │
-└──────────────┘     └────────────────┘     └──────────────┘     └──────────────┘
-                            │
-                            │  Static assets bypass Anubis
-                            └──────────────────────────────────▶ Gateway (9501)
+╔══════════════════════════════════════════════════════════════════════╗
+║                         PUBLIC INTERNET                                ║
+║  Client ── TLS 1.3 ──▶ Cloudflare Edge (WAF/DDoS/CDN)                  ║
+║                              │ Cloudflare Tunnel (outbound-only)      ║
+╚══════════════════════════════╪═════════════════════════════════════════╝
+╔══════════════════════════════╪═ ORIGIN (no public ports) ═══════════╗
+║                     cloudflared │                                      ║
+║                              ▼                                         ║
+║                 ┌─────────────────────┐                                ║
+║                 │   nginx (port 80)   │  ◄── YOU ARE HERE               ║
+║                 │   localhost only     │                                ║
+║                 └────────┬────────────┘                                ║
+║                          │                                              ║
+║                    Anubis (8080)                                        ║
+║                          │                                              ║
+║                   Varnish (6081)                                        ║
+║                          │                                              ║
+║                  API Gateway (9501)                                     ║
+║                          │ mTLS                                         ║
+║              ┌───────────┼───────────┐                                 ║
+║           Services (9502-9506)                                          ║
+╚══════════════════════════════════════════════════════════════════════╝
 ```
 
-**Request flow:**
+### Request Flow
 
-1. Client connects to **nginx** on ports 80/443.
-2. nginx terminates TLS, applies rate limits, blocks bad bots, enforces security
-   headers, and proxies to **Anubis** on `127.0.0.1:8080`.
-3. Anubis applies its proof-of-work challenge and bot policy, then forwards valid
-   requests to the **API Gateway** on `127.0.0.1:9501`.
-4. Static assets (`/static/`, `/media/`, `/health`) bypass Anubis and go directly
-   to the gateway for maximum performance.
+1. `cloudflared` terminates Cloudflare Tunnel on localhost
+2. nginx (port 80) receives plain HTTP from `cloudflared`
+3. Static assets served directly; dynamic requests proxied to Anubis
+4. Anubis (8080) applies proof-of-work challenge
+5. Varnish (6081) serves cached responses or forwards to gateway
+6. API Gateway (9501) processes the request
 
-**Port exposure with nginx:**
+### Security Posture
 
-| Port | Service | Exposure |
-|------|---------|----------|
-| 80   | nginx HTTP (redirect → 443) | **Public** |
-| 443  | nginx HTTPS (entry point) | **Public** |
-| 8080 | Anubis | Loopback only |
-| 9501 | API Gateway | Loopback only |
-| 22   | SSH | Admin only |
-
-> With nginx in front, ports 80 and 443 replace 8080 as the public-facing ports.
-> Update firewall rules accordingly (see [Firewall Integration](#firewall-integration)).
-
----
+| Property | Value |
+|----------|-------|
+| Public ports | **None** — all traffic arrives via Cloudflare Tunnel |
+| nginx listen | `127.0.0.1:80` (localhost only) |
+| TLS termination | Cloudflare edge (nginx receives plain HTTP) |
+| Upstream protection | Anubis PoW + Varnish cache + rate limiting |
 
 ## Quick Start
 
@@ -244,35 +250,29 @@ The installer (`./ashchan nginx:setup`) does this automatically.
 
 ## Cloudflare Integration
 
-If Cloudflare sits in front of nginx (the recommended production topology), three
-additional configuration steps are required. Each solves a distinct security
-problem.
+Ashchan uses **Cloudflare Tunnel** (`cloudflared`) for zero-exposure ingress. The origin server has no public IP and no open inbound ports. `cloudflared` creates an outbound-only encrypted tunnel to Cloudflare's edge, which then forwards traffic to nginx on localhost.
 
-### Architecture with Cloudflare
+### Architecture with Cloudflare Tunnel
 
 ```
-┌──────────┐     ┌────────────┐     ┌────────────────┐     ┌────────────────┐     ┌──────────────┐
-│  Client   │───▶│ Cloudflare │───▶│  nginx (443)    │───▶│  Anubis (8080) │───▶│ API Gateway  │
-│           │    │  Edge/WAF  │    │  TLS + verify   │    │  PoW + bots    │    │  (9501)      │
-└──────────┘     └────────────┘    └────────────────┘     └────────────────┘     └──────────────┘
-                      │                    │
-                      │ CF-Connecting-IP   │ X-Real-IP / X-Forwarded-For
-                      │ (real client IP)   │ (restored real IP)
-                      │                    │
+┌──────────┐     ┌────────────────┐     ┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Client   │───▶│ Cloudflare Edge│───▶│ cloudflared  │───▶│ nginx (80)   │───▶│ Anubis (8080)│
+│           │    │ WAF/DDoS/CDN   │    │ (outbound)   │    │ (localhost)   │    │ PoW + bots   │
+└──────────┘     └────────────────┘    └─────────────┘     └──────┬───────┘     └──────┬───────┘
+                      │                                           │                      │
+                      │ CF-Connecting-IP                          │ X-Real-IP            ▼
+                      │ (real client IP)                          │               Varnish (6081)
+                      │                                           │                      │
+                                                                                  API Gateway (9501)
 ```
 
-### Why Authenticated Origin Pulls
+> **Note:** TLS is terminated at Cloudflare's edge. nginx receives plain HTTP from `cloudflared` on localhost. There is no need for `ssl_verify_client` (Authenticated Origin Pulls) since the origin has no public ports — `cloudflared` is the sole traffic source.
 
-**Problem:** If anyone discovers your origin server's real IP address (through DNS
-history, email headers, information leaks, etc.), they can send requests directly
-to nginx, completely bypassing Cloudflare's WAF, DDoS protection, bot management,
-and rate limiting.
+### Authenticated Origin Pulls (Not Required with Tunnel)
 
-**Solution:** Cloudflare signs every proxied request with a TLS client certificate
-issued from their Origin Pull CA. By configuring nginx with
-`ssl_verify_client on`, the server rejects any HTTPS connection that does NOT
-present a valid Cloudflare client certificate. Direct-to-origin requests fail
-with a `400 Bad Request`.
+With Cloudflare Tunnel, **Authenticated Origin Pulls are unnecessary**. The origin has no public IP and no open inbound ports — `cloudflared` is the sole source of traffic arriving at nginx. There is no way for attackers to bypass Cloudflare by connecting directly.
+
+If you ever switch from Tunnel to a traditional public-IP setup, re-enable this:
 
 ```nginx
 # In the server { } block:

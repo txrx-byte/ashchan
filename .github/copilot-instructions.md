@@ -13,9 +13,11 @@ Ashchan is a privacy-first imageboard running **6 Hyperf 3.1/Swoole microservice
 | search-indexing | `services/search-indexing/` | 9505 | Search backend, event-driven indexing |
 | moderation-anti-spam | `services/moderation-anti-spam/` | 9506 | Risk scoring, moderation queue, bans |
 
-**Request flow:** nginx (80/443) → Anubis (8080) — a proof-of-work challenge proxy that blocks bots, AI scrapers, and automated abuse before forwarding legitimate requests → API Gateway (9501) → backend services. The gateway uses `ProxyClient` (cURL-based, `services/api-gateway/app/Service/ProxyClient.php`) to forward requests with mTLS support. Route resolution is in `GatewayController::ROUTE_MAP`.
+**Request flow:** Cloudflare Edge (TLS 1.3, WAF, DDoS) → Cloudflare Tunnel (`cloudflared`, outbound-only) → nginx (80) → Anubis (8080, proof-of-work challenge) → Varnish (6081, HTTP object cache) → API Gateway (9501) → backend services (mTLS). The origin server has **no public IP** and **no open inbound ports**. Static assets and media bypass Anubis via nginx directly to the gateway. The gateway uses `ProxyClient` (cURL-based, `services/api-gateway/app/Service/ProxyClient.php`) to forward requests with mTLS support. Route resolution is in `GatewayController::ROUTE_MAP`.
 
 **Data stores:** PostgreSQL 16+ (shared DB `ashchan`), Redis 7+ (each service uses a separate `REDIS_DB`), MinIO/S3 for media blobs.
+
+**Caching layers:** Varnish (L1, HTTP object cache, 10-60s TTL), Gateway Redis DB 0 (L2, application cache, 60s), Service Redis DB 2 (L3, domain cache, 120-600s). Cache invalidation flows via Redis Streams → `CacheInvalidatorProcess` → HTTP BAN to Varnish + Redis key deletion. See `docs/VARNISH_CACHE.md`.
 
 **Async events:** Domain events via Redis streams (`contracts/events/`). CloudEvents-compatible envelope: `{id, type, occurred_at, payload}`.
 
@@ -98,13 +100,17 @@ Each service has `.env.example` with `__PLACEHOLDER__` tokens. Key categories:
 - `REDIS_DB` — service-specific Redis database number (0=gateway, 1=auth, 2=boards, 3=media, 4=search, 5=moderation)
 - `*_SERVICE_URL` — inter-service mTLS URLs
 - `MTLS_ENABLED`, `MTLS_CERT_FILE`, `MTLS_KEY_FILE`, `MTLS_CA_FILE` — certificate paths
+- `VARNISH_URL` — Varnish cache endpoint for BAN requests (default: `http://127.0.0.1:6081`)
 
 ## Key Files
 - `Makefile` — All dev/ops commands
 - `services/api-gateway/config/routes.php` — Complete route map (~240 lines)
 - `services/api-gateway/app/Service/ProxyClient.php` — Inter-service HTTP forwarding
+- `services/api-gateway/app/Process/CacheInvalidatorProcess.php` — Redis Streams → Varnish BAN + Redis cache invalidation
 - `services/boards-threads-posts/app/Service/BoardService.php` — Core domain logic (~1139 lines)
 - `db/install.sql` — Full database schema
 - `config/nginx/nginx.conf` — Production reverse proxy with rate limiting
+- `config/varnish/default.vcl` — Varnish HTTP cache configuration
 - `docs/architecture.md` — System architecture details
+- `docs/VARNISH_CACHE.md` — Varnish cache layer documentation
 - `docs/SERVICEMESH.md` — mTLS certificate management

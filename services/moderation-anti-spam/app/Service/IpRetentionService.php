@@ -41,19 +41,22 @@ final class IpRetentionService
 {
     private LoggerInterface $logger;
 
-    /** @var array<string, int> Retention periods in days */
-    private const RETENTION_DAYS = [
-        'report_ip'         => 90,
-        'ban_ip'            => 30,   // 30 days after ban expiry
-        'sfs_pending'       => 30,
-        'report_clear_log'  => 90,
-        'moderation_decisions' => 365,
-        'audit_log_ip'      => 365,
-    ];
+    private int $reportIpDays;
+    private int $banIpDays;
+    private int $sfsPendingDays;
+    private int $reportClearLogDays;
+    private int $moderationDecisionsDays;
+    private int $auditLogIpDays;
 
-    public function __construct(LoggerFactory $loggerFactory)
+    public function __construct(LoggerFactory $loggerFactory, SiteConfigService $config)
     {
         $this->logger = $loggerFactory->get('ip-retention');
+        $this->reportIpDays           = $config->getInt('retention_report_ip', 90);
+        $this->banIpDays              = $config->getInt('retention_ban_ip', 30);
+        $this->sfsPendingDays         = $config->getInt('retention_sfs_pending', 30);
+        $this->reportClearLogDays     = $config->getInt('retention_report_clear_log', 90);
+        $this->moderationDecisionsDays = $config->getInt('retention_moderation_decisions', 365);
+        $this->auditLogIpDays         = $config->getInt('retention_audit_log_ip', 365);
     }
 
     /**
@@ -86,7 +89,7 @@ final class IpRetentionService
      */
     public function purgeReportIps(): int
     {
-        $days = self::RETENTION_DAYS['report_ip'];
+        $days = $this->reportIpDays;
 
         try {
             $affected = Db::update(
@@ -110,7 +113,7 @@ final class IpRetentionService
      */
     public function purgeBanIps(): int
     {
-        $bufferDays = self::RETENTION_DAYS['ban_ip'];
+        $bufferDays = $this->banIpDays;
 
         try {
             $affected = Db::update(
@@ -137,7 +140,7 @@ final class IpRetentionService
      */
     public function purgeSfsPendingReports(): int
     {
-        $days = self::RETENTION_DAYS['sfs_pending'];
+        $days = $this->sfsPendingDays;
 
         try {
             $affected = Db::delete(
@@ -163,7 +166,7 @@ final class IpRetentionService
      */
     public function purgeReportClearLogIps(): int
     {
-        $days = self::RETENTION_DAYS['report_clear_log'];
+        $days = $this->reportClearLogDays;
 
         try {
             $affected = Db::update(
@@ -187,7 +190,7 @@ final class IpRetentionService
      */
     public function purgeModerationDecisions(): int
     {
-        $days = self::RETENTION_DAYS['moderation_decisions'];
+        $days = $this->moderationDecisionsDays;
 
         try {
             $affected = Db::delete(
@@ -211,7 +214,7 @@ final class IpRetentionService
      */
     public function purgeAuditLogIps(): int
     {
-        $days = self::RETENTION_DAYS['audit_log_ip'];
+        $days = $this->auditLogIpDays;
 
         try {
             $affected = Db::update(

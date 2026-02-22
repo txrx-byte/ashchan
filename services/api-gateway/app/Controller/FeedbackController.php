@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\SiteConfigService;
 use Hyperf\DbConnection\Db;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
@@ -45,13 +46,15 @@ final class FeedbackController
 
     private const VALID_PRIORITIES = ['low', 'normal', 'high', 'critical'];
 
-    /** Rate limit: max submissions per IP per hour */
-    private const RATE_LIMIT = 5;
+    private int $rateLimit;
 
     public function __construct(
         private RequestInterface $request,
         private HttpResponse $response,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->rateLimit = $config->getInt('feedback_rate_limit', 5);
+    }
 
     /** POST /api/v1/feedback – Submit feedback */
     public function submit(): ResponseInterface
@@ -113,7 +116,7 @@ final class FeedbackController
             ->where('created_at', '>', $oneHourAgo)
             ->count();
 
-        if ($recentCount >= self::RATE_LIMIT) {
+        if ($recentCount >= $this->rateLimit) {
             return $this->json([
                 'error' => 'You have submitted too many feedback entries recently. Please try again later.',
             ], 429);

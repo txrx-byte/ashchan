@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\ProxyClient;
+use App\Service\SiteConfigService;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
@@ -50,10 +51,19 @@ final class GatewayController
         'moderation' => ['reports', 'spam', 'captcha'],
     ];
 
+    private string $storageEndpoint;
+    private string $storageBucket;
+    private string $localStoragePath;
+
     public function __construct(
         private ProxyClient $proxyClient,
         private HttpResponse $response,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->storageEndpoint = $config->get('object_storage_endpoint', 'http://localhost:9000');
+        $this->storageBucket   = $config->get('object_storage_bucket', 'ashchan');
+        $this->localStoragePath = $config->get('local_storage_path', '/workspaces/ashchan/data/media');
+    }
 
     /** Proxy media requests to MinIO, with local disk fallback */
     public function proxyMedia(RequestInterface $request, string $path): ResponseInterface
@@ -64,8 +74,8 @@ final class GatewayController
             return $this->response->raw('Invalid path')->withStatus(400);
         }
 
-        $minioUrl  = (string) env('OBJECT_STORAGE_ENDPOINT', 'http://localhost:9000');
-        $bucket    = (string) env('OBJECT_STORAGE_BUCKET', 'ashchan');
+        $minioUrl  = $this->storageEndpoint;
+        $bucket    = $this->storageBucket;
         $accessKey = (string) env('OBJECT_STORAGE_ACCESS_KEY', 'minioadmin');
         $secretKey = (string) env('OBJECT_STORAGE_SECRET_KEY', 'minioadmin');
         
@@ -103,7 +113,7 @@ final class GatewayController
         }
 
         // Fallback: try local disk (with realpath validation to prevent traversal)
-        $baseDir = (string) env('LOCAL_STORAGE_PATH', '/workspaces/ashchan/data/media');
+        $baseDir = $this->localStoragePath;
         $localPath = $baseDir . '/' . $path;
         $realLocal = realpath($localPath);
         $realBase  = realpath($baseDir);

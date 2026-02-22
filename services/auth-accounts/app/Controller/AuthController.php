@@ -22,6 +22,7 @@ namespace App\Controller;
 
 use App\Service\AuthService;
 use App\Service\PiiEncryptionService;
+use App\Service\SiteConfigService;
 use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\RequestMapping;
 use Hyperf\HttpServer\Contract\RequestInterface;
@@ -44,38 +45,34 @@ use Psr\Http\Message\ResponseInterface;
 #[Controller(prefix: '/api/v1/auth')]
 final class AuthController
 {
-    /** Maximum allowed username length to prevent abuse. */
-    private const MAX_USERNAME_LENGTH = 64;
-
-    /** Maximum allowed password length to prevent hash-DoS attacks. */
-    private const MAX_PASSWORD_LENGTH = 256;
-
-    /** Maximum allowed email length per RFC 5321. */
-    private const MAX_EMAIL_LENGTH = 254;
-
-    /** Maximum login attempts per IP within the rate-limit window. */
-    private const LOGIN_RATE_LIMIT = 10;
-
-    /** Rate-limit sliding window in seconds. */
-    private const LOGIN_RATE_WINDOW = 300;
-
     /** Allowed staff roles for registration. */
     private const ALLOWED_ROLES = ['admin', 'manager', 'mod', 'janitor', 'user'];
 
     /** Roles permitted to perform ban/unban operations. */
     private const BAN_ROLES = ['admin', 'manager', 'mod'];
 
-    /** Maximum ban duration: 1 year in seconds. */
-    private const MAX_BAN_DURATION = 31536000;
-
-    /** Minimum ban duration: 60 seconds. */
-    private const MIN_BAN_DURATION = 60;
+    private int $maxUsernameLength;
+    private int $maxPasswordLength;
+    private int $maxEmailLength;
+    private int $loginRateLimit;
+    private int $loginRateWindow;
+    private int $maxBanDuration;
+    private int $minBanDuration;
 
     public function __construct(
         private AuthService $authService,
         private PiiEncryptionService $piiEncryption,
         private HttpResponse $response,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->maxUsernameLength = $config->getInt('max_username_length', 64);
+        $this->maxPasswordLength = $config->getInt('max_password_length', 256);
+        $this->maxEmailLength    = $config->getInt('max_email_length', 254);
+        $this->loginRateLimit    = $config->getInt('login_rate_limit', 10);
+        $this->loginRateWindow   = $config->getInt('login_rate_window', 300);
+        $this->maxBanDuration    = $config->getInt('max_ban_duration', 31536000);
+        $this->minBanDuration    = $config->getInt('min_ban_duration', 60);
+    }
 
     /**
      * Authenticate a staff user and issue a session token.
@@ -102,10 +99,10 @@ final class AuthController
         }
 
         // Enforce input length limits to prevent abuse
-        if (strlen($username) > self::MAX_USERNAME_LENGTH) {
+        if (strlen($username) > $this->maxUsernameLength) {
             return $this->response->json(['error' => 'Username too long'])->withStatus(400);
         }
-        if (strlen($password) > self::MAX_PASSWORD_LENGTH) {
+        if (strlen($password) > $this->maxPasswordLength) {
             return $this->response->json(['error' => 'Password too long'])->withStatus(400);
         }
 
@@ -217,7 +214,7 @@ final class AuthController
         }
 
         // Input length and format validation
-        if (strlen($username) > self::MAX_USERNAME_LENGTH) {
+        if (strlen($username) > $this->maxUsernameLength) {
             return $this->response->json(['error' => 'Username too long'])->withStatus(400);
         }
         if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $username)) {
@@ -226,10 +223,10 @@ final class AuthController
         if (strlen($password) < 12) {
             return $this->response->json(['error' => 'Password must be at least 12 characters'])->withStatus(400);
         }
-        if (strlen($password) > self::MAX_PASSWORD_LENGTH) {
+        if (strlen($password) > $this->maxPasswordLength) {
             return $this->response->json(['error' => 'Password too long'])->withStatus(400);
         }
-        if ($email !== '' && (strlen($email) > self::MAX_EMAIL_LENGTH || !filter_var($email, FILTER_VALIDATE_EMAIL))) {
+        if ($email !== '' && (strlen($email) > $this->maxEmailLength || !filter_var($email, FILTER_VALIDATE_EMAIL))) {
             return $this->response->json(['error' => 'Invalid email address'])->withStatus(400);
         }
         if (!in_array($role, self::ALLOWED_ROLES, true)) {
@@ -285,7 +282,7 @@ final class AuthController
 
         // Validate duration bounds
         $durationInt = is_numeric($duration) ? (int) $duration : 86400;
-        $durationInt = max(self::MIN_BAN_DURATION, min(self::MAX_BAN_DURATION, $durationInt));
+        $durationInt = max($this->minBanDuration, min($this->maxBanDuration, $durationInt));
 
         $reasonStr = is_string($reason) ? mb_substr($reason, 0, 500) : '';
 
@@ -455,7 +452,7 @@ redis.call('EXPIRE', key, window)
 return 0
 LUA;
 
-            $windowStart = $now - self::LOGIN_RATE_WINDOW;
+            $windowStart = $now - $this->loginRateWindow;
             $member = (string) $now . ':' . bin2hex(random_bytes(4));
 
             /** @var int $result */
@@ -465,9 +462,9 @@ LUA;
                     $key,
                     (string) $now,
                     (string) $windowStart,
-                    (string) self::LOGIN_RATE_LIMIT,
+                    (string) $this->loginRateLimit,
                     $member,
-                    (string) self::LOGIN_RATE_WINDOW,
+                    (string) $this->loginRateWindow,
                 ],
                 1
             );

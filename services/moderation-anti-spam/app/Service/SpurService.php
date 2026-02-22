@@ -37,7 +37,8 @@ class SpurService
 {
     private const API_BASE_URL = 'https://api.spur.us';
     private const CONTEXT_ENDPOINT = '/v2/context/';
-    private const DEFAULT_TIMEOUT = 3;
+
+    private int $defaultTimeout;
 
     /**
      * Risk factors that indicate high-risk anonymous traffic.
@@ -82,10 +83,12 @@ class SpurService
     public function __construct(
         private ClientFactory $clientFactory,
         private SiteSettingsService $settingsService,
-        LoggerFactory $loggerFactory
+        LoggerFactory $loggerFactory,
+        SiteConfigService $config,
     ) {
         $this->logger = $loggerFactory->get('spur');
-        $this->apiToken = is_string($val = env('SPUR_API_TOKEN')) ? $val : null;
+        $this->apiToken = $config->get('spur_api_token', '') ?: null;
+        $this->defaultTimeout = $config->getInt('spur_timeout', 3);
     }
 
     /**
@@ -133,7 +136,7 @@ class SpurService
                     'Token' => $this->apiToken,
                     'Accept' => 'application/json',
                 ],
-                'timeout' => self::DEFAULT_TIMEOUT,
+                'timeout' => $this->defaultTimeout,
             ]);
 
             $statusCode = $response->getStatusCode();

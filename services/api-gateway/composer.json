@@ -30,7 +30,13 @@
       "App\\": "app/"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "App\\Tests\\": "tests/"
+    }
+  },
   "require-dev": {
+    "dg/bypass-finals": "^1.9",
     "phpstan/extension-installer": "^1.4",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^10.0"

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2026 txrx-byte
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setting Audit: <?= htmlspecialchars($key) ?> - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Admin</div>
+                <a href="/staff/site-settings" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Site Settings</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <form method="POST" action="/staff/logout" class="nav-item" style="margin:0">
+                    <button type="submit" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0;display:flex;align-items:center;gap:8px;width:100%">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                    </button>
+                </form>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>Audit History: <code><?= htmlspecialchars($key) ?></code></h2>
+                <a href="/staff/site-settings" class="btn btn-light">&larr; Back to Settings</a>
+            </header>
+
+            <div style="background: #f3f4f6; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+                <strong>Current Value:</strong> <code><?= htmlspecialchars($currentValue) ?></code>
+            </div>
+
+            <?php if (empty($history)): ?>
+                <div class="empty-state">
+                    <p>No audit history found for this setting.</p>
+                </div>
+            <?php else: ?>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Old Value</th>
+                                <th>New Value</th>
+                                <th>Changed By</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($history as $entry): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($entry['changed_at']) ?></td>
+                                    <td><code><?= htmlspecialchars($entry['old_value'] ?? '(none)') ?></code></td>
+                                    <td><code><?= htmlspecialchars($entry['new_value']) ?></code></td>
+                                    <td><?= $entry['changed_by'] !== null ? 'Staff #' . (int)$entry['changed_by'] : 'System' ?></td>
+                                    <td><?= htmlspecialchars($entry['reason'] ?? '') ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+</body>
+</html>

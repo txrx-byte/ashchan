@@ -28,8 +28,9 @@ use Hyperf\Redis\RedisFactory;
 use Psr\Container\ContainerInterface;
 
 /**
- * Consumes domain events and invalidates cached data in the gateway's
- * Redis cache (DB 0) when threads/posts are created or moderated.
+ * Consumes domain events and invalidates cached data in both the gateway's
+ * Redis cache (DB 0) and Varnish HTTP cache (port 6081) when threads/posts
+ * are created or moderated.
  *
  * Handles: post.created, thread.created, moderation.decision
  */
@@ -41,6 +42,9 @@ final class CacheInvalidatorProcess extends EventConsumer
     /** Redis connection for cache operations (gateway's DB 0). */
     private object $cacheRedis;
 
+    /** Varnish BAN endpoint (HTTP method BAN to this URL). */
+    private string $varnishUrl;
+
     public function __construct(ContainerInterface $container)
     {
         parent::__construct($container);
@@ -51,6 +55,10 @@ final class CacheInvalidatorProcess extends EventConsumer
 
         // Default Redis (DB 0) for cache invalidation
         $this->cacheRedis = $container->get(Redis::class);
+
+        // Varnish HTTP cache layer
+        $siteConfig = $container->get(\App\Service\SiteConfigService::class);
+        $this->varnishUrl = $siteConfig->get('varnish_url', 'http://127.0.0.1:6081');
     }
 
     protected function supports(string $eventType): bool
@@ -113,6 +121,16 @@ final class CacheInvalidatorProcess extends EventConsumer
             'keys_deleted' => $keysDeleted,
             'event_type' => $event->type,
         ]);
+
+        // Invalidate Varnish HTTP cache
+        if ($boardSlug !== '') {
+            // Ban board index, catalog, and archive pages
+            $this->banVarnish('^/' . preg_quote($boardSlug, '/') . '/');
+        }
+        if ($threadId !== '' && $boardSlug !== '') {
+            // Also ban the specific thread URL pattern
+            $this->banVarnish('^/' . preg_quote($boardSlug, '/') . '/thread/' . preg_quote($threadId, '/'));
+        }
     }
 
     private function invalidateOnModeration(CloudEvent $event): void
@@ -183,6 +201,66 @@ final class CacheInvalidatorProcess extends EventConsumer
                     'keys_deleted' => $keysDeleted,
                 ]);
             }
+
+            // Invalidate Varnish HTTP cache for moderation actions
+            if ($boardSlug !== '') {
+                $this->banVarnish('^/' . preg_quote($boardSlug, '/') . '/');
+            }
+            if ($threadId !== '' && $boardSlug !== '') {
+                $this->banVarnish('^/' . preg_quote($boardSlug, '/') . '/thread/' . preg_quote($threadId, '/'));
+            } elseif ($targetType === 'thread' && $targetId !== '' && $boardSlug !== '') {
+                $this->banVarnish('^/' . preg_quote($boardSlug, '/') . '/thread/' . preg_quote($targetId, '/'));
+            }
+        }
+    }
+
+    /**
+     * Send an HTTP BAN request to Varnish to invalidate all URLs matching the pattern.
+     *
+     * Varnish evaluates bans lazily (via the ban lurker) — matching cached objects
+     * are tested against the ban list on next access or proactively by the lurker.
+     */
+    private function banVarnish(string $pattern): void
+    {
+        if ($this->varnishUrl === '') {
+            return;
+        }
+
+        try {
+            $ch = curl_init($this->varnishUrl . '/');
+            if ($ch === false) {
+                return;
+            }
+
+            curl_setopt_array($ch, [
+                CURLOPT_CUSTOMREQUEST => 'BAN',
+                CURLOPT_HTTPHEADER => ['X-Ban-Pattern: ' . $pattern],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 2,
+                CURLOPT_CONNECTTIMEOUT => 1,
+            ]);
+
+            $result = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200) {
+                $this->logger->debug('[CacheInvalidator] Varnish BAN sent', [
+                    'pattern' => $pattern,
+                ]);
+            } else {
+                $this->logger->warning('[CacheInvalidator] Varnish BAN failed', [
+                    'pattern' => $pattern,
+                    'http_code' => $httpCode,
+                    'response' => is_string($result) ? substr($result, 0, 200) : '',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Varnish unavailability should not break event processing
+            $this->logger->warning('[CacheInvalidator] Varnish BAN error (non-fatal)', [
+                'pattern' => $pattern,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

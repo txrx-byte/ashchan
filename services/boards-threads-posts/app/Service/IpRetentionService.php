@@ -41,16 +41,16 @@ final class IpRetentionService
 {
     private LoggerInterface $logger;
 
-    /** @var array<string, int> Retention periods in days */
-    private const RETENTION_DAYS = [
-        'post_ip'   => 30,
-        'post_email' => 30,
-        'flood_log' => 1, // 24 hours, expressed as 1 day
-    ];
+    private int $postIpRetentionDays;
+    private int $postEmailRetentionDays;
+    private int $floodLogRetentionDays;
 
-    public function __construct(LoggerFactory $loggerFactory)
+    public function __construct(LoggerFactory $loggerFactory, SiteConfigService $config)
     {
         $this->logger = $loggerFactory->get('ip-retention');
+        $this->postIpRetentionDays    = $config->getInt('retention_post_ip', 30);
+        $this->postEmailRetentionDays = $config->getInt('retention_post_email', 30);
+        $this->floodLogRetentionDays  = $config->getInt('retention_flood_log', 1);
     }
 
     /**
@@ -80,7 +80,7 @@ final class IpRetentionService
      */
     public function purgePostIps(): int
     {
-        $days = self::RETENTION_DAYS['post_ip'];
+        $days = $this->postIpRetentionDays;
 
         try {
             $affected = Db::update(
@@ -107,7 +107,7 @@ final class IpRetentionService
      */
     public function purgePostEmails(): int
     {
-        $days = self::RETENTION_DAYS['post_email'];
+        $days = $this->postEmailRetentionDays;
 
         try {
             $affected = Db::update(
@@ -132,14 +132,17 @@ final class IpRetentionService
      */
     public function purgeFloodLog(): int
     {
+        $days = $this->floodLogRetentionDays;
+
         try {
             $affected = Db::delete(
-                "DELETE FROM flood_log WHERE created_at < NOW() - INTERVAL '24 hours'"
+                'DELETE FROM flood_log WHERE created_at < NOW() - make_interval(days => ?)',
+                [$days]
             );
 
             if ($affected > 0) {
-                $this->logger->info("Purged {$affected} flood log entries (>24h old)");
-                $this->logRetentionAction('flood_log', '*', $affected, 1);
+                $this->logger->info("Purged {$affected} flood log entries (>{$days} day(s) old)");
+                $this->logRetentionAction('flood_log', '*', $affected, $days);
             }
 
             return $affected;

@@ -33,12 +33,38 @@ use function Hyperf\Collection\collect;
 
 final class BoardService
 {
+    private int $blotterLimit;
+    private int $archiveLimit;
+    private int $ipPostSearchLimit;
+    private int $ipPostScanLimit;
+    private int $defaultMaxThreads;
+    private int $defaultBumpLimit;
+    private int $defaultImageLimit;
+    private int $defaultCooldownSeconds;
+    private string $ipHashSalt;
+
     public function __construct(
         private ContentFormatter $formatter,
         private Redis $redis,
         private PiiEncryptionServiceInterface $piiEncryption,
         private EventPublisher $eventPublisher,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->blotterLimit          = $config->getInt('blotter_display_limit', 5);
+        $this->archiveLimit          = $config->getInt('archive_thread_limit', 3000);
+        $this->ipPostSearchLimit     = $config->getInt('ip_post_search_limit', 100);
+        $this->ipPostScanLimit       = $config->getInt('ip_post_scan_limit', 5000);
+        $this->defaultMaxThreads     = $config->getInt('default_max_threads', 200);
+        $this->defaultBumpLimit      = $config->getInt('default_bump_limit', 300);
+        $this->defaultImageLimit     = $config->getInt('default_image_limit', 150);
+        $this->defaultCooldownSeconds = $config->getInt('default_cooldown_seconds', 60);
+
+        $salt = $config->get('ip_hash_salt', '');
+        if ($salt === '') {
+            $salt = (string) env('IP_HASH_SALT', '');
+        }
+        $this->ipHashSalt = $salt;
+    }
 
     /* ──────────────────────────────────────────────
      * Boards
@@ -150,7 +176,7 @@ final class BoardService
         /** @var \Hyperf\Database\Model\Collection<int, \App\Model\Blotter> $rows */
         $rows = \App\Model\Blotter::query()
             ->orderByDesc('id')
-            ->limit(5)
+            ->limit($this->blotterLimit)
             ->get();
 
         /** @var array<int, array<string, mixed>> $result */
@@ -207,10 +233,10 @@ final class BoardService
         $board->subtitle = (string) ($data['subtitle'] ?? '');
         $board->category = (string) ($data['category'] ?? '');
         $board->nsfw = (bool) ($data['nsfw'] ?? false);
-        $board->max_threads = (int) ($data['max_threads'] ?? 200);
-        $board->bump_limit = (int) ($data['bump_limit'] ?? 300);
-        $board->image_limit = (int) ($data['image_limit'] ?? 150);
-        $board->cooldown_seconds = (int) ($data['cooldown_seconds'] ?? 60);
+        $board->max_threads = (int) ($data['max_threads'] ?? $this->defaultMaxThreads);
+        $board->bump_limit = (int) ($data['bump_limit'] ?? $this->defaultBumpLimit);
+        $board->image_limit = (int) ($data['image_limit'] ?? $this->defaultImageLimit);
+        $board->cooldown_seconds = (int) ($data['cooldown_seconds'] ?? $this->defaultCooldownSeconds);
         $board->text_only = (bool) ($data['text_only'] ?? false);
         $board->require_subject = (bool) ($data['require_subject'] ?? false);
         $board->staff_only = (bool) ($data['staff_only'] ?? false);
@@ -587,7 +613,7 @@ final class BoardService
             ->where('board_id', $board->id)
             ->where('archived', true)
             ->orderByDesc('updated_at')
-            ->limit(3000)
+            ->limit($this->archiveLimit)
             ->get();
 
         if ($threads->isEmpty()) {
@@ -1292,7 +1318,7 @@ final class BoardService
         $results = [];
         $batchSize = 500;
         $offset = 0;
-        $maxScan = 5000;
+        $maxScan = $this->ipPostScanLimit;
 
         while ($offset < $maxScan && count($results) < $limit) {
             /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */
@@ -1370,14 +1396,13 @@ final class BoardService
     /**
      * Get the IP hash salt, failing fast if not configured.
      *
-     * @throws \RuntimeException if IP_HASH_SALT is not set or empty
+     * @throws \RuntimeException if ip_hash_salt is not set or empty
      */
     private function getIpHashSalt(): string
     {
-        $salt = env('IP_HASH_SALT');
-        if (!is_string($salt) || $salt === '') {
-            throw new \RuntimeException('IP_HASH_SALT environment variable must be configured and non-empty');
+        if ($this->ipHashSalt === '') {
+            throw new \RuntimeException('ip_hash_salt must be configured in site settings (or IP_HASH_SALT env var)');
         }
-        return $salt;
+        return $this->ipHashSalt;
     }
 }

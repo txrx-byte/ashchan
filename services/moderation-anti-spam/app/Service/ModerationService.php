@@ -45,26 +45,31 @@ final class ModerationService
 
     private EventPublisher $eventPublisher;
 
+    private int $globalThreshold;
+    private int $highlightThreshold;
+    private float $threadWeightBoost;
+    private int $abuseClearDays;
+    private int $abuseClearCount;
+    private int $abuseClearBanInterval;
+    private int $reportAbuseTemplateId;
+
     public function __construct(
         LoggerInterface $logger,
         PiiEncryptionService $piiEncryption,
         EventPublisher $eventPublisher,
+        SiteConfigService $config,
     ) {
         $this->logger = $logger;
         $this->piiEncryption = $piiEncryption;
         $this->eventPublisher = $eventPublisher;
+        $this->globalThreshold       = $config->getInt('report_global_threshold', 1500);
+        $this->highlightThreshold    = $config->getInt('report_highlight_threshold', 500);
+        $this->threadWeightBoost     = $config->getFloat('thread_weight_boost', 1.25);
+        $this->abuseClearDays        = $config->getInt('abuse_clear_days', 3);
+        $this->abuseClearCount       = $config->getInt('abuse_clear_count', 50);
+        $this->abuseClearBanInterval = $config->getInt('abuse_clear_ban_interval', 5);
+        $this->reportAbuseTemplateId = $config->getInt('report_abuse_template_id', 190);
     }
-
-    /**
-     * Weight thresholds (from OpenYotsuba ReportQueue)
-     */
-    private const GLOBAL_THRES = 1500;       // Weight after which report is globally unlocked
-    private const HIGHLIGHT_THRES = 500;     // Weight for highlighting
-    private const THREAD_WEIGHT_BOOST = 1.25; // Weight multiplier for threads
-    private const ABUSE_CLEAR_DAYS = 3;      // Days to check for abuse
-    private const ABUSE_CLEAR_COUNT = 50;    // Cleared reports threshold for auto-ban
-    private const ABUSE_CLEAR_BAN_INTERVAL = 5; // Min days between auto-bans
-    private const REP_ABUSE_TPL = 190;       // Report abuse template ID
 
     /**
      * Create a new report (port of report_submit from OpenYotsuba)
@@ -682,8 +687,8 @@ final class ModerationService
             'post'          => json_decode($postJson, true),
             'resto'         => $resto,
             'is_thread'     => $resto === 0,
-            'is_highlighted' => $totalWeight >= self::HIGHLIGHT_THRES,
-            'is_unlocked'   => $totalWeight >= self::GLOBAL_THRES,
+            'is_highlighted' => $totalWeight >= $this->highlightThreshold,
+            'is_unlocked'   => $totalWeight >= $this->globalThreshold,
         ];
     }
 

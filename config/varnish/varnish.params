@@ -1,0 +1,56 @@
+# ═══════════════════════════════════════════════════════════════
+# Ashchan — Varnish Daemon Configuration
+# ═══════════════════════════════════════════════════════════════
+#
+# This file is sourced by the systemd unit or the startup script
+# to configure varnishd command-line parameters.
+#
+# Architecture:  nginx (443) → Anubis (8080) → Varnish (6081) → Gateway (9501)
+#
+# See: docs/VARNISH_CACHE.md
+# ═══════════════════════════════════════════════════════════════
+
+# ── Listen address ───────────────────────────────────────────
+# Varnish listens here; Anubis forwards to this port.
+VARNISH_LISTEN_ADDRESS=127.0.0.1
+VARNISH_LISTEN_PORT=6081
+
+# ── Admin interface ──────────────────────────────────────────
+# CLI for varnishadm (ban/purge, stats, VCL reload)
+VARNISH_ADMIN_LISTEN_ADDRESS=127.0.0.1
+VARNISH_ADMIN_LISTEN_PORT=6082
+
+# ── VCL file ─────────────────────────────────────────────────
+VARNISH_VCL_CONF=/etc/varnish/default.vcl
+
+# ── Cache storage ────────────────────────────────────────────
+# malloc: in-memory cache (fast, lost on restart)
+# file:   disk-backed (survives restart, slower)
+#
+# Development:  256 MB in-memory
+# Production:   1-4 GB depending on available RAM
+VARNISH_STORAGE="malloc,256M"
+
+# ── Thread pool tuning ───────────────────────────────────────
+# min_threads: minimum worker threads per pool
+# max_threads: maximum worker threads per pool
+# thread_pools: number of thread pools (usually 2)
+VARNISH_MIN_THREADS=50
+VARNISH_MAX_THREADS=1000
+VARNISH_THREAD_POOLS=2
+
+# ── TTL defaults (overridden by VCL) ────────────────────────
+# default_ttl:  default TTL when backend doesn't set Cache-Control
+# default_grace: serve stale content for this long while fetching
+VARNISH_DEFAULT_TTL=30
+VARNISH_DEFAULT_GRACE=60
+
+# ── Secret file for admin CLI authentication ─────────────────
+VARNISH_SECRET_FILE=/etc/varnish/secret
+
+# ── Extra parameters ────────────────────────────────────────
+# ban_lurker_age:     how old a ban must be before lurker tests it
+# ban_lurker_sleep:   sleep between ban-lurker scans
+# http_resp_hdr_len:  max response header length (16k for big pages)
+# workspace_client:   per-session workspace for client requests
+VARNISH_EXTRA_PARAMS="-p ban_lurker_age=60 -p ban_lurker_sleep=0.1 -p http_resp_hdr_len=16384 -p workspace_client=64k"

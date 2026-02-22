@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Model;
 
+use App\Service\SiteConfigService;
 use Hyperf\DbConnection\Model\Model;
 
 /**
@@ -100,13 +101,6 @@ class Report extends Model
     public const CAT_ILLEGAL = 2;
 
     /**
-     * Weight thresholds (from OpenYotsuba)
-     */
-    public const GLOBAL_THRES = 1500;      // Weight after which report is globally unlocked
-    public const HIGHLIGHT_THRES = 500;    // Weight for highlighting
-    public const THREAD_WEIGHT_BOOST = 1.25; // Weight multiplier for threads
-
-    /**
      * Get reports for a specific board
      *
      * @param \Hyperf\Database\Model\Builder<static> $query
@@ -178,11 +172,14 @@ class Report extends Model
     }
 
     /**
-     * Check if a report is unlocked (high weight)
+     * Check if a report is unlocked (high weight).
+     * Threshold is loaded from site_settings via SiteConfigService.
      */
     public function isUnlocked(): bool
     {
-        return (float) $this->getAttribute('total_weight') >= self::GLOBAL_THRES;
+        /** @var SiteConfigService $config */
+        $config = \Hyperf\Context\ApplicationContext::getContainer()->get(SiteConfigService::class);
+        return (float) $this->getAttribute('total_weight') >= $config->getInt('report_global_threshold', 1500);
     }
 
     /**

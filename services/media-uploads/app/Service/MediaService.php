@@ -41,20 +41,28 @@ final class MediaService
     private int $maxFileSize;
     private EventPublisher $eventPublisher;
 
-    private const ALLOWED_MIMES = [
-        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-    ];
-
-    private const THUMB_MAX_WIDTH  = 250;
-    private const THUMB_MAX_HEIGHT = 250;
+    /** @var string[] */
+    private array $allowedMimes;
+    private int $thumbMaxWidth;
+    private int $thumbMaxHeight;
+    private int $uploadConnectTimeout;
+    private int $uploadTimeout;
+    private string $localStoragePath;
 
     public function __construct(
         EventPublisher $eventPublisher,
+        SiteConfigService $config,
     ) {
-        $this->storageBucket   = (string) \Hyperf\Support\env('OBJECT_STORAGE_BUCKET', 'ashchan');
-        $this->storageEndpoint = (string) \Hyperf\Support\env('OBJECT_STORAGE_ENDPOINT', 'http://minio:9000');
-        $this->maxFileSize     = (int) \Hyperf\Support\env('MAX_FILE_SIZE', 4194304); // 4MB
-        $this->eventPublisher  = $eventPublisher;
+        $this->storageBucket        = $config->get('object_storage_bucket', 'ashchan');
+        $this->storageEndpoint      = $config->get('object_storage_endpoint', 'http://minio:9000');
+        $this->maxFileSize          = $config->getInt('max_file_size', 4194304);
+        $this->eventPublisher       = $eventPublisher;
+        $this->allowedMimes         = $config->getList('allowed_mimes', 'image/jpeg,image/png,image/gif,image/webp');
+        $this->thumbMaxWidth        = $config->getInt('thumb_max_width', 250);
+        $this->thumbMaxHeight       = $config->getInt('thumb_max_height', 250);
+        $this->uploadConnectTimeout = $config->getInt('upload_connect_timeout', 3);
+        $this->uploadTimeout        = $config->getInt('upload_timeout', 15);
+        $this->localStoragePath     = $config->get('local_storage_path', '/workspaces/ashchan/data/media');
     }
 
     /**
@@ -163,14 +171,14 @@ final class MediaService
             throw new \RuntimeException('File too large (max ' . ($this->maxFileSize / 1048576) . 'MB)');
         }
 
-        if (!in_array($mime, self::ALLOWED_MIMES, true)) {
+        if (!in_array($mime, $this->allowedMimes, true)) {
             throw new \RuntimeException('File type not allowed');
         }
 
         // Double-check actual MIME using fileinfo — this is authoritative
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $actualMime = $finfo->file($path);
-        if ($actualMime === false || !in_array($actualMime, self::ALLOWED_MIMES, true)) {
+        if ($actualMime === false || !in_array($actualMime, $this->allowedMimes, true)) {
             throw new \RuntimeException('File type mismatch');
         }
 
@@ -192,12 +200,12 @@ final class MediaService
         if (!is_array($info)) return null;
 
         [$origW, $origH] = $info;
-        if ($origW <= self::THUMB_MAX_WIDTH && $origH <= self::THUMB_MAX_HEIGHT) {
+        if ($origW <= $this->thumbMaxWidth && $origH <= $this->thumbMaxHeight) {
             // Small enough, use original as thumb
             return null;
         }
 
-        $ratio = min(self::THUMB_MAX_WIDTH / $origW, self::THUMB_MAX_HEIGHT / $origH);
+        $ratio = min($this->thumbMaxWidth / $origW, $this->thumbMaxHeight / $origH);
         $thumbW = max(1, (int) ($origW * $ratio));
         $thumbH = max(1, (int) ($origH * $ratio));
 
@@ -282,8 +290,8 @@ final class MediaService
             CURLOPT_INFILE         => $fp,
             CURLOPT_INFILESIZE     => (int) filesize($localPath),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 3,
-            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => $this->uploadConnectTimeout,
+            CURLOPT_TIMEOUT        => $this->uploadTimeout,
             CURLOPT_HTTPHEADER     => [
                 "Date: {$date}",
                 "Content-Type: {$contentType}",
@@ -308,7 +316,7 @@ final class MediaService
      */
     private function saveToLocalDisk(string $localPath, string $key): void
     {
-        $basePath = getenv('LOCAL_STORAGE_PATH') ?: '/workspaces/ashchan/data/media';
+        $basePath = $this->localStoragePath;
         $destPath = $basePath . '/' . $key;
         $destDir = dirname($destPath);
 

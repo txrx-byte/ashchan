@@ -32,11 +32,23 @@ use Hyperf\Redis\Redis;
 final class SearchService
 {
     private const INDEX_PREFIX = 'search:';
-    private const TTL          = 86400 * 7; // 7 days
+
+    private int $ttl;
+    private int $indexTextMax;
+    private int $defaultPerPage;
+    private int $minQueryLength;
+    private int $excerptLength;
 
     public function __construct(
         private Redis $redis,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->ttl            = $config->getInt('search_index_ttl', 604800);
+        $this->indexTextMax   = $config->getInt('search_index_text_max', 500);
+        $this->defaultPerPage = $config->getInt('search_default_per_page', 25);
+        $this->minQueryLength = $config->getInt('search_min_query_length', 2);
+        $this->excerptLength  = $config->getInt('search_excerpt_length', 200);
+    }
 
     /**
      * Index a post for search.
@@ -50,11 +62,11 @@ final class SearchService
         $doc = json_encode([
             'thread_id' => $threadId,
             'post_id'   => $postId,
-            'text'      => mb_substr($text, 0, 500),
+            'text'      => mb_substr($text, 0, $this->indexTextMax),
         ]);
 
         $this->redis->hSet($key, (string) $postId, $doc);
-        $this->redis->expire($key, self::TTL);
+        $this->redis->expire($key, $this->ttl);
     }
 
     /**
@@ -76,7 +88,7 @@ final class SearchService
         $key   = self::INDEX_PREFIX . $boardSlug;
         $query = mb_strtolower(trim($query));
 
-        if (mb_strlen($query) < 2) {
+        if (mb_strlen($query) < $this->minQueryLength) {
             return ['results' => [], 'total' => 0];
         }
 
@@ -153,7 +165,7 @@ final class SearchService
 
     private function highlight(string $text, string $query): string
     {
-        $excerpt = mb_substr($text, 0, 200);
+        $excerpt = mb_substr($text, 0, $this->excerptLength);
         $pos = mb_strpos($excerpt, $query);
         if ($pos !== false) {
             $start = max(0, $pos - 40);

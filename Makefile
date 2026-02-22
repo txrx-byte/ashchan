@@ -43,6 +43,7 @@ LOG_DIR := /tmp/ashchan
 .PHONY: help up down restart status health install deps migrate seed \
         bootstrap dev-quick mtls-init mtls-certs clean \
         build-static build-static-php build-static-clean \
+        varnish-start varnish-stop varnish-reload varnish-status varnish-stats varnish-ban \
         $(addprefix start-,$(SHORT)) $(addprefix stop-,$(SHORT)) \
         $(addprefix log-,$(SHORT))
 
@@ -212,6 +213,53 @@ events-dlq-retry: ## Replay all dead-lettered events
 
 events-trim: ## Trim event stream to configured MAXLEN
 	@$(PHP) services/api-gateway/bin/hyperf.php events:trim
+
+# ── Varnish Cache ──────────────────────────────────────────
+
+VARNISH_VCL    := $(ROOT)/config/varnish/default.vcl
+VARNISH_PORT   := 6081
+VARNISH_ADMIN  := 127.0.0.1:6082
+VARNISH_STORAGE := malloc,256M
+
+varnish-start: ## Start Varnish cache (port 6081)
+	@echo "[*] Starting Varnish (port $(VARNISH_PORT))..."
+	@varnishd \
+		-a 127.0.0.1:$(VARNISH_PORT) \
+		-T $(VARNISH_ADMIN) \
+		-f $(VARNISH_VCL) \
+		-s $(VARNISH_STORAGE) \
+		-p ban_lurker_age=60 \
+		-p ban_lurker_sleep=0.1 \
+		-p http_resp_hdr_len=16384 \
+		-p workspace_client=64k 2>/dev/null || echo "[WARN] Varnish may already be running"
+	@sleep 1 && echo "[✓] Varnish started"
+
+varnish-stop: ## Stop Varnish cache
+	@echo "[*] Stopping Varnish..."
+	@pkill -f 'varnishd.*$(VARNISH_PORT)' 2>/dev/null || true
+	@echo "[✓] Varnish stopped"
+
+varnish-reload: ## Reload Varnish VCL configuration
+	@echo "[*] Reloading Varnish VCL..."
+	@varnishadm -T $(VARNISH_ADMIN) vcl.load reload $(VARNISH_VCL) && \
+		varnishadm -T $(VARNISH_ADMIN) vcl.use reload
+	@echo "[✓] VCL reloaded"
+
+varnish-status: ## Show Varnish backend and cache status
+	@varnishadm -T $(VARNISH_ADMIN) status 2>/dev/null && \
+		varnishadm -T $(VARNISH_ADMIN) backend.list 2>/dev/null || \
+		echo "[!] Varnish is not running"
+
+varnish-stats: ## Show Varnish hit/miss statistics
+	@varnishstat -1 -f MAIN.cache_hit -f MAIN.cache_miss -f MAIN.n_object \
+		-f MAIN.client_req -f MAIN.backend_req 2>/dev/null || \
+		echo "[!] Varnish is not running"
+
+varnish-ban: ## Ban all cached content (full cache flush)
+	@echo "[*] Banning all cached content..."
+	@varnishadm -T $(VARNISH_ADMIN) 'ban req.url ~ .' 2>/dev/null || \
+		echo "[!] Varnish is not running"
+	@echo "[✓] All content banned"
 
 # ── Housekeeping ────────────────────────────────────────────
 

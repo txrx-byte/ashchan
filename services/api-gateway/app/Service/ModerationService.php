@@ -34,6 +34,7 @@ use Psr\Log\LoggerInterface;
  * ModerationService - ported from OpenYotsuba ReportQueue and bans system.
  *
  * Handles report submission, queue management, ban requests, and moderation decisions.
+ * Thresholds are configured via site_settings (admin panel).
  */
 final class ModerationService
 {
@@ -43,16 +44,25 @@ final class ModerationService
     #[Inject]
     private PiiEncryptionService $piiEncryption;
 
-    /**
-     * Weight thresholds (from OpenYotsuba ReportQueue)
-     */
-    private const GLOBAL_THRES = 1500;       // Weight after which report is globally unlocked
-    private const HIGHLIGHT_THRES = 500;     // Weight for highlighting
-    private const THREAD_WEIGHT_BOOST = 1.25; // Weight multiplier for threads
-    private const ABUSE_CLEAR_DAYS = 3;      // Days to check for abuse
-    private const ABUSE_CLEAR_COUNT = 50;    // Cleared reports threshold for auto-ban
-    private const ABUSE_CLEAR_BAN_INTERVAL = 5; // Min days between auto-bans
-    private const REP_ABUSE_TPL = 190;       // Report abuse template ID
+    // Admin-configurable moderation queue settings (loaded from site_settings)
+    private int $globalThreshold;
+    private int $highlightThreshold;
+    private float $threadWeightBoost;
+    private int $abuseClearDays;
+    private int $abuseClearCount;
+    private int $abuseClearBanInterval;
+    private int $reportAbuseTemplateId;
+
+    public function __construct(SiteConfigService $config)
+    {
+        $this->globalThreshold = $config->getInt('report_global_threshold', 1500);
+        $this->highlightThreshold = $config->getInt('report_highlight_threshold', 500);
+        $this->threadWeightBoost = $config->getFloat('thread_weight_boost', 1.25);
+        $this->abuseClearDays = $config->getInt('abuse_clear_days', 3);
+        $this->abuseClearCount = $config->getInt('abuse_clear_count', 50);
+        $this->abuseClearBanInterval = $config->getInt('abuse_clear_ban_interval', 5);
+        $this->reportAbuseTemplateId = $config->getInt('report_abuse_template_id', 190);
+    }
 
     /**
      * Create a new report (port of report_submit from OpenYotsuba)
@@ -604,8 +614,8 @@ final class ModerationService
             'post' => json_decode((string) ($report['post_json'] ?? '{}'), true),
             'resto' => (int) $report['resto'],
             'is_thread' => (int) $report['resto'] === 0,
-            'is_highlighted' => (float) $report['total_weight'] >= self::HIGHLIGHT_THRES,
-            'is_unlocked' => (float) $report['total_weight'] >= self::GLOBAL_THRES,
+            'is_highlighted' => (float) $report['total_weight'] >= $this->highlightThreshold,
+            'is_unlocked' => (float) $report['total_weight'] >= $this->globalThreshold,
         ];
     }
 

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2026 txrx-byte
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Settings - Staff Panel</title>
+    <link rel="stylesheet" href="/staff/css/admincore.css">
+    <link rel="stylesheet" href="/staff/css/bans.css">
+    <style>
+        .settings-category { margin-bottom: 2rem; }
+        .settings-category h3 {
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+            color: #666;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .setting-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-key {
+            flex: 0 0 280px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            word-break: break-all;
+        }
+        .setting-value { flex: 1; min-width: 200px; }
+        .setting-value input[type="text"],
+        .setting-value input[type="number"],
+        .setting-value select {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .setting-desc {
+            flex: 1;
+            font-size: 0.85rem;
+            color: #777;
+            line-height: 1.4;
+        }
+        .setting-actions {
+            flex: 0 0 60px;
+            text-align: right;
+        }
+        .audit-link {
+            font-size: 0.75rem;
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .audit-link:hover { text-decoration: underline; }
+        .save-bar {
+            position: sticky;
+            bottom: 0;
+            background: #f9fafb;
+            padding: 1rem;
+            border-top: 2px solid #3b82f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .save-bar .status { font-size: 0.9rem; color: #059669; }
+        .category-labels {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .category-labels a {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #e5e7eb;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            text-decoration: none;
+            color: #374151;
+        }
+        .category-labels a:hover { background: #d1d5db; }
+        .changed { border-color: #f59e0b !important; background: #fffbeb !important; }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Staff Panel</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/staff/admin" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Overview</span>
+                </a>
+                <div class="nav-section">Moderation</div>
+                <a href="/staff/reports" class="nav-item">
+                    <span class="nav-icon">🚩</span>
+                    <span>Reports Queue</span>
+                </a>
+                <a href="/staff/bans" class="nav-item">
+                    <span class="nav-icon">🚫</span>
+                    <span>Bans</span>
+                </a>
+                <div class="nav-section">Management</div>
+                <a href="/staff/accounts" class="nav-item">
+                    <span class="nav-icon">👤</span>
+                    <span>Accounts</span>
+                </a>
+                <a href="/staff/boards" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span>Boards</span>
+                </a>
+                <div class="nav-section">Admin</div>
+                <a href="/staff/blotter" class="nav-item">
+                    <span class="nav-icon">📢</span>
+                    <span>Blotter</span>
+                </a>
+                <a href="/staff/site-messages" class="nav-item">
+                    <span class="nav-icon">📝</span>
+                    <span>Site Messages</span>
+                </a>
+                <a href="/staff/site-settings" class="nav-item active">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Site Settings</span>
+                </a>
+                <div class="nav-section">Account</div>
+                <form method="POST" action="/staff/logout" class="nav-item" style="margin:0">
+                    <button type="submit" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0;display:flex;align-items:center;gap:8px;width:100%">
+                    <span class="nav-icon">🚪</span>
+                    <span>Logout</span>
+                    </button>
+                </form>
+            </nav>
+        </aside>
+        <main class="content">
+            <header class="content-header">
+                <h2>Site Settings</h2>
+                <span style="font-size: 0.85rem; color: #666;">Changes apply within 60 seconds (Redis cache refresh)</span>
+            </header>
+
+            <?php
+            $saved = $_GET['saved'] ?? '';
+            if ($saved !== ''):
+            ?>
+                <div style="background: #d1fae5; color: #065f46; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                    ✓ <?= (int)$saved ?> setting(s) updated successfully.
+                </div>
+            <?php endif; ?>
+
+            <!-- Category quick-nav -->
+            <div class="category-labels">
+                <?php foreach (array_keys($grouped) as $cat): ?>
+                    <a href="#cat-<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $cat))) ?></a>
+                <?php endforeach; ?>
+            </div>
+
+            <form method="POST" action="/staff/site-settings/update" id="settings-form">
+                <?php foreach ($grouped as $category => $settings): ?>
+                    <div class="settings-category" id="cat-<?= htmlspecialchars($category) ?>">
+                        <h3><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $category))) ?></h3>
+                        <?php foreach ($settings as $key => $meta): ?>
+                            <div class="setting-row">
+                                <div class="setting-key"><?= htmlspecialchars($key) ?></div>
+                                <div class="setting-value">
+                                    <?php if (($meta['value_type'] ?? 'string') === 'bool'): ?>
+                                        <select name="settings[<?= htmlspecialchars($key) ?>]" onchange="markChanged(this)">
+                                            <option value="true" <?= $meta['value'] === 'true' ? 'selected' : '' ?>>Enabled</option>
+                                            <option value="false" <?= $meta['value'] !== 'true' ? 'selected' : '' ?>>Disabled</option>
+                                        </select>
+                                    <?php elseif (in_array($meta['value_type'] ?? 'string', ['int', 'float'], true)): ?>
+                                        <input type="number"
+                                               name="settings[<?= htmlspecialchars($key) ?>]"
+                                               value="<?= htmlspecialchars($meta['value']) ?>"
+                                               step="<?= ($meta['value_type'] ?? 'string') === 'float' ? '0.01' : '1' ?>"
+                                               onchange="markChanged(this)">
+                                    <?php else: ?>
+                                        <input type="text"
+                                               name="settings[<?= htmlspecialchars($key) ?>]"
+                                               value="<?= htmlspecialchars($meta['value']) ?>"
+                                               onchange="markChanged(this)">
+                                    <?php endif; ?>
+                                </div>
+                                <div class="setting-desc"><?= htmlspecialchars($meta['description'] ?? '') ?></div>
+                                <div class="setting-actions">
+                                    <a href="/staff/site-settings/<?= urlencode($key) ?>/audit" class="audit-link" title="View change history">History</a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+
+                <div class="save-bar">
+                    <span class="status" id="change-count"></span>
+                    <button type="submit" class="btn btn-primary">Save All Settings</button>
+                </div>
+            </form>
+        </main>
+    </div>
+    <script src="/staff/js/admincore.js"></script>
+    <script>
+        let changedCount = 0;
+        function markChanged(el) {
+            if (!el.classList.contains('changed')) {
+                el.classList.add('changed');
+                changedCount++;
+                document.getElementById('change-count').textContent = changedCount + ' setting(s) modified';
+            }
+        }
+    </script>
+</body>
+</html>

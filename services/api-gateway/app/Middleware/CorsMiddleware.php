@@ -20,27 +20,28 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
-use Hyperf\Contract\ConfigInterface;
+use App\Service\SiteConfigService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
-use function Hyperf\Support\env;
-
 /**
  * CORS middleware for cross-origin requests.
- * Uses Hyperf config injection for Swoole-safe env access.
+ * Origins and max-age are configured via site_settings (admin panel).
  */
 final class CorsMiddleware implements MiddlewareInterface
 {
     /** @var string[] */
     private readonly array $allowedOrigins;
 
-    public function __construct(ConfigInterface $config)
+    private readonly string $maxAge;
+
+    public function __construct(SiteConfigService $config)
     {
-        $origins = (string) ($config->get('cors.origins') ?: env('CORS_ORIGINS', '*'));
+        $origins = $config->get('cors_origins', '*');
         $this->allowedOrigins = $origins === '*' ? ['*'] : array_map('trim', explode(',', $origins));
+        $this->maxAge = (string) $config->getInt('cors_max_age', 3600);
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -69,7 +70,7 @@ final class CorsMiddleware implements MiddlewareInterface
             ->withHeader('Access-Control-Allow-Origin', $allowOrigin)
             ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
             ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Captcha-Token, X-CSRF-Token')
-            ->withHeader('Access-Control-Max-Age', '3600');
+            ->withHeader('Access-Control-Max-Age', $this->maxAge);
 
         // Only send credentials header when origin is explicitly allowed (not wildcard)
         if ($allowOrigin !== '*') {

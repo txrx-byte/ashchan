@@ -147,14 +147,28 @@ Services communicate via HTTP/HTTPS:
 
 ## Caching Strategy
 
-### Thread Pages
-- Cached with write-through invalidation.
-- Per-board and catalog caches with TTL.
-- Stampede protection via distributed locks.
+### Varnish HTTP Cache (L1)
+- In-memory HTTP object cache between Anubis and the API Gateway.
+- Caches board pages, threads, catalogs, and read-only API responses.
+- 30s TTL for most pages, 10s for 4chan API, 60s for archives.
+- Grace periods serve stale content during backend fetches (stampede protection).
+- Invalidated via HTTP BAN/PURGE from the `CacheInvalidatorProcess`.
+- See [docs/VARNISH_CACHE.md](VARNISH_CACHE.md) for full details.
 
-### Cache Invalidation
-- Events trigger cache invalidation.
-- Redis pub/sub for real-time updates.
+### Application Cache (L2 — Gateway Redis)
+- Common data (boards list, blotter) cached in Redis DB 0 with 60s TTL.
+- Staff session validation cached with 60s TTL.
+
+### Domain Cache (L3 — Service Redis)
+- Board/thread/catalog data cached in backend service Redis DB 2.
+- TTLs: 120-600s depending on data type.
+- Invalidated via `BoardService::invalidateBoardCaches()` on writes.
+
+### Cache Invalidation Flow
+- Domain events (Redis Streams) trigger the gateway's `CacheInvalidatorProcess`.
+- Process issues HTTP BAN requests to Varnish for pattern-based invalidation.
+- Process also deletes Redis cache keys for application-level invalidation.
+- Sub-second propagation from write to cache eviction.
 
 ## WebSockets Readiness
 
@@ -208,9 +222,17 @@ Services communicate via HTTP/HTTPS:
 - Encrypted at rest for sensitive fields (PII, consents).
 - Key management via environment variables.
 
+### Cloudflare Tunnel (Zero Public Exposure)
+- Origin server has **no public IP** and **no open inbound ports**.
+- `cloudflared` daemon creates an outbound-only encrypted tunnel to Cloudflare's edge.
+- Cloudflare provides WAF, DDoS protection, CDN, and bot management at the edge.
+- Eliminates the need for origin IP secrecy or Authenticated Origin Pulls.
+- TLS is end-to-end: client ↔ Cloudflare (TLS 1.3) + tunnel (encrypted) + mTLS (service mesh).
+
 ### Rate Limiting & DDoS Protection
-- Edge WAF (Cloudflare, AWS Shield) for production.
-- Gateway-level rate limits.
+- Cloudflare WAF and DDoS protection at the edge.
+- nginx rate limits as secondary defense.
+- Gateway-level rate limits per route.
 - Per-service circuit breakers.
 
 ## Deployment
@@ -219,11 +241,14 @@ Services communicate via HTTP/HTTPS:
 - Direct PHP process execution via Makefile.
 - mTLS certificates generated locally.
 - Services communicate via localhost.
+- No public internet exposure required.
 
 ### Production
+- **Cloudflare Tunnel** (`cloudflared`) for zero-exposure ingress.
 - Systemd service units for process management.
 - Centralized CA (Vault or HSM recommended).
-- Multi-host deployments via reverse proxy.
+- No public IP, no open firewall ports — all traffic arrives via tunnel.
+- Static assets and media served via Cloudflare CDN edge cache.
 
 ### Service Identity
 

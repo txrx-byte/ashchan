@@ -8,13 +8,15 @@ system hardening for Ashchan. Covers **GNU/Linux** (nftables, iptables, firewall
 
 ## Port Inventory
 
-Before writing rules, know what you are protecting:
+With Cloudflare Tunnel, the origin server has **no public IP** and **no open inbound ports**.
+All public traffic arrives via `cloudflared` (outbound-only tunnel).
 
 | Port | Service | Direction | Exposure |
 |------|---------|-----------|----------|
-| 80   | nginx HTTP (redirect → HTTPS) | Inbound | **Public** (with nginx) |
-| 443  | nginx HTTPS (TLS entry point) | Inbound | **Public** (with nginx) |
-| 8080 | Anubis reverse proxy | Inbound | **Public** (without nginx) / Loopback (with nginx) |
+| —   | Cloudflare Tunnel (`cloudflared`) | **Outbound only** | No inbound ports needed |
+| 80   | nginx HTTP | Internal | Loopback (`cloudflared` → nginx) |
+| 8080 | Anubis reverse proxy | Internal | Loopback only |
+| 6081 | Varnish HTTP cache | Internal | Loopback only |
 | 9501 | API Gateway | Internal | Loopback only |
 | 9502 | Auth / Accounts | Internal | Loopback only |
 | 9503 | Boards / Threads / Posts | Internal | Loopback only |

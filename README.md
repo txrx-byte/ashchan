@@ -6,8 +6,11 @@ Ashchan is a high-performance, privacy-first imageboard built on **Hyperf/Swoole
 
 ## Features
 
+- **Zero Public Exposure**: Cloudflare Tunnel ingress — origin server has no public IP or open ports
+- **End-to-End Encryption**: Cloudflare TLS → tunnel encryption → mTLS service mesh — 100% encrypted
 - **Native PHP-CLI**: Direct Swoole-based PHP processes without container overhead
 - **mTLS Security**: Service-to-service communication secured via mutual TLS certificates
+- **Multi-Layer Caching**: Cloudflare CDN → Varnish HTTP cache → Redis application cache
 - **Privacy-First**: Minimal data retention, IP hashing, compliance-ready (GDPR/CCPA)
 - **Horizontal Scale**: Designed for traffic spikes and high availability
 - **Systemd Integration**: Production-ready service management
@@ -105,6 +108,7 @@ make mtls-status
 |----------|-------------|
 | [docs/architecture.md](docs/architecture.md) | System architecture, service boundaries, network topology |
 | [docs/SERVICEMESH.md](docs/SERVICEMESH.md) | **mTLS architecture, certificate management, security** |
+| [docs/VARNISH_CACHE.md](docs/VARNISH_CACHE.md) | **Varnish HTTP cache layer, invalidation, tuning** |
 | [docs/system-design.md](docs/system-design.md) | Request flows, caching, failure isolation |
 | [docs/security.md](docs/security.md) | Security controls, encryption, audit logging |
 | [docs/FIREWALL_HARDENING.md](docs/FIREWALL_HARDENING.md) | **Firewall, fail2ban, sysctl hardening (Linux & FreeBSD)** |
@@ -136,32 +140,67 @@ make mtls-status
 ## Architecture
 
 ```
-                                    ┌─────────────────┐
-                                    │   Public Internet
-                                    └────────┬────────┘
-                                             │
-                                    ┌────────▼────────┐
-                                    │  API Gateway    │
-                                    │  (Port 9501)    │
-                                    └────────┬────────┘
-                                             │ mTLS (Port 8443)
-         ┌───────────────────┬───────────────┼───────────────┬───────────────────┐
-         │                   │               │               │                   │
-┌────────▼────────┐ ┌────────▼────────┐ ┌───▼─────────┐ ┌───▼─────────┐ ┌───────▼───────┐
-│ Auth/Accounts   │ │Boards/Threads   │ │ Media/      │ │ Search/     │ │ Moderation/   │
-│ (Port 9502)     │ │ (Port 9503)     │ │ Uploads     │ │ Indexing    │ │ Anti-Spam     │
-│ mTLS:8443       │ │ mTLS:8443       │ │ (Port 9504) │ │ (Port 9505) │ │ (Port 9506)   │
-└────────┬────────┘ └────────┬────────┘ └──────┬──────┘ └──────┬──────┘ └───────┬───────┘
-         │                   │                 │               │                 │
-         └───────────────────┴─────────────────┴───────────────┴─────────────────┘
-                                    │
-              ┌─────────────────────┼─────────────────────┐
-              │                     │                     │
-     ┌────────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
-     │   PostgreSQL    │  │     Redis       │  │     MinIO       │
-     │   (Port 5432)   │  │   (Port 6379)   │  │   (Port 9000)   │
-     └─────────────────┘  └─────────────────┘  └─────────────────┘
+╔═════════════════════════ PUBLIC INTERNET ═══════════════════════════╗
+║                                                                          ║
+║  Client ── TLS 1.3 ──▶ Cloudflare Edge (WAF, DDoS, CDN)                  ║
+║                              │                                          ║
+║                       Cloudflare Tunnel                                 ║
+║                       (outbound-only, encrypted)                        ║
+║                              │                                          ║
+╚══════════════════════════════┼═══════════════════════════════╝
+                              │
+╔══════════════════════════════┼═ ORIGIN (no public ports) ══════╗
+║                              │                                          ║
+║                     ┌────────▼───────┐                                   ║
+║                     │ cloudflared      │                                   ║
+║                     └────────┬───────┘                                   ║
+║                              │                                          ║
+║                     ┌────────▼───────┐                                   ║
+║                     │ nginx (80)       │─── Static/Media ──┐             ║
+║                     └────────┬───────┘                   │             ║
+║                              │                          │             ║
+║                     ┌────────▼───────┐                   │             ║
+║                     │ Anubis (8080)   │  PoW challenge    │             ║
+║                     └────────┬───────┘                   │             ║
+║                              │                          │             ║
+║                     ┌────────▼───────┐                   │             ║
+║                     │ Varnish (6081)  │  HTTP cache       │             ║
+║                     └────────┬───────┘                   │             ║
+║                              │                          │             ║
+║                     ┌────────▼────────────────────────┘             ║
+║                     │        API Gateway (9501)          │             ║
+║                     └─────────┬───────────────────────┘             ║
+║                              │ mTLS                                    ║
+║      ┌───────┬────────┬────────┼────────┬────────┐                    ║
+║      │       │        │        │        │        │                    ║
+║   ┌──▼──┐ ┌──▼───┐ ┌──▼───┐ ┌──▼───┐ ┌──▼───┐                    ║
+║   │ Auth│ │Boards │ │ Media │ │Search │ │ Mod. │                    ║
+║   │ 9502│ │ 9503  │ │ 9504  │ │ 9505  │ │ 9506  │                    ║
+║   └──┬──┘ └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘                    ║
+║      │       │        │        │        │                           ║
+║      └───────┴────────┴────────┴────────┘                           ║
+║                     │                                              ║
+║      ┌─────────────┼──────────────────┐                           ║
+║      │              │                  │                           ║
+║  ┌───▼───────┐  ┌──▼────────┐  ┌──▼───────┐                      ║
+║  │ PostgreSQL │  │  Redis     │  │ MinIO     │                      ║
+║  │   5432     │  │  6379      │  │ 9000/9001 │                      ║
+║  └───────────┘  └────┬───────┘  └──────────┘                      ║
+║                       │                                              ║
+║              Redis Streams (DB 6)                                     ║
+║              ashchan:events                                           ║
+║       ┌────────────┼────────────┐                                    ║
+║       │            │            │                                    ║
+║  ┌────▼─────┐  ┌──▼──────┐  ┌─▼────────┐                             ║
+║  │ Cache     │  │ Post    │  │ Search    │                             ║
+║  │ Invalidate│  │ Scoring │  │ Indexing  │                             ║
+║  │ +Varnish  │  │ (Mod.)  │  │ Consumer  │                             ║
+║  └───────────┘  └─────────┘  └───────────┘                             ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
 ```
+
+**End-to-end encryption:** Client ↔ Cloudflare (TLS 1.3) → Cloudflare Tunnel (encrypted) → nginx → Anubis (PoW) → Varnish (cache) → API Gateway → backend services (mTLS). The origin server has **no public IP** and **no open inbound ports** — `cloudflared` creates an outbound-only tunnel.
 
 ### Service Communication
 

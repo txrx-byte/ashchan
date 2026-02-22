@@ -742,10 +742,14 @@ CREATE TABLE IF NOT EXISTS site_settings (
     key VARCHAR(255) PRIMARY KEY,
     value TEXT NOT NULL DEFAULT '',
     description TEXT DEFAULT '',
+    category VARCHAR(64) NOT NULL DEFAULT 'general',
+    value_type VARCHAR(16) NOT NULL DEFAULT 'string',
     updated_by BIGINT REFERENCES staff_users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_site_settings_category ON site_settings(category);
 
 CREATE TABLE IF NOT EXISTS site_settings_audit_log (
     id BIGSERIAL PRIMARY KEY,

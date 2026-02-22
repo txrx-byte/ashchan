@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\ProxyClient;
+use App\Service\SiteConfigService;
 use App\Service\TemplateRenderer;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
@@ -34,7 +35,8 @@ use Hyperf\Logger\LoggerFactory;
  */
 final class FrontendController
 {
-    private const COMMON_DATA_CACHE_TTL = 60; // Cache boards/blotter for 60 seconds
+    private int $commonDataCacheTtl;
+    private string $storageBucket;
 
     public function __construct(
         private HttpResponse $response,
@@ -42,7 +44,11 @@ final class FrontendController
         private TemplateRenderer $renderer,
         private LoggerFactory $loggerFactory,
         private Redis $redis,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->commonDataCacheTtl = $config->getInt('cache_ttl_common_data', 60);
+        $this->storageBucket      = $config->get('object_storage_bucket', 'ashchan');
+    }
 
     /** GET /about – About page */
     public function about(): ResponseInterface
@@ -985,7 +991,7 @@ final class FrontendController
 
         // Cache for 60 seconds
         try {
-            $this->redis->setex($cacheKey, self::COMMON_DATA_CACHE_TTL, (string) json_encode($result));
+            $this->redis->setex($cacheKey, $this->commonDataCacheTtl, (string) json_encode($result));
         } catch (\Throwable) {
             // Non-critical
         }
@@ -1026,7 +1032,7 @@ final class FrontendController
      */
     private function rewritePostMedia(array $post): array
     {
-        $bucket = (string) \Hyperf\Support\env('OBJECT_STORAGE_BUCKET', 'ashchan');
+        $bucket = $this->storageBucket;
         // Match any MinIO hostname pattern and rewrite to /media/ proxy path
         $patterns = [
             "http://minio:9000/{$bucket}/",

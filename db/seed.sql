@@ -230,9 +230,129 @@ ON CONFLICT (slug) DO NOTHING;
 -- 7. SITE SETTINGS
 -- ═══════════════════════════════════════════════════════════════
 
-INSERT INTO site_settings (key, value, description) VALUES
-    ('spur_enabled', 'false', 'Enable Spur.us IP intelligence integration for VPN/proxy/bot detection'),
-    ('sfs_enabled',  'false',  'Enable StopForumSpam integration for spam IP/email/username checks')
+INSERT INTO site_settings (key, value, description, category, value_type) VALUES
+    -- ── Integrations ──
+    ('spur_enabled',            'false',  'Enable Spur.us IP intelligence integration for VPN/proxy/bot detection',   'integrations', 'bool'),
+    ('sfs_enabled',             'false',  'Enable StopForumSpam integration for spam IP/email/username checks',       'integrations', 'bool'),
+    ('spur_timeout',            '3',      'Spur API request timeout (seconds)',                                       'integrations', 'int'),
+    ('sfs_confidence_threshold','80',     'StopForumSpam confidence % threshold to flag as spam (0-100)',             'integrations', 'int'),
+    ('sfs_check_timeout',       '2',      'StopForumSpam check API timeout (seconds)',                                'integrations', 'int'),
+    ('sfs_report_timeout',      '5',      'StopForumSpam report API timeout (seconds)',                               'integrations', 'int'),
+    ('sfs_api_key',             '',       'StopForumSpam API key for reporting (leave empty to disable)',              'integrations', 'string'),
+    ('spur_api_token',          '',       'Spur.us API token for IP intelligence (leave empty to disable)',            'integrations', 'string'),
+
+    -- ── Rate Limiting ──
+    ('rate_limit_window',       '60',     'Global gateway rate limit window (seconds)',                                'rate_limiting', 'int'),
+    ('rate_limit_max_requests', '120',    'Max requests per IP per window',                                           'rate_limiting', 'int'),
+    ('post_rate_window',        '60',     'Post rate limit sliding window (seconds)',                                  'rate_limiting', 'int'),
+    ('post_rate_limit',         '5',      'Max posts per IP per window',                                              'rate_limiting', 'int'),
+    ('thread_rate_limit',       '1',      'Max threads per IP per window',                                            'rate_limiting', 'int'),
+    ('thread_rate_window',      '300',    'Thread creation rate window (seconds)',                                     'rate_limiting', 'int'),
+    ('feedback_rate_limit',     '5',      'Max feedback submissions per IP per hour',                                 'rate_limiting', 'int'),
+    ('login_rate_limit',        '10',     'Max login attempts per IP per window',                                     'rate_limiting', 'int'),
+    ('login_rate_window',       '300',    'Login rate limit window (seconds)',                                         'rate_limiting', 'int'),
+
+    -- ── Spam / Risk Scoring ──
+    ('captcha_ttl',             '300',    'Captcha validity period (seconds)',                                         'spam', 'int'),
+    ('risk_threshold_block',    '10',     'Spam score threshold to auto-block a post',                                'spam', 'int'),
+    ('risk_threshold_high',     '7',      'Spam score threshold to escalate (require captcha)',                        'spam', 'int'),
+    ('duplicate_fingerprint_ttl','3600',  'Duplicate content detection window (seconds)',                              'spam', 'int'),
+    ('min_fingerprint_length',  '10',     'Minimum content length for duplicate fingerprint check',                   'spam', 'int'),
+    ('url_count_threshold',     '3',      'URLs in a post above this count trigger spam scoring',                     'spam', 'int'),
+    ('repeated_char_threshold', '9',      'Repeated character count to trigger spam scoring',                         'spam', 'int'),
+    ('caps_ratio_threshold',    '0.7',    'Caps-to-alpha ratio above which spam scoring triggers',                    'spam', 'float'),
+    ('ip_reputation_ttl',       '86400',  'IP reputation penalty expiry (seconds)',                                   'spam', 'int'),
+    ('reputation_escalation_threshold','7.0','Spam score at which IP reputation is incremented',                      'spam', 'float'),
+    ('captcha_length',          '6',      'Number of characters in generated captcha',                                'spam', 'int'),
+    ('excessive_length_threshold','1500', 'Post length in characters that triggers spam scoring',                     'spam', 'int'),
+
+    -- ── Moderation Queue ──
+    ('report_global_threshold', '1500',   'Report weight after which a report is globally unlocked',                  'moderation', 'int'),
+    ('report_highlight_threshold','500',  'Report weight threshold for highlighting',                                 'moderation', 'int'),
+    ('thread_weight_boost',     '1.25',   'Weight multiplier for thread reports vs post reports',                     'moderation', 'float'),
+    ('abuse_clear_days',        '3',      'Days to look back when checking for report abuse',                         'moderation', 'int'),
+    ('abuse_clear_count',       '50',     'Cleared reports threshold for auto-ban of report abuser',                  'moderation', 'int'),
+    ('abuse_clear_ban_interval','5',      'Minimum days between consecutive report abuse auto-bans',                  'moderation', 'int'),
+    ('report_abuse_template_id','190',    'Ban template ID used for report abuse auto-bans',                          'moderation', 'int'),
+
+    -- ── Authentication / Sessions ──
+    ('session_ttl',             '604800', 'User session lifetime (seconds, default 7 days)',                           'auth', 'int'),
+    ('staff_session_timeout',   '8',      'Staff session timeout (hours)',                                            'auth', 'int'),
+    ('max_login_attempts',      '5',      'Max login attempts before account lockout',                                'auth', 'int'),
+    ('lockout_duration_minutes','30',     'Minutes an account is locked out after max login attempts',                'auth', 'int'),
+    ('csrf_token_expiry_hours', '24',     'CSRF token lifetime (hours)',                                              'auth', 'int'),
+    ('session_cache_ttl',       '60',     'Redis cache TTL for validated sessions (seconds)',                          'auth', 'int'),
+    ('bcrypt_cost',             '12',     'bcrypt cost factor for password hashing',                                  'auth', 'int'),
+    ('max_username_length',     '64',     'Maximum username length for registration',                                 'auth', 'int'),
+    ('max_password_length',     '256',    'Maximum password length for registration',                                 'auth', 'int'),
+    ('max_ban_duration',        '31536000','Maximum ban duration (seconds, default 1 year)',                           'auth', 'int'),
+    ('min_ban_duration',        '60',     'Minimum ban duration (seconds)',                                           'auth', 'int'),
+    ('max_email_length',        '254',    'Maximum email length per RFC 5321',                                        'auth', 'int'),
+    ('login_rate_limit',        '10',     'Maximum login attempts per IP within rate-limit window',                   'auth', 'int'),
+    ('login_rate_window',       '300',    'Login rate-limit sliding window in seconds',                               'auth', 'int'),
+    ('ip_hmac_key',             '',       'HMAC key for IP hashing (leave empty to fall back to PII_ENCRYPTION_KEY env)', 'auth', 'string'),
+    ('ip_hash_salt',            '',       'Salt for IP hashing in boards service (leave empty to fall back to IP_HASH_SALT env)', 'auth', 'string'),
+
+    -- ── Media / Uploads ──
+    ('max_file_size',           '4194304','Max upload file size in bytes (default 4MB)',                               'media', 'int'),
+    ('allowed_mime_types',      'image/jpeg,image/png,image/gif,image/webp', 'Comma-separated allowed MIME types',    'media', 'string'),
+    ('thumbnail_max_width',     '250',    'Thumbnail max width in pixels',                                            'media', 'int'),
+    ('thumbnail_max_height',    '250',    'Thumbnail max height in pixels',                                           'media', 'int'),
+
+    -- ── Search ──
+    ('search_index_ttl',        '604800', 'Search index TTL (seconds, default 7 days)',                               'search', 'int'),\n    ('search_default_per_page', '25',     'Default results per page for search queries',                               'search', 'int'),
+    ('search_results_per_page', '25',     'Default search results per page',                                          'search', 'int'),
+    ('search_min_query_length', '2',      'Minimum search query length in characters',                                'search', 'int'),
+    ('search_excerpt_length',   '200',    'Length of search result text excerpt',                                      'search', 'int'),
+    ('search_index_text_max',   '500',    'Max characters indexed per post for search',                               'search', 'int'),
+
+    -- ── Cache TTLs ──
+    ('cache_ttl_common_data',   '60',     'Cache TTL for boards list and blotter (seconds)',                           'cache', 'int'),
+    ('cache_ttl_boards',        '300',    'Cache TTL for board listings (seconds)',                                    'cache', 'int'),
+    ('varnish_url',             'http://127.0.0.1:6081', 'Varnish HTTP cache endpoint for BAN requests',              'cache', 'string'),
+
+    -- ── 4chan-Compatible API ──
+    ('fourchan_per_page',       '15',     '4chan-format API: posts per page',                                          'api', 'int'),
+    ('fourchan_max_pages',      '10',     '4chan-format API: max pages per board',                                     'api', 'int'),
+    ('fourchan_preview_replies','5',      '4chan-format API: preview replies on board index',                          'api', 'int'),
+    ('fourchan_catalog_replies','5',      '4chan-format API: last replies shown in catalog',                           'api', 'int'),
+
+    -- ── Data Retention (Privacy) ──
+    ('retention_post_ip',       '30',     'Days to retain IP addresses in posts before purging',                       'retention', 'int'),
+    ('retention_post_email',    '30',     'Days to retain email addresses in posts before purging',                    'retention', 'int'),
+    ('retention_flood_log',     '1',      'Days to retain flood log entries',                                          'retention', 'int'),
+    ('retention_report_ip',     '90',     'Days to retain IP addresses in reports',                                    'retention', 'int'),
+    ('retention_ban_ip',        '30',     'Days to retain IP addresses in bans (after ban expiry)',                    'retention', 'int'),
+    ('retention_sfs_pending',   '30',     'Days to retain pending SFS report entries',                                 'retention', 'int'),
+    ('retention_report_clear_log','90',   'Days to retain report clear log IPs',                                       'retention', 'int'),
+    ('retention_moderation_decisions','365','Days to retain moderation decision records',                               'retention', 'int'),
+    ('retention_audit_log_ip',  '365',    'Days to retain IP addresses in audit logs',                                 'retention', 'int'),
+
+    -- ── CORS ──
+    ('cors_origins',            '*',      'Allowed CORS origins (comma-separated, or * for all)',                      'cors', 'string'),
+    ('cors_max_age',            '3600',   'CORS preflight cache max-age (seconds)',                                    'cors', 'int'),
+
+    -- ── Board Defaults ──
+    ('blotter_display_limit',   '5',      'Number of blotter entries shown on home page',                              'api', 'int'),
+    ('archive_thread_limit',    '3000',   'Max archived threads returned per board',                                   'api', 'int'),
+    ('ip_post_search_limit',    '100',    'Default max posts returned when searching by IP hash',                      'moderation', 'int'),
+    ('ip_post_scan_limit',      '5000',   'Max rows scanned when searching posts by IP hash',                          'moderation', 'int'),
+    ('default_max_threads',     '200',    'Default max active threads when creating a board',                           'api', 'int'),
+    ('default_bump_limit',      '300',    'Default bump limit per thread when creating a board',                        'api', 'int'),
+    ('default_image_limit',     '150',    'Default image limit per thread when creating a board',                       'api', 'int'),
+    ('default_cooldown_seconds','60',     'Default post cooldown when creating a board (seconds)',                      'api', 'int'),
+
+    -- ── Media / Uploads ──
+    ('max_file_size',           '4194304','Maximum upload file size in bytes (default 4MB)',                            'media', 'int'),
+    ('allowed_mimes',           'image/jpeg,image/png,image/gif,image/webp', 'Allowed upload MIME types (comma-separated)', 'media', 'string'),
+    ('thumb_max_width',         '250',    'Maximum thumbnail width in pixels',                                          'media', 'int'),
+    ('thumb_max_height',        '250',    'Maximum thumbnail height in pixels',                                         'media', 'int'),
+    ('upload_connect_timeout',  '3',      'cURL connect timeout for S3 uploads (seconds)',                              'media', 'int'),
+    ('upload_timeout',          '15',     'cURL total timeout for S3 uploads (seconds)',                                'media', 'int'),
+    ('local_storage_path',      '/workspaces/ashchan/data/media', 'Local disk fallback path for media when S3 is unreachable', 'media', 'string'),
+    ('object_storage_bucket',   'ashchan', 'S3/MinIO bucket name for media storage',                                   'media', 'string'),
+    ('object_storage_endpoint', 'http://minio:9000', 'S3/MinIO endpoint URL',                                          'media', 'string')
+
 ON CONFLICT (key) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════

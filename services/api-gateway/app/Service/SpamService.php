@@ -23,20 +23,43 @@ namespace App\Service;
 use Hyperf\Redis\Redis;
 
 /**
- * SpamService - Spam checking and captcha verification backed by Redis
+ * SpamService - Spam checking and captcha verification backed by Redis.
+ * All thresholds and rate limits are configured via site_settings (admin panel).
  */
 final class SpamService
 {
-    private const CAPTCHA_TTL = 300; // 5 minutes
-    private const RATE_WINDOW = 60;   // 60 seconds
-    private const RATE_LIMIT = 5;     // 5 posts per window
-    private const THREAD_LIMIT = 1;   // 1 thread per 5 min
-    private const THREAD_WINDOW = 300;
-    private const RISK_THRESHOLD_BLOCK = 10;
+    private int $captchaTtl;
+    private int $rateWindow;
+    private int $rateLimit;
+    private int $threadLimit;
+    private int $threadWindow;
+    private int $riskThresholdBlock;
+    private int $duplicateFingerprintTtl;
+    private int $minFingerprintLength;
+    private int $urlCountThreshold;
+    private int $repeatedCharThreshold;
+    private float $capsRatioThreshold;
+    private int $ipReputationTtl;
+    private float $reputationEscalationThreshold;
 
     public function __construct(
         private Redis $redis,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->captchaTtl = $config->getInt('captcha_ttl', 300);
+        $this->rateWindow = $config->getInt('post_rate_window', 60);
+        $this->rateLimit = $config->getInt('post_rate_limit', 5);
+        $this->threadLimit = $config->getInt('thread_rate_limit', 1);
+        $this->threadWindow = $config->getInt('thread_rate_window', 300);
+        $this->riskThresholdBlock = $config->getInt('risk_threshold_block', 10);
+        $this->duplicateFingerprintTtl = $config->getInt('duplicate_fingerprint_ttl', 3600);
+        $this->minFingerprintLength = $config->getInt('min_fingerprint_length', 10);
+        $this->urlCountThreshold = $config->getInt('url_count_threshold', 3);
+        $this->repeatedCharThreshold = $config->getInt('repeated_char_threshold', 9);
+        $this->capsRatioThreshold = $config->getFloat('caps_ratio_threshold', 0.7);
+        $this->ipReputationTtl = $config->getInt('ip_reputation_ttl', 86400);
+        $this->reputationEscalationThreshold = $config->getFloat('reputation_escalation_threshold', 7.0);
+    }
 
     /**
      * Check content for spam
@@ -50,29 +73,29 @@ final class SpamService
         // Layer 1: Rate limiting
         $postKey = "ratelimit:post:{$ipHash}";
         $now = time();
-        $this->redis->zRemRangeByScore($postKey, '-inf', (string) ($now - self::RATE_WINDOW));
+        $this->redis->zRemRangeByScore($postKey, '-inf', (string) ($now - $this->rateWindow));
         $postCount = (int) $this->redis->zCard($postKey);
-        if ($postCount >= self::RATE_LIMIT) {
+        if ($postCount >= $this->rateLimit) {
             $score += 10.0;
             $reasons[] = 'Post rate limit exceeded';
         }
         $this->redis->zAdd($postKey, $now, (string) $now . ':' . bin2hex(random_bytes(4)));
-        $this->redis->expire($postKey, self::RATE_WINDOW);
+        $this->redis->expire($postKey, $this->rateWindow);
 
         if ($isThread) {
             $threadKey = "ratelimit:thread:{$ipHash}";
-            $this->redis->zRemRangeByScore($threadKey, '-inf', (string) ($now - self::THREAD_WINDOW));
+            $this->redis->zRemRangeByScore($threadKey, '-inf', (string) ($now - $this->threadWindow));
             $threadCount = (int) $this->redis->zCard($threadKey);
-            if ($threadCount >= self::THREAD_LIMIT) {
+            if ($threadCount >= $this->threadLimit) {
                 $score += 10.0;
                 $reasons[] = 'Thread creation rate limit exceeded';
             }
             $this->redis->zAdd($threadKey, $now, (string) $now);
-            $this->redis->expire($threadKey, self::THREAD_WINDOW);
+            $this->redis->expire($threadKey, $this->threadWindow);
         }
 
         // Layer 2: Duplicate content detection
-        if (mb_strlen($content) >= 10) {
+        if (mb_strlen($content) >= $this->minFingerprintLength) {
             $sanitized = preg_replace('/\s+/', ' ', trim($content));
             $fingerprint = hash('sha256', mb_strtolower(is_string($sanitized) ? $sanitized : ''));
             $fpKey = "fingerprint:{$fingerprint}";
@@ -80,17 +103,18 @@ final class SpamService
                 $score += 4.0;
                 $reasons[] = 'Duplicate content detected';
             }
-            $this->redis->setex($fpKey, 3600, '1');
+            $this->redis->setex($fpKey, $this->duplicateFingerprintTtl, '1');
         }
 
         // Layer 3: Content heuristics
         $lower = mb_strtolower($content);
         $urlCount = preg_match_all('/https?:\/\//', $lower);
-        if ($urlCount > 3) {
+        if ($urlCount > $this->urlCountThreshold) {
             $score += 3.0;
             $reasons[] = 'Excessive URLs';
         }
-        if (preg_match('/(.)\1{9,}/', $content)) {
+        $repThreshold = $this->repeatedCharThreshold;
+        if (preg_match('/(.)\1{' . $repThreshold . ',}/', $content)) {
             $score += 3.0;
             $reasons[] = 'Repeated characters';
         }
@@ -99,7 +123,7 @@ final class SpamService
         if ($alphaLen > 20) {
             $capsOnly = preg_replace('/[^A-Z]/', '', $content);
             $capsLen = mb_strlen(is_string($capsOnly) ? $capsOnly : '');
-            if ($capsLen / $alphaLen > 0.7) {
+            if ($capsLen / $alphaLen > $this->capsRatioThreshold) {
                 $score += 2.0;
                 $reasons[] = 'Excessive caps';
             }
@@ -119,12 +143,12 @@ final class SpamService
         }
 
         // Record negative reputation
-        if ($score >= 7.0) {
+        if ($score >= $this->reputationEscalationThreshold) {
             $this->redis->incr("ip_reputation:{$ipHash}");
-            $this->redis->expire("ip_reputation:{$ipHash}", 86400);
+            $this->redis->expire("ip_reputation:{$ipHash}", $this->ipReputationTtl);
         }
 
-        $isSpam = $score >= self::RISK_THRESHOLD_BLOCK;
+        $isSpam = $score >= $this->riskThresholdBlock;
 
         return [
             'is_spam' => $isSpam,
@@ -146,7 +170,7 @@ final class SpamService
 
         $this->redis->setex(
             "captcha:{$token}",
-            self::CAPTCHA_TTL,
+            $this->captchaTtl,
             (string) $answer
         );
 

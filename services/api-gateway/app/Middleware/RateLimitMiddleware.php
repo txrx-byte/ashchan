@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Service\SiteConfigService;
 use Hyperf\Redis\Redis;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -29,15 +30,20 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * Global rate limiter – sliding window per IP.
  * More granular limits are enforced at the moderation-anti-spam service.
+ * Window and max requests are configured via site_settings (admin panel).
  */
 final class RateLimitMiddleware implements MiddlewareInterface
 {
-    private const WINDOW   = 60;  // 60 seconds
-    private const MAX_REQS = 120; // 120 requests per window
+    private int $window;
+    private int $maxReqs;
 
     public function __construct(
         private Redis $redis,
-    ) {}
+        SiteConfigService $config,
+    ) {
+        $this->window  = $config->getInt('rate_limit_window', 60);
+        $this->maxReqs = $config->getInt('rate_limit_max_requests', 120);
+    }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
@@ -73,7 +79,7 @@ LUA;
             /** @var array{int, int}|false $result */
             $result = $this->redis->eval(
                 $luaScript,
-                [$key, (string) $now, (string) self::WINDOW, (string) self::MAX_REQS, (string) $member],
+                [$key, (string) $now, (string) $this->window, (string) $this->maxReqs, (string) $member],
                 1
             );
         } catch (\Throwable) {
@@ -91,20 +97,20 @@ LUA;
 
         if ($allowed === 0) {
             $response = new \Hyperf\HttpMessage\Server\Response();
-            $json = json_encode(['error' => 'Rate limit exceeded', 'retry_after' => self::WINDOW]);
+            $json = json_encode(['error' => 'Rate limit exceeded', 'retry_after' => $this->window]);
             return $response
                 ->withStatus(429)
                 ->withHeader('Content-Type', 'application/json')
-                ->withHeader('Retry-After', (string) self::WINDOW)
+                ->withHeader('Retry-After', (string) $this->window)
                 ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream($json ?: ''));
         }
 
         $response = $handler->handle($request);
 
         return $response
-            ->withHeader('X-RateLimit-Limit', (string) self::MAX_REQS)
-            ->withHeader('X-RateLimit-Remaining', (string) max(0, self::MAX_REQS - $count - 1))
-            ->withHeader('X-RateLimit-Reset', (string) ($now + self::WINDOW));
+            ->withHeader('X-RateLimit-Limit', (string) $this->maxReqs)
+            ->withHeader('X-RateLimit-Remaining', (string) max(0, $this->maxReqs - $count - 1))
+            ->withHeader('X-RateLimit-Reset', (string) ($now + $this->window));
     }
 
     private function getClientIp(ServerRequestInterface $request): string

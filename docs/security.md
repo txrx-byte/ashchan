@@ -2,9 +2,40 @@
 
 ## Principles
 - **Least privilege**: minimal service-to-service permissions.
-- **Defense in depth**: layered controls at edge, gateway, and services.
+- **Defense in depth**: layered controls at Cloudflare edge, nginx, Anubis, gateway, and services.
 - **Fail securely**: default-deny policies.
 - **Zero trust**: never trust, always verify (mTLS for all internal traffic).
+- **Zero exposure**: origin server has no public IP — Cloudflare Tunnel only.
+
+---
+
+## Edge Security (Cloudflare Tunnel)
+
+### Zero Public Exposure
+
+The origin server has **no public IP address** and **no open inbound firewall ports**. All public traffic arrives via [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
+
+- `cloudflared` daemon establishes an **outbound-only** encrypted tunnel to Cloudflare's edge network.
+- Cloudflare terminates TLS 1.3 from clients and forwards requests through the tunnel.
+- This eliminates the entire class of direct-to-origin attacks.
+
+### Cloudflare Edge Protection
+
+| Layer | Protection |
+|-------|------------|
+| WAF | OWASP rules, custom rulesets, managed rules |
+| DDoS | Automatic L3/L4/L7 DDoS mitigation |
+| Bot Management | JavaScript challenge, browser integrity check |
+| CDN | Edge caching for static assets |
+| Rate Limiting | Edge-level rate limits (before origin) |
+
+### Encryption Path
+
+```
+Client ── TLS 1.3 ──▶ Cloudflare Edge ── Tunnel ──▶ nginx → Anubis → Varnish → Gateway ── mTLS ──▶ Services
+```
+
+Every segment is encrypted. No plaintext at any hop.
 
 ---
 
