@@ -25,6 +25,7 @@ use App\Model\Board;
 use App\Service\BoardService;
 use App\Service\ContentFormatter;
 use App\Service\PiiEncryptionServiceInterface;
+use Ashchan\EventBus\EventPublisher;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
 use PHPUnit\Framework\TestCase;
@@ -39,6 +40,7 @@ final class ThreadCreationTest extends TestCase
     private Mockery\MockInterface $mockRedis;
     private Mockery\MockInterface $mockContentFormatter;
     private PiiEncryptionServiceInterface $stubPiiEncryption;
+    private Mockery\MockInterface $mockEventPublisher;
     private Mockery\MockInterface $mockBoard;
     private Mockery\MockInterface $dbMock;
 
@@ -88,8 +90,12 @@ final class ThreadCreationTest extends TestCase
             }
         };
 
+        // Mock EventPublisher — fire-and-forget, just assert it's called
+        $this->mockEventPublisher = Mockery::mock(EventPublisher::class);
+        $this->mockEventPublisher->shouldReceive('publish')->andReturn('mock-stream-id');
+
         // Instantiate the service
-        $this->boardService = new BoardService($this->mockContentFormatter, $this->mockRedis, $this->stubPiiEncryption);
+        $this->boardService = new BoardService($this->mockContentFormatter, $this->mockRedis, $this->stubPiiEncryption, $this->mockEventPublisher);
 
         // Prepare for static mocks of Db
         $this->dbMock = Mockery::mock('alias:Hyperf\DbConnection\Db');

@@ -199,6 +199,20 @@ endef
 
 $(foreach s,$(SHORT),$(eval $(call static_service,$(s))))
 
+# ── Event Bus ──────────────────────────────────────────────
+
+events-stats: ## Show event stream statistics
+	@$(PHP) services/api-gateway/bin/hyperf.php events:stats
+
+events-dlq: ## Show dead-lettered events
+	@$(PHP) services/api-gateway/bin/hyperf.php events:dlq:list
+
+events-dlq-retry: ## Replay all dead-lettered events
+	@$(PHP) services/api-gateway/bin/hyperf.php events:dlq:retry
+
+events-trim: ## Trim event stream to configured MAXLEN
+	@$(PHP) services/api-gateway/bin/hyperf.php events:trim
+
 # ── Housekeeping ────────────────────────────────────────────
 
 clean: ## Remove caches and runtime files

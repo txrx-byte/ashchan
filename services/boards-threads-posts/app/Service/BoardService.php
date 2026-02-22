@@ -23,6 +23,9 @@ namespace App\Service;
 use App\Model\Board;
 use App\Model\Post;
 use App\Model\Thread;
+use Ashchan\EventBus\CloudEvent;
+use Ashchan\EventBus\EventPublisher;
+use Ashchan\EventBus\EventTypes;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
 use function Hyperf\Support\env;
@@ -34,6 +37,7 @@ final class BoardService
         private ContentFormatter $formatter,
         private Redis $redis,
         private PiiEncryptionServiceInterface $piiEncryption,
+        private EventPublisher $eventPublisher,
     ) {}
 
     /* ──────────────────────────────────────────────
@@ -82,15 +86,22 @@ final class BoardService
 
     public function getBoard(string $slug): ?Board
     {
-        // Always query DB to ensure proper model hydration
-        // Cache is used only to check if board exists (fast path for 404s)
         try {
             $key = "board:{$slug}";
-            // Disable cache in development mode
             if (env('APP_ENV', 'production') !== 'local') {
                 $cached = $this->redis->get($key);
                 if ($cached === 'NOT_FOUND') {
                     return null;
+                }
+                if (is_string($cached) && $cached !== '') {
+                    $decoded = json_decode($cached, true);
+                    if (is_array($decoded)) {
+                        // Hydrate Board model from cache to avoid DB query
+                        $board = new Board();
+                        $board->forceFill($decoded);
+                        $board->exists = true;
+                        return $board;
+                    }
                 }
             }
         } catch (\Throwable $e) {
@@ -120,6 +131,22 @@ final class BoardService
      */
     public function getBlotter(): array
     {
+        $key = 'blotter:recent';
+        try {
+            if (env('APP_ENV', 'production') !== 'local') {
+                $cached = $this->redis->get($key);
+                if (is_string($cached)) {
+                    $decoded = json_decode($cached, true);
+                    if (is_array($decoded)) {
+                        /** @var array<int, array<string, mixed>> $decoded */
+                        return $decoded;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Redis unavailable
+        }
+
         /** @var \Hyperf\Database\Model\Collection<int, \App\Model\Blotter> $rows */
         $rows = \App\Model\Blotter::query()
             ->orderByDesc('id')
@@ -133,6 +160,15 @@ final class BoardService
             'is_important' => $b->is_important,
             'created_at'   => $this->toTimestamp($b->created_at),
         ])->toArray();
+
+        try {
+            if (env('APP_ENV', 'production') !== 'local') {
+                $this->redis->setex($key, 120, json_encode($result) ?: '');
+            }
+        } catch (\Throwable $e) {
+            // Redis unavailable
+        }
+
         return $result;
     }
 
@@ -304,15 +340,31 @@ final class BoardService
             ->get()
             ->keyBy('thread_id');
 
-        // Batch-load latest 5 replies per thread using a single query
-        // Get the last 5 reply IDs per thread via subquery
-        $allReplies = Post::query()
-            ->whereIn('thread_id', $threadIds)
-            ->where('is_op', false)
-            ->where('deleted', false)
-            ->orderByDesc('id')
-            ->get()
-            ->groupBy('thread_id');
+        // Batch-load only the latest 5 replies per thread using a window function
+        // This avoids loading ALL replies and then filtering in PHP
+        $replyRows = Db::select(
+            "SELECT p.* FROM (
+                SELECT p2.*, ROW_NUMBER() OVER (PARTITION BY p2.thread_id ORDER BY p2.id DESC) AS rn
+                FROM posts p2
+                WHERE p2.thread_id = ANY(?)
+                AND p2.is_op = false
+                AND p2.deleted = false
+            ) p WHERE p.rn <= 5",
+            ['{' . implode(',', $threadIds) . '}']
+        );
+
+        // Hydrate reply rows into Post models grouped by thread
+        $allReplies = collect();
+        foreach ($replyRows as $row) {
+            $post = new Post();
+            $post->forceFill((array) $row);
+            $post->exists = true;
+            $threadId = $post->thread_id;
+            if (!$allReplies->has($threadId)) {
+                $allReplies->put($threadId, collect());
+            }
+            $allReplies->get($threadId)->push($post);
+        }
 
         $result = [];
         foreach ($threads as $thread) {
@@ -322,14 +374,14 @@ final class BoardService
 
             /** @var \Hyperf\Database\Model\Collection<int, Post> $threadReplies */
             $threadReplies = $allReplies->get($thread->id, collect());
-            $latestReplies = $threadReplies->take(5)->reverse()->values();
+            $latestReplies = $threadReplies->sortBy('id')->values();
 
-            $totalReplies = $thread->reply_count;
             $shownReplies = $latestReplies->count();
+            $totalReplies = $thread->reply_count;
             $omittedPosts = max(0, $totalReplies - $shownReplies);
             $omittedImages = 0;
             if ($omittedPosts > 0) {
-                $totalImages = $threadReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
+                $totalImages = $thread->image_count;
                 $shownImages = $latestReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
                 $omittedImages = max(0, $totalImages - $shownImages);
             }
@@ -368,6 +420,25 @@ final class BoardService
      */
     public function getThread(int $threadId, bool $includeIpHash = false): ?array
     {
+        // Try cache first (only for non-staff requests without IP hashes)
+        if (!$includeIpHash) {
+            try {
+                $cacheKey = "thread:{$threadId}";
+                if (env('APP_ENV', 'production') !== 'local') {
+                    $cached = $this->redis->get($cacheKey);
+                    if (is_string($cached) && $cached !== '') {
+                        $decoded = json_decode($cached, true);
+                        if (is_array($decoded)) {
+                            /** @var array<string, mixed> $decoded */
+                            return $decoded;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Redis unavailable
+            }
+        }
+
         /** @var Thread|null $thread */
         $thread = Thread::find($threadId);
         if (!$thread) return null;
@@ -393,7 +464,7 @@ final class BoardService
             }
         }
 
-        return [
+        $result = [
             'thread_id'     => $thread->id,
             'board_id'      => $thread->board_id,
             'sticky'        => $thread->sticky,
@@ -406,6 +477,19 @@ final class BoardService
                 return $this->formatPostOutput($r, $backlinks[(string)$r->id] ?? [], $includeIpHash);
             })->toArray(),
         ];
+
+        // Cache the result for non-staff requests
+        if (!$includeIpHash) {
+            try {
+                if (env('APP_ENV', 'production') !== 'local') {
+                    $this->redis->setex("thread:{$threadId}", 120, json_encode($result) ?: '');
+                }
+            } catch (\Throwable $e) {
+                // Redis unavailable
+            }
+        }
+
+        return $result;
     }
 
     /* ──────────────────────────────────────────────
@@ -417,6 +501,23 @@ final class BoardService
      */
     public function getCatalog(Board $board): array
     {
+        // Try cache first
+        $cacheKey = "catalog:{$board->slug}";
+        try {
+            if (env('APP_ENV', 'production') !== 'local') {
+                $cached = $this->redis->get($cacheKey);
+                if (is_string($cached) && $cached !== '') {
+                    $decoded = json_decode($cached, true);
+                    if (is_array($decoded)) {
+                        /** @var array<int, array<string, mixed>> $decoded */
+                        return $decoded;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Redis unavailable
+        }
+
         $threads = Thread::query()
             ->where('board_id', $board->id)
             ->where('archived', false)
@@ -459,6 +560,15 @@ final class BoardService
                     'thumb_url'       => $op->thumb_url,
                 ] : null,
             ];
+        }
+
+        // Cache catalog for 60 seconds
+        try {
+            if (env('APP_ENV', 'production') !== 'local') {
+                $this->redis->setex($cacheKey, 60, json_encode($result) ?: '');
+            }
+        } catch (\Throwable $e) {
+            // Redis unavailable
         }
 
         return $result;
@@ -601,12 +711,36 @@ final class BoardService
 
             // Invalidate caches
             $this->redis->del("board:{$board->slug}:index");
+            $this->redis->del("catalog:{$board->slug}");
 
             return [
                 'thread_id' => $thread->id,
                 'post_id'   => $post->id,
             ];
         });
+
+        // Emit domain events after successful transaction (fire-and-forget)
+        $this->eventPublisher->publish(CloudEvent::create(
+            EventTypes::THREAD_CREATED,
+            [
+                'board_id' => $board->slug,
+                'thread_id' => (string) $result['thread_id'],
+                'op_post_id' => (string) $result['post_id'],
+                'created_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
+            ],
+        ));
+        $this->eventPublisher->publish(CloudEvent::create(
+            EventTypes::POST_CREATED,
+            [
+                'board_id' => $board->slug,
+                'thread_id' => (string) $result['thread_id'],
+                'post_id' => (string) $result['post_id'],
+                'created_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
+                'content' => mb_substr((string) ($data['content'] ?? ''), 0, 10000),
+                'media_refs' => array_filter([(string) ($data['media_url'] ?? '')]),
+            ],
+        ));
+
         return $result;
     }
 
@@ -693,12 +827,31 @@ final class BoardService
 
             // Invalidate caches
             $this->redis->del("thread:{$thread->id}");
+            // Invalidate catalog since reply count / last-modified changed
+            if ($board) {
+                $this->redis->del("catalog:{$board->slug}");
+            }
 
             return [
                 'post_id'   => $post->id,
                 'thread_id' => $thread->id,
             ];
         });
+
+        // Emit post.created event after successful transaction (fire-and-forget)
+        $boardSlug = $board ? $board->slug : '';
+        $this->eventPublisher->publish(CloudEvent::create(
+            EventTypes::POST_CREATED,
+            [
+                'board_id' => $boardSlug,
+                'thread_id' => (string) $result['thread_id'],
+                'post_id' => (string) $result['post_id'],
+                'created_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
+                'content' => mb_substr((string) ($data['content'] ?? ''), 0, 10000),
+                'media_refs' => array_filter([(string) ($data['media_url'] ?? '')]),
+            ],
+        ));
+
         return $result;
     }
 
@@ -943,18 +1096,17 @@ final class BoardService
 
         if ($current <= $max) return;
 
-        $toPrune = Thread::query()
-            ->where('board_id', $board->id)
-            ->where('archived', false)
-            ->where('sticky', false)
-            ->orderBy('bumped_at')
-            ->limit($current - $max)
-            ->get();
-
-        foreach ($toPrune as $thread) {
-            /** @var Thread $thread */
-            $thread->update(['archived' => true]);
-        }
+        // Bulk archive in a single UPDATE with subquery instead of N individual updates
+        Db::statement(
+            "UPDATE threads SET archived = true, archived_at = NOW()
+             WHERE id IN (
+                 SELECT id FROM threads
+                 WHERE board_id = ? AND archived = false AND sticky = false
+                 ORDER BY bumped_at ASC
+                 LIMIT ?
+             )",
+            [$board->id, $current - $max]
+        );
     }
 
     /* ──────────────────────────────────────────────
@@ -986,6 +1138,11 @@ final class BoardService
 
         // Invalidate cache
         $this->redis->del("thread:{$post->thread_id}");
+        // Invalidate catalog (OP deletion or image removal affects catalog)
+        $thread = Thread::with('board')->find($post->thread_id);
+        if ($thread && $thread->board) {
+            $this->redis->del("catalog:{$thread->board->slug}");
+        }
 
         return true;
     }
@@ -1010,6 +1167,7 @@ final class BoardService
         $thread->load('board');
         if ($thread->board) {
             $this->redis->del("board:{$thread->board->slug}:index");
+            $this->redis->del("catalog:{$thread->board->slug}");
         }
 
         return true;
@@ -1025,6 +1183,11 @@ final class BoardService
         $post->save();
         
         $this->redis->del("thread:{$post->thread_id}");
+        // Invalidate catalog (spoiler toggling an OP image affects catalog display)
+        $thread = Thread::with('board')->find($post->thread_id);
+        if ($thread && $thread->board) {
+            $this->redis->del("catalog:{$thread->board->slug}");
+        }
 
         return true;
     }
@@ -1117,8 +1280,8 @@ final class BoardService
     /**
      * Find all posts across the site matching a global IP hash (Staff only).
      *
-     * Iterates over recent posts, decrypts IPs, and compares hashes.
-     * Limited to the most recent N posts for performance.
+     * Uses batch processing to limit memory usage. Pre-loads thread/board
+     * data to eliminate N+1 queries.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -1126,57 +1289,79 @@ final class BoardService
     {
         $salt = $this->getIpHashSalt();
 
-        // Query recent posts (with their thread + board info)
-        /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */
-        $posts = Post::query()
-            ->where('deleted', false)
-            ->orderByDesc('created_at')
-            ->limit(5000) // scan window
-            ->get();
-
         $results = [];
-        foreach ($posts as $post) {
-            /** @var Post $post */
-            $encryptedIp = $post->getAttribute('ip_address');
-            $plainIp = is_string($encryptedIp) && $encryptedIp !== ''
-                ? $this->piiEncryption->decrypt($encryptedIp)
-                : '';
+        $batchSize = 500;
+        $offset = 0;
+        $maxScan = 5000;
 
-            $postHash = substr(hash_hmac('sha256', $plainIp, 'global_ip_hash:' . $salt), 0, 16);
-            $this->piiEncryption->wipe($plainIp);
+        while ($offset < $maxScan && count($results) < $limit) {
+            /** @var \Hyperf\Database\Model\Collection<int, Post> $posts */
+            $posts = Post::query()
+                ->where('deleted', false)
+                ->orderByDesc('created_at')
+                ->offset($offset)
+                ->limit($batchSize)
+                ->get();
 
-            if ($postHash === $ipHash) {
-                // Load thread/board info for context
-                /** @var Thread|null $thread */
-                $thread = Thread::find($post->thread_id);
-                $boardSlug = '';
-                if ($thread) {
-                    /** @var Board|null $board */
-                    $board = Board::find($thread->board_id);
-                    $boardSlug = $board ? $board->slug : '';
-                }
+            if ($posts->isEmpty()) {
+                break;
+            }
 
-                $results[] = [
-                    'id'              => $post->id,
-                    'board_post_no'   => $post->board_post_no,
-                    'board_slug'      => $boardSlug,
-                    'thread_id'       => $post->thread_id,
-                    'author_name'     => $post->author_name,
-                    'tripcode'        => $post->tripcode,
-                    'subject'         => $post->subject,
-                    'content_preview' => $post->content_preview,
-                    'content_html'    => $post->content_html,
-                    'media_url'       => $post->media_url,
-                    'thumb_url'       => $post->thumb_url,
-                    'created_at'      => $this->toTimestamp($post->created_at),
-                    'formatted_time'  => $this->formatTime($post->created_at),
-                    'ip_hash'         => $ipHash,
-                ];
+            // Collect matching posts first
+            $matchingPosts = [];
+            foreach ($posts as $post) {
+                /** @var Post $post */
+                $encryptedIp = $post->getAttribute('ip_address');
+                $plainIp = is_string($encryptedIp) && $encryptedIp !== ''
+                    ? $this->piiEncryption->decrypt($encryptedIp)
+                    : '';
 
-                if (count($results) >= $limit) {
-                    break;
+                $postHash = substr(hash_hmac('sha256', $plainIp, 'global_ip_hash:' . $salt), 0, 16);
+                $this->piiEncryption->wipe($plainIp);
+
+                if ($postHash === $ipHash) {
+                    $matchingPosts[] = $post;
+                    if (count($results) + count($matchingPosts) >= $limit) {
+                        break;
+                    }
                 }
             }
+
+            if (!empty($matchingPosts)) {
+                // Batch-load thread and board data for all matching posts (avoids N+1)
+                $threadIds = array_unique(array_map(fn(Post $p) => $p->thread_id, $matchingPosts));
+                $threads = Thread::query()->whereIn('id', $threadIds)->get()->keyBy('id');
+                $boardIds = $threads->pluck('board_id')->unique()->toArray();
+                $boards = Board::query()->whereIn('id', $boardIds)->get()->keyBy('id');
+
+                foreach ($matchingPosts as $post) {
+                    $thread = $threads->get($post->thread_id);
+                    $boardSlug = '';
+                    if ($thread) {
+                        $board = $boards->get($thread->board_id);
+                        $boardSlug = $board ? $board->slug : '';
+                    }
+
+                    $results[] = [
+                        'id'              => $post->id,
+                        'board_post_no'   => $post->board_post_no,
+                        'board_slug'      => $boardSlug,
+                        'thread_id'       => $post->thread_id,
+                        'author_name'     => $post->author_name,
+                        'tripcode'        => $post->tripcode,
+                        'subject'         => $post->subject,
+                        'content_preview' => $post->content_preview,
+                        'content_html'    => $post->content_html,
+                        'media_url'       => $post->media_url,
+                        'thumb_url'       => $post->thumb_url,
+                        'created_at'      => $this->toTimestamp($post->created_at),
+                        'formatted_time'  => $this->formatTime($post->created_at),
+                        'ip_hash'         => $ipHash,
+                    ];
+                }
+            }
+
+            $offset += $batchSize;
         }
 
         return $results;

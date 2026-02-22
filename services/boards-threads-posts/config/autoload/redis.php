@@ -40,4 +40,19 @@ return [
             'max_idle_time' => 60.0,
         ],
     ],
+    // Dedicated connection for the event bus (Redis Streams on DB 6)
+    'events' => [
+        'host' => env('REDIS_HOST', 'redis'),
+        'auth' => env('REDIS_AUTH', null),
+        'port' => $port,
+        'db' => (int) env('EVENTS_REDIS_DB', 6),
+        'pool' => [
+            'min_connections' => 1,
+            'max_connections' => 5,
+            'connect_timeout' => 10.0,
+            'wait_timeout' => 3.0,
+            'heartbeat' => 30,
+            'max_idle_time' => 60.0,
+        ],
+    ],
 ];

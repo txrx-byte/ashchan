@@ -17,8 +17,15 @@
     "hyperf/http-server": "^3.1",
     "hyperf/logger": "^3.1",
     "hyperf/redis": "^3.1",
-    "ramsey/uuid": "^4.9"
+    "ramsey/uuid": "^4.9",
+    "ashchan/event-bus": "*"
   },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../../contracts/php"
+    }
+  ],
   "autoload": {
     "psr-4": {
       "App\\": "app/"

@@ -27,6 +27,9 @@ use App\Model\ModerationDecision;
 use App\Model\Report;
 use App\Model\ReportCategory;
 use App\Model\ReportClearLog;
+use Ashchan\EventBus\CloudEvent;
+use Ashchan\EventBus\EventPublisher;
+use Ashchan\EventBus\EventTypes;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -40,12 +43,16 @@ final class ModerationService
 
     private PiiEncryptionService $piiEncryption;
 
+    private EventPublisher $eventPublisher;
+
     public function __construct(
         LoggerInterface $logger,
-        PiiEncryptionService $piiEncryption
+        PiiEncryptionService $piiEncryption,
+        EventPublisher $eventPublisher,
     ) {
         $this->logger = $logger;
         $this->piiEncryption = $piiEncryption;
+        $this->eventPublisher = $eventPublisher;
     }
 
     /**
@@ -228,6 +235,19 @@ final class ModerationService
             'report_id' => $reportId,
             'cleared_by' => $staffUsername,
         ]);
+
+        // Emit moderation.decision event
+        $this->eventPublisher->publish(CloudEvent::create(
+            EventTypes::MODERATION_DECISION,
+            [
+                'decision_id' => (string) $reportId,
+                'target_type' => 'report',
+                'target_id' => (string) $reportId,
+                'action' => 'clear',
+                'reason' => 'Cleared by staff',
+                'created_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
+            ],
+        ));
 
         return true;
     }
@@ -444,6 +464,19 @@ final class ModerationService
             'type' => $banType,
             'board' => $board,
         ]);
+
+        // Emit moderation.decision event
+        $this->eventPublisher->publish(CloudEvent::create(
+            EventTypes::MODERATION_DECISION,
+            [
+                'decision_id' => (string) $ban->getAttribute('id'),
+                'target_type' => 'post',
+                'target_id' => (string) $postNo,
+                'action' => 'ban',
+                'reason' => $customReason ?: (string) $template->getAttribute('public_reason'),
+                'created_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
+            ],
+        ));
 
         return $ban;
     }

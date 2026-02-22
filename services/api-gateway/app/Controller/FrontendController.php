@@ -156,9 +156,55 @@ final class FrontendController
     {
         $pageRaw = $request->getQueryParams()['page'] ?? '1';
         $page = is_numeric($pageRaw) ? max(1, (int) $pageRaw) : 1;
-        
-        $common = $this->getCommonData();
-        $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
+
+        // Fetch common data + board data + threads in parallel
+        $common = [];
+        $boardData = [];
+        $threadsData = [];
+        $fetchErrors = [];
+        $encodedSlug = urlencode($slug);
+        $logger = $this->loggerFactory->get('frontend');
+        $wg = new \Swoole\Coroutine\WaitGroup();
+        $wg->add(3);
+        go(function () use (&$common, &$fetchErrors, $wg, $logger) {
+            try {
+                $common = $this->getCommonData();
+            } catch (\Throwable $e) {
+                $fetchErrors['common'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching common data: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$boardData, &$fetchErrors, $encodedSlug, $wg, $logger) {
+            try {
+                $boardData = $this->fetchJson('boards', '/api/v1/boards/' . $encodedSlug);
+            } catch (\Throwable $e) {
+                $fetchErrors['board'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching board data: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$threadsData, &$fetchErrors, $encodedSlug, $page, $wg, $logger) {
+            try {
+                $threadsData = $this->fetchJson('boards', '/api/v1/boards/' . $encodedSlug . '/threads?page=' . $page);
+            } catch (\Throwable $e) {
+                $fetchErrors['threads'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching threads: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        if (!$wg->wait(5)) {
+            $logger->error('Upstream fetch timeout for board page /' . $slug . '/');
+            return $this->html('<h1>Service Unavailable</h1><p>Upstream services did not respond in time. Please try again.</p>', 503);
+        }
+
+        if (isset($fetchErrors['board'])) {
+            return $this->html('<h1>Service Error</h1><p>Could not load board data.</p>', 502);
+        }
+
         $board = $boardData['board'] ?? null;
         if (!$board) {
             return $this->html('<h1>Board not found</h1>', 404);
@@ -168,8 +214,6 @@ final class FrontendController
         if ($denied) {
             return $denied;
         }
-
-        $threadsData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/threads?page=' . $page);
         $threads = $threadsData['threads'] ?? [];
         $threads = $this->rewriteMediaUrls($threads);
         $totalPages = max(1, (int) ($threadsData['total_pages'] ?? 1));
@@ -196,8 +240,53 @@ final class FrontendController
     /** GET /{slug}/catalog – Board catalog view */
     public function catalog(RequestInterface $request, string $slug): ResponseInterface
     {
-        $common = $this->getCommonData();
-        $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
+        $common = [];
+        $boardData = [];
+        $catalogData = [];
+        $fetchErrors = [];
+        $encodedSlug = urlencode($slug);
+        $logger = $this->loggerFactory->get('frontend');
+        $wg = new \Swoole\Coroutine\WaitGroup();
+        $wg->add(3);
+        go(function () use (&$common, &$fetchErrors, $wg, $logger) {
+            try {
+                $common = $this->getCommonData();
+            } catch (\Throwable $e) {
+                $fetchErrors['common'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching common data: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$boardData, &$fetchErrors, $encodedSlug, $wg, $logger) {
+            try {
+                $boardData = $this->fetchJson('boards', '/api/v1/boards/' . $encodedSlug);
+            } catch (\Throwable $e) {
+                $fetchErrors['board'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching board data: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$catalogData, &$fetchErrors, $encodedSlug, $wg, $logger) {
+            try {
+                $catalogData = $this->fetchJson('boards', '/api/v1/boards/' . $encodedSlug . '/catalog');
+            } catch (\Throwable $e) {
+                $fetchErrors['catalog'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching catalog: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        if (!$wg->wait(5)) {
+            $logger->error('Upstream fetch timeout for catalog /' . $slug . '/catalog');
+            return $this->html('<h1>Service Unavailable</h1><p>Upstream services did not respond in time. Please try again.</p>', 503);
+        }
+
+        if (isset($fetchErrors['board'])) {
+            return $this->html('<h1>Service Error</h1><p>Could not load board data.</p>', 502);
+        }
+
         $board = $boardData['board'] ?? null;
         if (!$board) {
             return $this->html('<h1>Board not found</h1>', 404);
@@ -207,8 +296,6 @@ final class FrontendController
         if ($denied) {
             return $denied;
         }
-
-        $catalogData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/catalog');
         $threads = $catalogData['threads'] ?? [];
         $threads = $this->rewriteMediaUrls($threads);
 
@@ -230,8 +317,53 @@ final class FrontendController
     /** GET /{slug}/archive – Board archive */
     public function archive(RequestInterface $request, string $slug): ResponseInterface
     {
-        $common = $this->getCommonData();
-        $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
+        $common = [];
+        $boardData = [];
+        $archiveData = [];
+        $fetchErrors = [];
+        $encodedSlug = urlencode($slug);
+        $logger = $this->loggerFactory->get('frontend');
+        $wg = new \Swoole\Coroutine\WaitGroup();
+        $wg->add(3);
+        go(function () use (&$common, &$fetchErrors, $wg, $logger) {
+            try {
+                $common = $this->getCommonData();
+            } catch (\Throwable $e) {
+                $fetchErrors['common'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching common data: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$boardData, &$fetchErrors, $encodedSlug, $wg, $logger) {
+            try {
+                $boardData = $this->fetchJson('boards', '/api/v1/boards/' . $encodedSlug);
+            } catch (\Throwable $e) {
+                $fetchErrors['board'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching board data: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$archiveData, &$fetchErrors, $encodedSlug, $wg, $logger) {
+            try {
+                $archiveData = $this->fetchJson('boards', '/api/v1/boards/' . $encodedSlug . '/archive');
+            } catch (\Throwable $e) {
+                $fetchErrors['archive'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching archive: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        if (!$wg->wait(5)) {
+            $logger->error('Upstream fetch timeout for archive /' . $slug . '/archive');
+            return $this->html('<h1>Service Unavailable</h1><p>Upstream services did not respond in time. Please try again.</p>', 503);
+        }
+
+        if (isset($fetchErrors['board'])) {
+            return $this->html('<h1>Service Error</h1><p>Could not load board data.</p>', 502);
+        }
+
         $board = $boardData['board'] ?? null;
         if (!$board) {
             return $this->html('<h1>Board not found</h1>', 404);
@@ -241,8 +373,6 @@ final class FrontendController
         if ($denied) {
             return $denied;
         }
-
-        $archiveData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/archive');
         $archived = $archiveData['archived_threads'] ?? $archiveData['threads'] ?? [];
 
         $html = $this->renderer->render('archive', array_merge($common, [
@@ -263,8 +393,53 @@ final class FrontendController
     /** GET /{slug}/thread/{id} – Thread view */
     public function thread(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
-        $common = $this->getCommonData();
-        $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
+        $common = [];
+        $boardData = [];
+        $threadData = [];
+        $fetchErrors = [];
+        $encodedSlug = urlencode($slug);
+        $logger = $this->loggerFactory->get('frontend');
+        $wg = new \Swoole\Coroutine\WaitGroup();
+        $wg->add(3);
+        go(function () use (&$common, &$fetchErrors, $wg, $logger) {
+            try {
+                $common = $this->getCommonData();
+            } catch (\Throwable $e) {
+                $fetchErrors['common'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching common data: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$boardData, &$fetchErrors, $encodedSlug, $wg, $logger) {
+            try {
+                $boardData = $this->fetchJson('boards', '/api/v1/boards/' . $encodedSlug);
+            } catch (\Throwable $e) {
+                $fetchErrors['board'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching board data: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$threadData, &$fetchErrors, $encodedSlug, $id, $wg, $logger) {
+            try {
+                $threadData = $this->fetchJson('boards', '/api/v1/boards/' . $encodedSlug . '/threads/' . $id);
+            } catch (\Throwable $e) {
+                $fetchErrors['thread'] = $e->getMessage();
+                $logger->error('Coroutine failed fetching thread: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        if (!$wg->wait(5)) {
+            $logger->error('Upstream fetch timeout for thread /' . $slug . '/thread/' . $id);
+            return $this->html('<h1>Service Unavailable</h1><p>Upstream services did not respond in time. Please try again.</p>', 503);
+        }
+
+        if (isset($fetchErrors['board'])) {
+            return $this->html('<h1>Service Error</h1><p>Could not load board data.</p>', 502);
+        }
+
         $board = $boardData['board'] ?? null;
         if (!$board) {
             return $this->html('<h1>Board not found</h1>', 404);
@@ -274,8 +449,6 @@ final class FrontendController
         if ($denied) {
             return $denied;
         }
-
-        $threadData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug) . '/threads/' . $id);
         if (isset($threadData['error'])) {
             return $this->html('<h1>Thread not found</h1>', 404);
         }
@@ -755,8 +928,33 @@ final class FrontendController
             // Redis down — fall through to fresh fetch
         }
 
-        $boardsData = $this->fetchJson('boards', '/api/v1/boards');
-        $blotterData = $this->fetchJson('boards', '/api/v1/blotter');
+        // Fetch boards and blotter in parallel using Swoole coroutines
+        $boardsData = [];
+        $blotterData = [];
+        $logger = $this->loggerFactory->get('frontend');
+        $wg = new \Swoole\Coroutine\WaitGroup();
+        $wg->add(2);
+        go(function () use (&$boardsData, $wg, $logger) {
+            try {
+                $boardsData = $this->fetchJson('boards', '/api/v1/boards');
+            } catch (\Throwable $e) {
+                $logger->error('Coroutine failed fetching boards list: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        go(function () use (&$blotterData, $wg, $logger) {
+            try {
+                $blotterData = $this->fetchJson('boards', '/api/v1/blotter');
+            } catch (\Throwable $e) {
+                $logger->error('Coroutine failed fetching blotter: ' . $e->getMessage());
+            } finally {
+                $wg->done();
+            }
+        });
+        if (!$wg->wait(5)) {
+            $logger->warning('Timeout fetching common data (boards/blotter); serving with partial data');
+        }
 
         $boards = $boardsData['boards'] ?? [];
         
@@ -828,7 +1026,7 @@ final class FrontendController
      */
     private function rewritePostMedia(array $post): array
     {
-        $bucket = getenv('OBJECT_STORAGE_BUCKET') ?: 'ashchan';
+        $bucket = (string) \Hyperf\Support\env('OBJECT_STORAGE_BUCKET', 'ashchan');
         // Match any MinIO hostname pattern and rewrite to /media/ proxy path
         $patterns = [
             "http://minio:9000/{$bucket}/",

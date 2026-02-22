@@ -21,6 +21,9 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Model\MediaObject;
+use Ashchan\EventBus\CloudEvent;
+use Ashchan\EventBus\EventPublisher;
+use Ashchan\EventBus\EventTypes;
 
 /**
  * Media processing pipeline:
@@ -36,6 +39,7 @@ final class MediaService
     private string $storageBucket;
     private string $storageEndpoint;
     private int $maxFileSize;
+    private EventPublisher $eventPublisher;
 
     private const ALLOWED_MIMES = [
         'image/jpeg', 'image/png', 'image/gif', 'image/webp',
@@ -44,11 +48,13 @@ final class MediaService
     private const THUMB_MAX_WIDTH  = 250;
     private const THUMB_MAX_HEIGHT = 250;
 
-    public function __construct()
-    {
+    public function __construct(
+        EventPublisher $eventPublisher,
+    ) {
         $this->storageBucket   = (string) \Hyperf\Support\env('OBJECT_STORAGE_BUCKET', 'ashchan');
         $this->storageEndpoint = (string) \Hyperf\Support\env('OBJECT_STORAGE_ENDPOINT', 'http://minio:9000');
         $this->maxFileSize     = (int) \Hyperf\Support\env('MAX_FILE_SIZE', 4194304); // 4MB
+        $this->eventPublisher  = $eventPublisher;
     }
 
     /**
@@ -116,6 +122,18 @@ final class MediaService
             'thumb_key'        => $thumbKey,
             'original_filename'=> $origName,
         ]);
+
+        // Emit media.ingested event (fire-and-forget)
+        $this->eventPublisher->publish(CloudEvent::create(
+            EventTypes::MEDIA_INGESTED,
+            [
+                'media_id' => (string) $media->id,
+                'hash' => $hash,
+                'content_type' => $actualMime,
+                'size_bytes' => $fileSize,
+                'created_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
+            ],
+        ));
 
         return $this->toMetadata($media);
     }

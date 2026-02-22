@@ -113,6 +113,17 @@ final class ThreadController
             'media_hash'      => $input['media_hash'] ?? null,
         ];
 
+        // Enforce field length limits
+        if (mb_strlen($name) > 100) {
+            return $this->response->json(['error' => 'Name must not exceed 100 characters'])->withStatus(400);
+        }
+        if (mb_strlen($subject) > 100) {
+            return $this->response->json(['error' => 'Subject must not exceed 100 characters'])->withStatus(400);
+        }
+        if (mb_strlen($content) > 20000) {
+            return $this->response->json(['error' => 'Comment must not exceed 20000 characters'])->withStatus(400);
+        }
+
         // Validate content is not blank (whitespace-only counts as blank)
         $trimmedContent = trim($data['content']);
         if (!$board->text_only && $trimmedContent === '' && empty($data['media_url'])) {
@@ -163,6 +174,17 @@ final class ThreadController
             'media_dimensions'=> $input['media_dimensions'] ?? null,
             'media_hash'      => $input['media_hash'] ?? null,
         ];
+
+        // Enforce field length limits
+        if (mb_strlen($name) > 100) {
+            return $this->response->json(['error' => 'Name must not exceed 100 characters'])->withStatus(400);
+        }
+        if (mb_strlen($subject) > 100) {
+            return $this->response->json(['error' => 'Subject must not exceed 100 characters'])->withStatus(400);
+        }
+        if (mb_strlen($content) > 20000) {
+            return $this->response->json(['error' => 'Comment must not exceed 20000 characters'])->withStatus(400);
+        }
 
         // Validate content is not blank (whitespace-only counts as blank)
         $trimmedContent = trim($data['content']);
