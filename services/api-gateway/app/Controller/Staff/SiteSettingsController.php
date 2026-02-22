@@ -20,9 +20,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Staff;
 
-use App\Service\AuthenticationService;
 use App\Service\SiteConfigService;
 use App\Service\TemplateRenderer;
+use Hyperf\Context\Context;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
@@ -37,7 +37,6 @@ final class SiteSettingsController
 {
     public function __construct(
         private SiteConfigService $configService,
-        private AuthenticationService $authService,
         private TemplateRenderer $renderer,
         private HttpResponse $response,
     ) {}
@@ -47,8 +46,9 @@ final class SiteSettingsController
      */
     public function index(RequestInterface $request): ResponseInterface
     {
-        $session = $this->authService->getStaffContext($request);
-        if (!$session || !in_array($session['level'] ?? '', ['admin'], true)) {
+        $user = Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        if (!$user || !in_array($level, ['admin'], true)) {
             return $this->response->redirect('/staff/login');
         }
 
@@ -64,8 +64,8 @@ final class SiteSettingsController
 
         $html = $this->renderer->render('staff/site-settings/index.html', [
             'title' => 'Site Settings',
-            'username' => $session['username'] ?? 'Admin',
-            'level' => $session['level'] ?? 'admin',
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
             'isAdmin' => true,
             'isManager' => true,
             'banRequestCount' => 0,
@@ -80,12 +80,13 @@ final class SiteSettingsController
      */
     public function update(RequestInterface $request): ResponseInterface
     {
-        $session = $this->authService->getStaffContext($request);
-        if (!$session || !in_array($session['level'] ?? '', ['admin'], true)) {
+        $user = Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        if (!$user || !in_array($level, ['admin'], true)) {
             return $this->response->json(['error' => 'Forbidden'], 403);
         }
 
-        $staffId = isset($session['id']) ? (int) $session['id'] : null;
+        $staffId = isset($user['id']) ? (int) $user['id'] : null;
         $body = $request->getParsedBody();
         if (!is_array($body)) {
             return $this->response->json(['error' => 'Invalid request body'], 400);
@@ -114,8 +115,9 @@ final class SiteSettingsController
      */
     public function audit(RequestInterface $request, string $key): ResponseInterface
     {
-        $session = $this->authService->getStaffContext($request);
-        if (!$session || !in_array($session['level'] ?? '', ['admin'], true)) {
+        $user = Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        if (!$user || !in_array($level, ['admin'], true)) {
             return $this->response->redirect('/staff/login');
         }
 
@@ -124,8 +126,8 @@ final class SiteSettingsController
 
         $html = $this->renderer->render('staff/site-settings/audit.html', [
             'title' => 'Setting Audit: ' . $key,
-            'username' => $session['username'] ?? 'Admin',
-            'level' => $session['level'] ?? 'admin',
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
             'isAdmin' => true,
             'isManager' => true,
             'banRequestCount' => 0,

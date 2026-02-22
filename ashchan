@@ -170,6 +170,149 @@ separator() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Auto-install prerequisites
+# ─────────────────────────────────────────────────────────────────────────────
+
+install_prerequisites() {
+    step "Installing system prerequisites"
+
+    if command -v apk &>/dev/null; then
+        info "Detected Alpine Linux (apk)"
+        # Determine installed PHP major version or default to 84
+        local php_pkg_prefix="php84"
+        if command -v php83 &>/dev/null && ! command -v php84 &>/dev/null; then
+            php_pkg_prefix="php83"
+        fi
+        info "Using package prefix: ${php_pkg_prefix}"
+
+        local pkgs=(
+            "${php_pkg_prefix}" "${php_pkg_prefix}-openssl" "${php_pkg_prefix}-pdo"
+            "${php_pkg_prefix}-pdo_pgsql" "${php_pkg_prefix}-mbstring"
+            "${php_pkg_prefix}-curl" "${php_pkg_prefix}-pcntl"
+            "${php_pkg_prefix}-phar" "${php_pkg_prefix}-iconv"
+            "${php_pkg_prefix}-dom" "${php_pkg_prefix}-xml"
+            "${php_pkg_prefix}-xmlwriter" "${php_pkg_prefix}-tokenizer"
+            "${php_pkg_prefix}-fileinfo" "${php_pkg_prefix}-ctype"
+            "${php_pkg_prefix}-posix" "${php_pkg_prefix}-session"
+            "${php_pkg_prefix}-sockets" "${php_pkg_prefix}-gd"
+            "${php_pkg_prefix}-pecl-swoole" "${php_pkg_prefix}-pecl-redis"
+            openssl composer postgresql16 postgresql16-client postgresql16-contrib redis make
+        )
+
+        info "Installing packages (this may take a moment)..."
+        if sudo apk add --no-cache "${pkgs[@]}" 2>/dev/null; then
+            success "APK packages installed"
+        else
+            # Retry without --no-cache and ignore individual failures
+            warn "Some packages failed — retrying with relaxed options..."
+            for pkg in "${pkgs[@]}"; do
+                sudo apk add "$pkg" 2>/dev/null || warn "Could not install ${pkg}"
+            done
+        fi
+
+        # Create php symlink if not present
+        if ! command -v php &>/dev/null; then
+            local php_bin
+            php_bin=$(command -v "${php_pkg_prefix}" 2>/dev/null || which "${php_pkg_prefix}" 2>/dev/null || echo "")
+            if [[ -n "$php_bin" ]]; then
+                sudo ln -sf "$php_bin" /usr/local/bin/php
+                success "Created php symlink → ${php_bin}"
+            fi
+        fi
+
+    elif command -v apt-get &>/dev/null; then
+        info "Detected Debian/Ubuntu (apt)"
+        sudo apt-get update -qq 2>/dev/null
+
+        local pkgs=(
+            php8.2 php8.2-cli php8.2-swoole php8.2-pgsql php8.2-redis
+            php8.2-mbstring php8.2-curl php8.2-xml php8.2-dom php8.2-gd
+            openssl composer postgresql-client redis-server make
+        )
+
+        info "Installing packages (this may take a moment)..."
+        if sudo apt-get install -y -qq "${pkgs[@]}" 2>/dev/null; then
+            success "APT packages installed"
+        else
+            warn "Some packages failed — retrying individually..."
+            for pkg in "${pkgs[@]}"; do
+                sudo apt-get install -y -qq "$pkg" 2>/dev/null || warn "Could not install ${pkg}"
+            done
+        fi
+
+    elif command -v dnf &>/dev/null; then
+        info "Detected Fedora/RHEL (dnf)"
+        local pkgs=(
+            php php-cli php-swoole php-pgsql php-redis php-mbstring
+            php-curl php-xml php-gd php-openssl
+            openssl composer postgresql redis make
+        )
+        sudo dnf install -y -q "${pkgs[@]}" 2>/dev/null || warn "Some packages may have failed"
+        success "DNF packages installed"
+
+    elif command -v pkg &>/dev/null; then
+        info "Detected FreeBSD (pkg)"
+        local pkgs=(
+            php84 php84-extensions php84-swoole php84-pdo_pgsql php84-redis
+            php84-mbstring php84-curl php84-xml php84-gd
+            openssl composer postgresql16-client redis
+        )
+        sudo pkg install -y "${pkgs[@]}" 2>/dev/null || warn "Some packages may have failed"
+        success "FreeBSD packages installed"
+
+    else
+        warn "No supported package manager found (apk, apt, dnf, pkg)"
+        info "Please install manually: PHP 8.2+, Swoole, PostgreSQL client, Redis, Composer, OpenSSL, Make"
+        return 1
+    fi
+
+    # Ensure Redis server is running
+    provision_redis
+
+    success "Prerequisite installation complete"
+}
+
+# Start Redis if installed but not running
+provision_redis() {
+    if redis-cli -h "$REDIS_HOST" ping &>/dev/null 2>&1; then
+        success "Redis already running on ${REDIS_HOST}"
+        return 0
+    fi
+
+    if ! command -v redis-server &>/dev/null; then
+        # Try installing Redis
+        if command -v apk &>/dev/null; then
+            sudo apk add --no-cache redis 2>/dev/null || true
+        elif command -v apt-get &>/dev/null; then
+            sudo apt-get install -y -qq redis-server 2>/dev/null || true
+        fi
+    fi
+
+    if command -v redis-server &>/dev/null; then
+        info "Starting Redis server..."
+        if command -v rc-service &>/dev/null; then
+            sudo rc-service redis start 2>/dev/null || true
+        elif command -v systemctl &>/dev/null; then
+            sudo systemctl start redis-server 2>/dev/null || sudo systemctl start redis 2>/dev/null || true
+        else
+            # Fallback: start in background
+            redis-server --daemonize yes 2>/dev/null || sudo redis-server --daemonize yes 2>/dev/null || true
+        fi
+        sleep 1
+        if redis-cli -h "$REDIS_HOST" ping &>/dev/null 2>&1; then
+            success "Redis started on ${REDIS_HOST}"
+            return 0
+        else
+            warn "Redis installed but failed to start"
+            return 1
+        fi
+    else
+        warn "Redis not available — install it and start with: redis-server --daemonize yes"
+        return 1
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Prerequisite checks
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -676,11 +819,11 @@ provision_postgres() {
 
     info "PostgreSQL not reachable — attempting auto-provision..."
 
-    # Install psql client if missing
-    if ! command -v psql &>/dev/null; then
-        info "Installing PostgreSQL client and server..."
+    # Install PostgreSQL server + client if not fully present
+    if ! command -v psql &>/dev/null || ! command -v pg_ctl &>/dev/null; then
+        info "Installing PostgreSQL server and client..."
         if command -v apk &>/dev/null; then
-            sudo apk add --quiet postgresql16 postgresql16-client postgresql16-contrib 2>/dev/null
+            sudo apk add --no-cache postgresql16 postgresql16-client postgresql16-contrib 2>/dev/null
         elif command -v apt-get &>/dev/null; then
             sudo apt-get install -y -qq postgresql postgresql-client 2>/dev/null
         elif command -v dnf &>/dev/null; then
@@ -694,14 +837,31 @@ provision_postgres() {
     fi
 
     if ! command -v psql &>/dev/null; then
-        warn "PostgreSQL installation failed"
+        warn "PostgreSQL client installation failed"
         return 1
     fi
 
-    # Check if pg_ctl is available (server installed)
     if ! command -v pg_ctl &>/dev/null; then
-        warn "PostgreSQL server not installed — only client found"
-        return 1
+        # On Alpine, pg_ctl may be at a non-standard path (e.g. /usr/libexec/postgresql16/)
+        local pg_ctl_path
+        pg_ctl_path=$(find /usr -name pg_ctl -type f 2>/dev/null | head -1)
+        if [[ -n "$pg_ctl_path" ]]; then
+            sudo ln -sf "$pg_ctl_path" /usr/local/bin/pg_ctl
+            info "Linked pg_ctl → ${pg_ctl_path}"
+        else
+            warn "PostgreSQL server (pg_ctl) not found after install"
+            return 1
+        fi
+    fi
+
+    # Also ensure initdb is on PATH
+    if ! command -v initdb &>/dev/null; then
+        local initdb_path
+        initdb_path=$(find /usr -name initdb -type f 2>/dev/null | head -1)
+        if [[ -n "$initdb_path" ]]; then
+            sudo ln -sf "$initdb_path" /usr/local/bin/initdb
+            info "Linked initdb → ${initdb_path}"
+        fi
     fi
 
     # Determine data directory
@@ -713,41 +873,68 @@ provision_postgres() {
     # Initialize if needed
     if [[ ! -f "${pg_data}/PG_VERSION" ]]; then
         info "Initializing PostgreSQL data directory..."
+        sudo mkdir -p "$(dirname "$pg_data")"
         sudo mkdir -p "$pg_data"
+        sudo chown -R postgres:postgres "$(dirname "$pg_data")"
         sudo chown postgres:postgres "$pg_data"
-        sudo su - postgres -c "initdb -D '${pg_data}'" &>/dev/null || {
+
+        # Use full path to initdb if needed
+        local initdb_bin
+        initdb_bin=$(command -v initdb 2>/dev/null || find /usr -name initdb -type f 2>/dev/null | head -1)
+        if [[ -z "$initdb_bin" ]]; then
+            warn "initdb not found — cannot initialize PostgreSQL"
+            return 1
+        fi
+        # Use sudo to root, then su to postgres (works when sudoers only allows root)
+        sudo su postgres -c "'${initdb_bin}' -D '${pg_data}'" &>/dev/null || {
             warn "Failed to initialize PostgreSQL"
             return 1
         }
         # Enable TCP connections with password auth
         echo "host all all 127.0.0.1/32 md5" | sudo tee -a "${pg_data}/pg_hba.conf" >/dev/null
         echo "host all all ::1/128 md5" | sudo tee -a "${pg_data}/pg_hba.conf" >/dev/null
+        # Allow local socket trust for postgres admin commands
+        sudo sed -i 's/^local.*all.*all.*peer$/local all all trust/' "${pg_data}/pg_hba.conf" 2>/dev/null || true
+        sudo sed -i 's/^local.*all.*all.*ident$/local all all trust/' "${pg_data}/pg_hba.conf" 2>/dev/null || true
     fi
 
     # Ensure runtime dir exists
     sudo mkdir -p /run/postgresql 2>/dev/null
     sudo chown postgres:postgres /run/postgresql 2>/dev/null
 
+    # Resolve pg_ctl full path
+    local pg_ctl_bin
+    pg_ctl_bin=$(command -v pg_ctl 2>/dev/null || find /usr -name pg_ctl -type f 2>/dev/null | head -1)
+
     # Start server if not running
-    if ! sudo su - postgres -c "pg_ctl -D '${pg_data}' status" &>/dev/null; then
+    if ! sudo su postgres -c "'${pg_ctl_bin}' -D '${pg_data}' status" &>/dev/null; then
         info "Starting PostgreSQL server..."
-        sudo su - postgres -c "pg_ctl -D '${pg_data}' -l '${pg_data}/../logfile' start" &>/dev/null || {
-            warn "Failed to start PostgreSQL"
-            return 1
+        sudo mkdir -p "$(dirname "$pg_data")/log" 2>/dev/null
+        sudo chown postgres:postgres "$(dirname "$pg_data")/log" 2>/dev/null
+        sudo su postgres -c "'${pg_ctl_bin}' -D '${pg_data}' -l '$(dirname "$pg_data")/logfile' start" &>/dev/null || {
+            # Try with -o to listen on localhost
+            sudo su postgres -c "'${pg_ctl_bin}' -D '${pg_data}' -l '$(dirname "$pg_data")/logfile' -o '-h localhost' start" &>/dev/null || {
+                warn "Failed to start PostgreSQL"
+                sudo cat "$(dirname "$pg_data")/logfile" 2>/dev/null | tail -10 || true
+                return 1
+            }
         }
-        sleep 1
+        sleep 2
     fi
 
     # Create user and database if they don't exist
-    if ! sudo su - postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'\"" 2>/dev/null | grep -q 1; then
+    if ! sudo su postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'\"" 2>/dev/null | grep -q 1; then
         info "Creating database user '${DB_USER}'..."
-        sudo su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';\"" &>/dev/null
+        sudo su postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';\"" &>/dev/null || true
     fi
 
-    if ! sudo su - postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'\"" 2>/dev/null | grep -q 1; then
+    if ! sudo su postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'\"" 2>/dev/null | grep -q 1; then
         info "Creating database '${DB_NAME}'..."
-        sudo su - postgres -c "psql -c \"CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};\"" &>/dev/null
+        sudo su postgres -c "psql -c \"CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};\"" &>/dev/null || true
     fi
+
+    # Grant privileges
+    sudo su postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};\"" &>/dev/null || true
 
     # Verify connection
     if check_db 2>/dev/null; then
@@ -2238,6 +2425,10 @@ cmd_build() {
 
 cmd_install() {
     banner "Full Installation"
+
+    # ─── 0. Auto-install system packages ───
+    step "0/10  Installing system requirements"
+    install_prerequisites
 
     # ─── 1. Prerequisites ───
     step "1/10  Checking prerequisites"
