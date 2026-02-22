@@ -120,7 +120,7 @@ final class SecurityHeadersMiddlewareTest extends TestCase
         $this->assertSame('strict-origin-when-cross-origin', $headers['Referrer-Policy']);
     }
 
-    public function testPublicPageCspDoesNotAllowUnsafeInlineScript(): void
+    public function testCspAllowsUnsafeInlineAndBlobWorkers(): void
     {
         $headers = [];
         $response = $this->createMock(ResponseInterface::class);
@@ -136,16 +136,13 @@ final class SecurityHeadersMiddlewareTest extends TestCase
         $this->middleware->process($request, $handler);
 
         $csp = $headers['Content-Security-Policy'];
-        // Public pages should NOT have 'unsafe-inline' for scripts
-        $this->assertStringContainsString("script-src 'self'", $csp);
-        // But the script-src portion should not have unsafe-inline
-        // Extract script-src directive
-        preg_match('/script-src\s+([^;]+)/', $csp, $matches);
-        $scriptSrc = $matches[1] ?? '';
-        $this->assertStringNotContainsString("'unsafe-inline'", $scriptSrc);
+        // All pages need 'unsafe-inline' for inline event handlers (onclick, onsubmit)
+        $this->assertStringContainsString("script-src 'self' 'unsafe-inline'", $csp);
+        // ALTCHA proof-of-work requires blob: Web Workers
+        $this->assertStringContainsString("worker-src 'self' blob:", $csp);
     }
 
-    public function testStaffPageCspAllowsUnsafeInlineScript(): void
+    public function testStaffPageCspMatchesPublicCsp(): void
     {
         $headers = [];
         $response = $this->createMock(ResponseInterface::class);

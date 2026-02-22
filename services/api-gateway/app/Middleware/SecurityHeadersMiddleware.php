@@ -34,15 +34,10 @@ final class SecurityHeadersMiddleware implements MiddlewareInterface
     {
         $response = $handler->handle($request);
 
-        // Determine if this is a staff page that needs the CSRF inline script
-        $path = $request->getUri()->getPath();
-        $isStaffPage = str_starts_with($path, '/staff/');
-
-        // Use nonce-based CSP for staff pages to allow the CSRF injection script
-        // while avoiding 'unsafe-inline' for public pages
-        $csp = $isStaffPage
-            ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-            : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+        // CSP policy:
+        // - 'unsafe-inline' in script-src needed for inline event handlers (onclick, onsubmit)
+        // - worker-src blob: needed for ALTCHA proof-of-work Web Workers
+        $csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 
         return $response
             ->withHeader('X-Content-Type-Options', 'nosniff')

@@ -170,8 +170,9 @@ J.toggleSpoiler = function(id) {
 
 J.onClick = function(e) {
     var t = e.target;
-    var cmd = t.getAttribute('data-cmd') || t.parentNode.getAttribute('data-cmd');
-    var id = t.getAttribute('data-id') || t.parentNode.getAttribute('data-id');
+    var p = t.parentNode;
+    var cmd = t.getAttribute('data-cmd') || (p && p.getAttribute ? p.getAttribute('data-cmd') : null);
+    var id = t.getAttribute('data-id') || (p && p.getAttribute ? p.getAttribute('data-id') : null);
 
     if (cmd) {
         e.preventDefault();

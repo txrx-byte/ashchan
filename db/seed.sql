@@ -253,6 +253,8 @@ INSERT INTO site_settings (key, value, description, category, value_type) VALUES
     ('login_rate_window',       '300',    'Login rate limit window (seconds)',                                         'rate_limiting', 'int'),
 
     -- ── Spam / Risk Scoring ──
+    ('altcha_enabled',          'true',   'Enable ALTCHA proof-of-work captcha for all posts and replies',            'spam', 'bool'),
+    ('altcha_hmac_key',         '',       'HMAC key for ALTCHA challenge signing (auto-generated if empty)',           'spam', 'string'),
     ('captcha_ttl',             '300',    'Captcha validity period (seconds)',                                         'spam', 'int'),
     ('risk_threshold_block',    '10',     'Spam score threshold to auto-block a post',                                'spam', 'int'),
     ('risk_threshold_high',     '7',      'Spam score threshold to escalate (require captcha)',                        'spam', 'int'),

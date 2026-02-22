@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="/static/css/common.css">
   <link rel="stylesheet" id="themeStylesheet" href="/static/css/yotsuba-b.css">
   <script src="/static/js/core.js" defer></script>
+  <script src="/static/js/altcha.min.js" defer></script>
   <script src="/static/js/extension.js" defer></script>
   {% if is_staff %}
   <script src="/static/js/mod.js" defer></script>
@@ -77,6 +78,30 @@
       ]
     </span>
   </div>
+
+  <!-- Blotter -->
+  {% if blotter is defined and blotter %}
+  <div id="blotter">
+    <s class="blotter-online" id="showBlotter">Show blotter</s>
+    <s class="blotter-online" id="hideBlotter" style="display:none">Hide blotter</s>
+    <table id="blotter-msgs" style="display:none">
+      <tbody>
+      {% for entry in blotter %}
+        <tr>
+          <td class="blotter-date">{{ entry.created_at }}</td>
+          <td>{{ entry.content|raw }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2"><a href="/blotter">All news</a></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <hr>
+  {% endif %}
 
   <!-- Footer -->
   <div id="absbot" class="absBotText">

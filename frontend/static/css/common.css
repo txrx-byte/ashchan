@@ -839,151 +839,392 @@ table.postForm > tbody > tr > td > input[name="subject"] {
   color: #117743;
 }
 
-/* Settings Menu Modal */
-#settingsMenu {
+/* Settings Panel (4chan-style floating panel) */
+.extPanel.reply {
+  display: block;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  padding: 0;
+  font-size: 13px;
+  max-height: 80vh;
+  overflow-y: auto;
+  min-width: 370px;
+  max-width: 500px;
+  box-shadow: 0 0 5px rgba(0,0,0,0.25);
+}
+
+.extPanel .panelHeader {
+  font-weight: bold;
+  font-size: 13px;
+  padding: 4px 5px;
+  text-align: center;
+  position: relative;
+}
+
+.extPanel .panelCtrl {
+  position: absolute;
+  right: 5px;
+  top: 4px;
+}
+
+.extPanel .panelCtrl img.pointer {
+  cursor: pointer;
+  vertical-align: middle;
+  width: 15px;
+  height: 15px;
+}
+
+/* Settings list structure - matches 4chan's nested ul>ul pattern */
+.extPanel > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 5px;
+}
+
+.extPanel > ul > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.extPanel > ul > ul > li {
+  padding: 1px 0;
+}
+
+#settings-exp-all {
+  text-align: center;
+  padding: 5px 0;
+}
+
+#settings-exp-all a {
+  font-size: 12px;
+}
+
+.settings-cat-lbl {
+  font-weight: bold;
+  font-size: 12px;
+  padding: 6px 0 2px;
+  cursor: default;
+  list-style: none;
+}
+
+.settings-cat-lbl img.settings-expand {
+  width: 15px;
+  height: 15px;
+  vertical-align: middle;
+  cursor: pointer;
+  margin-right: 3px;
+}
+
+.settings-cat-lbl span.settings-expand {
+  cursor: pointer;
+}
+
+ul.settings-cat {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 5px;
+}
+
+ul.settings-cat li {
+  padding: 1px 0;
+  font-size: 12px;
+}
+
+ul.settings-cat label {
+  cursor: pointer;
+}
+
+ul.settings-cat .menuOption {
+  vertical-align: middle;
+  margin-right: 3px;
+}
+
+.settings-tip {
+  font-size: 11px;
+  color: #888;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.settings-tip em {
+  font-style: italic;
+}
+
+li.settings-sub {
+  padding-left: 18px !important;
+}
+
+li.settings-sub label {
+  font-size: 11px;
+}
+
+.settings-tip.settings-sub {
+  padding-left: 38px;
+}
+
+.settings-off {
+  border-top: 1px solid;
+  margin-top: 5px;
+  padding: 5px 0;
+}
+
+.settings-off label {
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.extPanel .center {
+  text-align: center;
+  padding: 5px 0 8px;
+}
+
+.extPanel .center button {
+  padding: 3px 12px;
+  cursor: pointer;
+  margin: 0 3px;
+  font-size: 12px;
+}
+
+/* Filter editor panel */
+.extPanel[data-panel="filters"] textarea {
+  width: 95%;
+  min-height: 200px;
+  font-family: monospace;
+  font-size: 11px;
+  margin: 5px auto;
+  display: block;
+  padding: 4px;
+}
+
+.extPanel[data-panel="filters"] p {
+  margin: 0;
+}
+
+/* Custom CSS editor panel */
+.extPanel[data-panel="css"] textarea {
+  width: 95%;
+  min-height: 200px;
+  font-family: monospace;
+  font-size: 11px;
+  margin: 5px auto;
+  display: block;
+  padding: 4px;
+}
+
+.extPanel[data-panel="css"] p {
+  margin: 0;
+}
+
+/* Keyboard shortcuts panel */
+.extPanel[data-panel="keybinds"] table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.extPanel[data-panel="keybinds"] table td {
+  padding: 3px 8px;
+}
+
+.extPanel[data-panel="keybinds"] table td:first-child {
+  text-align: right;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* Custom menu editor */
+.extPanel[data-panel="custommenu"] input[type="text"] {
+  width: 90%;
+  margin: 5px auto;
+  display: block;
+  font-size: 11px;
+  padding: 3px;
+}
+
+/* Export Settings Panel */
+.extPanel[data-panel="export"] {
+  min-width: 450px;
+  max-width: 600px;
+  z-index: 10001;
+}
+
+.extPanel[data-panel="export"] p {
+  padding: 8px 15px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.extPanel[data-panel="export"] .export-field {
+  width: 90%;
+  padding: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+/* Quick Reply — matches 4chan structure */
+#quickReply {
+  display: block;
+  position: fixed;
+  z-index: 9000;
+  padding: 0;
+}
+
+/* ALTCHA widget integration */
+altcha-widget {
+  display: block;
+  max-width: 260px;
+}
+
+.postForm altcha-widget {
+  margin: 2px 0;
+}
+
+#qrCaptchaContainer altcha-widget {
+  max-width: 100%;
+}
+
+#qrHeader {
+  padding: 2px;
+  font-size: small;
+  text-align: center;
+  cursor: move;
+}
+
+#qrHeader .extButton {
+  float: right;
+  margin: 1px 1px 0 0;
+  cursor: pointer;
+}
+
+#qrForm {
+  padding: 3px;
+}
+
+#qrForm > div {
+  margin-bottom: 1px;
+}
+
+#qrForm input[type="text"],
+#qrForm textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 10pt;
+  margin: 0;
+  padding: 2px 4px;
+}
+
+#qrForm textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: arial, helvetica, sans-serif;
+}
+
+#qrFile {
+  width: auto;
+  margin-right: 3px;
+}
+
+#qrSpoiler {
+  font-size: 11px;
+}
+
+#qrSpoiler label {
+  cursor: pointer;
+}
+
+#qrError {
+  display: none;
+  padding: 3px 5px;
+  color: red;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+#qrCaptchaContainer {
+  padding: 2px 0;
+}
+
+#qrCaptchaContainer img {
+  vertical-align: middle;
+  margin-right: 5px;
+  cursor: pointer;
+}
+
+/* Drop-down navigation bar */
+#dropDownNav {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.25);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  z-index: 400;
+  font-size: 12px;
+  padding: 3px 5px;
+  text-align: center;
+  transition: transform 0.2s ease;
 }
 
-#settingsMenu .extPanel {
-  max-width: 500px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.25);
+#dropDownNav.hidden {
+  transform: translateY(-100%);
 }
 
-#settingsMenu .panelHeader {
-  font-weight: bold;
-  padding: 5px 8px;
-  background: #98e;
-  background: linear-gradient(to bottom, #aaf, #98e);
-  color: #000;
-  border-bottom: 1px solid;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
+#dropDownNav a {
+  margin: 0 2px;
 }
 
-#settingsMenu .panelCtrl a {
-  color: #000;
+/* Navigation arrows */
+#navArrows {
+  position: fixed;
+  right: 10px;
+  bottom: 50%;
+  z-index: 300;
+  font-size: 18px;
+}
+
+#navArrows a {
+  display: block;
   text-decoration: none;
-  font-weight: bold;
+  padding: 2px;
+  cursor: pointer;
+  margin: 3px 0;
 }
 
-#settingsMenu .panelCtrl a:hover {
-  color: #d00;
-}
-
-#settingsMenu .settings-list {
-  list-style: none;
-  margin: 0;
-  padding: 10px;
-}
-
-#settingsMenu .settings-cat-lbl {
-  padding: 8px 0 4px;
-  border-bottom: 1px solid;
-  margin-bottom: 5px;
-}
-
-#settingsMenu .settings-cat {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 15px;
-}
-
-#settingsMenu .settings-cat li {
+/* Page nav at top */
+#topPageNav {
+  text-align: center;
+  font-size: 12px;
   padding: 3px 0;
 }
 
-#settingsMenu .settings-cat label {
-  cursor: pointer;
-}
-
-#settingsMenu .settings-tip {
-  font-size: 11px;
-  color: #666;
-  margin-left: 22px;
-  margin-top: 1px;
-}
-
-#settingsMenu .center {
-  text-align: center;
-}
-
-#settingsMenu button {
-  padding: 5px 15px;
-  cursor: pointer;
-  margin: 0 5px;
-}
-
-#settingsMenu .settings-off {
-  border-top: 1px solid;
-  margin-top: 10px;
-  padding-top: 10px;
-}
-
-#settingsMenu .settings-off label {
-  color: #c00;
-}
-
-/* Export Settings Modal */
-#exportSettings {
+/* Thread stats (right side) */
+#threadStats {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.25);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#exportSettings .extPanel {
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.25);
-}
-
-#exportSettings .panelHeader {
-  font-weight: bold;
-  padding: 5px 8px;
-  background: #98e;
-  background: linear-gradient(to bottom, #aaf, #98e);
-  color: #000;
-  border-bottom: 1px solid;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-}
-
-#exportSettings .panelCtrl a {
-  color: #000;
-  text-decoration: none;
-  font-weight: bold;
-}
-
-#exportSettings p {
-  padding: 10px 15px;
-  margin: 0;
-}
-
-#exportSettings .export-field {
-  width: 90%;
-  padding: 5px;
-  font-family: monospace;
+  bottom: 5px;
+  right: 30px;
   font-size: 11px;
+  z-index: 50;
+}
+
+#threadStats em {
+  font-style: italic;
+}
+
+/* Centered threads */
+body.centeredThreads .board {
+  margin: 0 auto;
+  max-width: 75%;
+}
+
+/* Compact threads */
+body.compactThreads .postMessage {
+  max-width: 75vw;
+  overflow-wrap: break-word;
+}
+
+/* Custom CSS injection */
+#customCSSTag {
+  display: none;
 }

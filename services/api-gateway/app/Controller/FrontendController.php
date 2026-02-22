@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AltchaService;
 use App\Service\ProxyClient;
 use App\Service\SiteConfigService;
 use App\Service\TemplateRenderer;
@@ -44,6 +45,7 @@ final class FrontendController
         private TemplateRenderer $renderer,
         private LoggerFactory $loggerFactory,
         private Redis $redis,
+        private AltchaService $altcha,
         SiteConfigService $config,
     ) {
         $this->commonDataCacheTtl = $config->getInt('cache_ttl_common_data', 60);
@@ -561,6 +563,14 @@ final class FrontendController
     /** POST /{slug}/threads – Create new thread (from form) */
     public function createThread(RequestInterface $request, string $slug): ResponseInterface
     {
+        // Verify ALTCHA captcha (if enabled)
+        if ($this->altcha->isEnabled()) {
+            $altchaPayload = is_string($request->input('altcha')) ? $request->input('altcha') : '';
+            if (!$this->altcha->verifySolution((string) $altchaPayload)) {
+                return $this->html('<h1>Error</h1><p>Captcha verification failed. Please try again.</p>', 403);
+            }
+        }
+
         // Check staff-only board access
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
         $board = $boardData['board'] ?? null;
@@ -616,6 +626,14 @@ final class FrontendController
     /** POST /{slug}/thread/{id}/posts – Create new reply (from form) */
     public function createPost(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
+        // Verify ALTCHA captcha (if enabled)
+        if ($this->altcha->isEnabled()) {
+            $altchaPayload = is_string($request->input('altcha')) ? $request->input('altcha') : '';
+            if (!$this->altcha->verifySolution((string) $altchaPayload)) {
+                return $this->html('<h1>Error</h1><p>Captcha verification failed. Please try again.</p>', 403);
+            }
+        }
+
         // Check staff-only board access
         $boardData = $this->fetchJson('boards', '/api/v1/boards/' . urlencode($slug));
         $board = $boardData['board'] ?? null;

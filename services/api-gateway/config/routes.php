@@ -205,6 +205,9 @@ Router::post('/api/v1/spam/check', [App\Controller\ModerationController::class, 
 Router::get('/api/v1/captcha', [App\Controller\ModerationController::class, 'captcha']);
 Router::post('/api/v1/captcha/verify', [App\Controller\ModerationController::class, 'verifyCaptcha']);
 
+// ALTCHA proof-of-work captcha
+Router::get('/api/v1/altcha/challenge', [App\Controller\AltchaController::class, 'challenge']);
+
 // ============== Frontend Routes ==============
 
 // Homepage

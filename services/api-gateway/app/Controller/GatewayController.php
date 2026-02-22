@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\AltchaService;
 use App\Service\ProxyClient;
 use App\Service\SiteConfigService;
 use Hyperf\HttpServer\Contract\RequestInterface;
@@ -58,6 +59,7 @@ final class GatewayController
     public function __construct(
         private ProxyClient $proxyClient,
         private HttpResponse $response,
+        private AltchaService $altcha,
         SiteConfigService $config,
     ) {
         $this->storageEndpoint = $config->get('object_storage_endpoint', 'http://localhost:9000');
@@ -144,6 +146,30 @@ final class GatewayController
         }
 
         $method  = $request->getMethod();
+
+        // Read body once for both ALTCHA check and forwarding
+        $body = $request->getBody()->getContents();
+
+        // Verify ALTCHA on POST requests to boards (thread/post creation)
+        if ($method === 'POST' && $service === 'boards' && $this->altcha->isEnabled()) {
+            if (preg_match('#^boards/[^/]+/threads(/\d+/(posts|replies))?$#', $path)) {
+                $altchaPayload = '';
+                $bodyData = json_decode($body, true);
+                if (is_array($bodyData) && isset($bodyData['altcha']) && is_string($bodyData['altcha'])) {
+                    $altchaPayload = $bodyData['altcha'];
+                }
+                // Also check multipart form data
+                if ($altchaPayload === '') {
+                    $altchaInput = $request->input('altcha');
+                    if (is_string($altchaInput)) {
+                        $altchaPayload = $altchaInput;
+                    }
+                }
+                if (!$this->altcha->verifySolution($altchaPayload)) {
+                    return $this->response->json(['error' => 'Captcha verification failed'])->withStatus(403);
+                }
+            }
+        }
         $uri     = '/api/v1/' . $path;
         $query   = $request->getQueryString();
         if ($query) {
@@ -164,9 +190,6 @@ final class GatewayController
         if (!empty($staffInfo['level'])) {
             $headers['X-Staff-Level'] = (string) $staffInfo['level'];
         }
-
-        // Forward body
-        $body = $request->getBody()->getContents();
 
         $result = $this->proxyClient->forward($service, $method, $uri, $headers, $body);
 

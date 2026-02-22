@@ -63,6 +63,18 @@ declare(strict_types=1);
         <td>File</td>
         <td><input id="postFile" name="upfile" type="file" tabindex="8"></td>
       </tr>
+      <tr id="captchaRow" data-type="Verification">
+        <td>Verification</td>
+        <td>
+          <altcha-widget
+            challengeurl="/api/v1/altcha/challenge"
+            name="altcha"
+            hidefooter
+            hidelogo
+            auto="onsubmit"
+          ></altcha-widget>
+        </td>
+      </tr>
       <tr class="rules">
         <td colspan="2">
           <ul class="rules">

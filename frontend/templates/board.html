@@ -61,15 +61,17 @@
             <label><input type="checkbox" name="spoiler"> Spoiler?</label>
           </td>
         </tr>
-        <tr id="captchaRow" data-type="Captcha">
-          <td class="label">Captcha</td>
+        <tr id="captchaRow" data-type="Verification">
+          <td class="label">Verification</td>
           <td>
             <div id="t-root">
-              <div id="captcha-container">
-                <!-- Server-rendered captcha or hCaptcha widget -->
-                <img id="captchaImg" src="/api/v1/captcha" alt="captcha" style="cursor:pointer" title="Click to refresh">
-                <input name="captcha_response" type="text" placeholder="Type the text above" maxlength="8" autocomplete="off">
-              </div>
+              <altcha-widget
+                challengeurl="/api/v1/altcha/challenge"
+                name="altcha"
+                hidefooter
+                hidelogo
+                auto="onsubmit"
+              ></altcha-widget>
             </div>
           </td>
         </tr>

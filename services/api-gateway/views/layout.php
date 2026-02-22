@@ -36,6 +36,7 @@
   <link rel="stylesheet" href="/static/css/common.css">
   <?= $extra_css ?? '' ?>
   <script src="/static/js/core.js" defer></script>
+  <script src="/static/js/altcha.min.js" defer></script>
   <script src="/static/js/extension.js" defer></script>
 <?php if (!empty($is_staff)): ?>
 <?php

@@ -126,8 +126,9 @@ final class ThreadController
 
         // Validate content is not blank (whitespace-only counts as blank)
         $trimmedContent = trim($data['content']);
-        if (!$board->text_only && $trimmedContent === '' && empty($data['media_url'])) {
-            return $this->response->json(['error' => 'A comment or image is required'])->withStatus(400);
+        // All boards require an image upload
+        if (!$board->text_only && empty($data['media_url'])) {
+            return $this->response->json(['error' => 'An image is required'])->withStatus(400);
         }
         // Even with media, if text_only board, require actual text
         if ($board->text_only && $trimmedContent === '') {
@@ -188,8 +189,9 @@ final class ThreadController
 
         // Validate content is not blank (whitespace-only counts as blank)
         $trimmedContent = trim($data['content']);
-        if ($trimmedContent === '' && empty($data['media_url'])) {
-            return $this->response->json(['error' => 'A comment or image is required'])->withStatus(400);
+        // All posts require an image upload
+        if (empty($data['media_url'])) {
+            return $this->response->json(['error' => 'An image is required'])->withStatus(400);
         }
         $data['content'] = $trimmedContent;
 
