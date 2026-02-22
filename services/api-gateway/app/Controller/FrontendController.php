@@ -24,6 +24,7 @@ use App\Service\ProxyClient;
 use App\Service\TemplateRenderer;
 use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
+use Hyperf\Redis\Redis;
 use Psr\Http\Message\ResponseInterface;
 use Hyperf\Logger\LoggerFactory;
 
@@ -33,11 +34,14 @@ use Hyperf\Logger\LoggerFactory;
  */
 final class FrontendController
 {
+    private const COMMON_DATA_CACHE_TTL = 60; // Cache boards/blotter for 60 seconds
+
     public function __construct(
         private HttpResponse $response,
         private ProxyClient $proxyClient,
         private TemplateRenderer $renderer,
         private LoggerFactory $loggerFactory,
+        private Redis $redis,
     ) {}
 
     /** GET /about – About page */
@@ -732,10 +736,25 @@ final class FrontendController
 
     /**
      * Fetch common data (boards, blotter) used on all pages.
+     * Cached in Redis to avoid hitting the boards backend on every page render.
      * @return array<string, mixed>
      */
     private function getCommonData(): array
     {
+        $cacheKey = 'frontend:common_data';
+        try {
+            $cached = $this->redis->get($cacheKey);
+            if (is_string($cached) && $cached !== '') {
+                $decoded = json_decode($cached, true);
+                if (is_array($decoded)) {
+                    /** @var array<string, mixed> $decoded */
+                    return $decoded;
+                }
+            }
+        } catch (\Throwable) {
+            // Redis down — fall through to fresh fetch
+        }
+
         $boardsData = $this->fetchJson('boards', '/api/v1/boards');
         $blotterData = $this->fetchJson('boards', '/api/v1/blotter');
 
@@ -760,11 +779,20 @@ final class FrontendController
             $nav_groups[] = ['name' => $catName, 'boards' => $catBoards];
         }
 
-        return [
+        $result = [
             'boards'     => $boards,
             'nav_groups' => $nav_groups,
             'blotter'    => $blotterData['blotter'] ?? [],
         ];
+
+        // Cache for 60 seconds
+        try {
+            $this->redis->setex($cacheKey, self::COMMON_DATA_CACHE_TTL, (string) json_encode($result));
+        } catch (\Throwable) {
+            // Non-critical
+        }
+
+        return $result;
     }
 
     /**

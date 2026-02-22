@@ -24,28 +24,33 @@ use Hyperf\DbConnection\Model\Model;
 use Hyperf\Database\Model\Relations\BelongsTo;
 
 /**
+ * Authenticated session record.
+ *
+ * Stores the SHA-256 hash of the raw session token (the raw token is never
+ * persisted). IP addresses are encrypted via PiiEncryptionService.
+ *
  * @property int    $id
  * @property int    $user_id
- * @property string $token
- * @property string $ip_address
- * @property string $user_agent
- * @property string $expires_at
+ * @property string $token       SHA-256 hash of the raw session token
+ * @property string $ip_address  Encrypted client IP (PII)
+ * @property string $user_agent  Client User-Agent string
+ * @property string $expires_at  ISO 8601 expiry timestamp
  * @property string $created_at
  * @method static Session|null find(mixed $id)
  * @method static \Hyperf\Database\Model\Builder<Session> query()
  * @method static Session create(array<string, mixed> $attributes)
  */
-class Session extends Model
+final class Session extends Model
 {
     protected ?string $table = 'sessions';
     public bool $timestamps = false;
 
-    /** @var string[] */
+    /** @var string[] Columns that may be mass-assigned. */
     protected array $fillable = [
         'user_id', 'token', 'ip_address', 'user_agent', 'expires_at',
     ];
 
-    /** @var array<string, string> */
+    /** @var array<string, string> Column type casts. */
     protected array $casts = [
         'id'      => 'integer',
         'user_id' => 'integer',
@@ -59,8 +64,23 @@ class Session extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * Check whether this session has passed its expiry time.
+     *
+     * BUG FIX: strtotime() can return false for malformed dates, which in PHP 8
+     * would always compare as less-than time() (false < int is true). We now
+     * treat unparseable expiry dates as expired to fail safely.
+     */
     public function isExpired(): bool
     {
-        return strtotime($this->expires_at) < time();
+        $expiresTimestamp = strtotime($this->expires_at);
+
+        // If the expiry date cannot be parsed, treat the session as expired
+        // to prevent indefinitely-valid sessions from malformed data.
+        if ($expiresTimestamp === false) {
+            return true;
+        }
+
+        return $expiresTimestamp < time();
     }
 }

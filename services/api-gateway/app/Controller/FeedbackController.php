@@ -158,19 +158,20 @@ final class FeedbackController
         return mb_substr($str, 0, $maxLength);
     }
 
-    /** Extract client IP from request headers / server params. */
+    /** Extract client IP from request headers / server params.
+     *  Only trusts X-Real-IP set by the reverse proxy (nginx).
+     *  X-Forwarded-For is NOT trusted as it can be spoofed by clients.
+     */
     private function getClientIp(): string
     {
-        $headers = $this->request->getHeaders();
-        // Check proxy headers
-        foreach (['x-forwarded-for', 'x-real-ip'] as $header) {
-            if (!empty($headers[$header][0])) {
-                $ips = explode(',', $headers[$header][0]);
-                return trim($ips[0]);
-            }
+        // Only trust X-Real-IP which is set by our trusted reverse proxy (nginx)
+        $realIp = $this->request->getHeaderLine('X-Real-IP');
+        if ($realIp !== '' && filter_var(trim($realIp), FILTER_VALIDATE_IP)) {
+            return trim($realIp);
         }
         $serverParams = $this->request->getServerParams();
-        return (string) ($serverParams['remote_addr'] ?? '127.0.0.1');
+        $remoteAddr = $serverParams['remote_addr'] ?? '127.0.0.1';
+        return is_string($remoteAddr) ? $remoteAddr : '127.0.0.1';
     }
 
     /**

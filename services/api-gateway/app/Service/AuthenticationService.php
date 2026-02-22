@@ -22,6 +22,7 @@ namespace App\Service;
 
 use Hyperf\DbConnection\Db;
 use Hyperf\Logger\LoggerFactory;
+use Hyperf\Redis\Redis;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -39,13 +40,16 @@ final class AuthenticationService
     private const SESSION_TIMEOUT_HOURS = 8;
     private const CSRF_TOKEN_LENGTH = 32;
     private const CSRF_TOKEN_EXPIRY_HOURS = 24;
+    private const SESSION_CACHE_TTL = 60; // Cache validated sessions for 60 seconds
     
     private PiiEncryptionService $piiEncryption;
+    private Redis $redis;
 
-    public function __construct(LoggerFactory $loggerFactory, PiiEncryptionService $piiEncryption)
+    public function __construct(LoggerFactory $loggerFactory, PiiEncryptionService $piiEncryption, Redis $redis)
     {
         $this->logger = $loggerFactory->get('auth');
         $this->piiEncryption = $piiEncryption;
+        $this->redis = $redis;
     }
     
     /**
@@ -157,10 +161,27 @@ final class AuthenticationService
     /**
      * Validate session token and return user info
      * 
+     * Uses Redis to cache validated sessions to avoid DB hits on every request.
+     * 
      * @return array{valid: bool, user?: array<string, mixed>}
      */
     public function validateSession(string $tokenHash): array
     {
+        // Check Redis cache first
+        $cacheKey = 'session:validated:' . $tokenHash;
+        try {
+            $cached = $this->redis->get($cacheKey);
+            if (is_string($cached) && $cached !== '') {
+                $decoded = json_decode($cached, true);
+                if (is_array($decoded) && ($decoded['valid'] ?? false)) {
+                    /** @var array{valid: bool, user?: array<string, mixed>} $decoded */
+                    return $decoded;
+                }
+            }
+        } catch (\Throwable) {
+            // Redis down — fall through to DB
+        }
+
         $session = Db::table('staff_sessions')
             ->where('token_hash', $tokenHash)
             ->where('is_valid', true)
@@ -182,12 +203,23 @@ final class AuthenticationService
             return ['valid' => false];
         }
         
-        // Update last activity
-        Db::table('staff_sessions')
-            ->where('token_hash', $tokenHash)
-            ->update(['last_activity' => date('Y-m-d H:i:s')]);
+        // Throttle last_activity update to once per 30 seconds (avoid DB write on every request)
+        $activityKey = 'session:activity:' . $tokenHash;
+        try {
+            if (!$this->redis->exists($activityKey)) {
+                Db::table('staff_sessions')
+                    ->where('token_hash', $tokenHash)
+                    ->update(['last_activity' => date('Y-m-d H:i:s')]);
+                $this->redis->setex($activityKey, 30, '1');
+            }
+        } catch (\Throwable) {
+            // Best effort — if Redis is down, always update DB
+            Db::table('staff_sessions')
+                ->where('token_hash', $tokenHash)
+                ->update(['last_activity' => date('Y-m-d H:i:s')]);
+        }
         
-        return [
+        $result = [
             'valid' => true,
             'user' => [
                 'id' => $user->id,
@@ -198,6 +230,15 @@ final class AuthenticationService
                 'board_access' => $user->board_access ?? [],
             ],
         ];
+
+        // Cache the validated session
+        try {
+            $this->redis->setex($cacheKey, self::SESSION_CACHE_TTL, (string) json_encode($result));
+        } catch (\Throwable) {
+            // Non-critical
+        }
+
+        return $result;
     }
     
     /**
@@ -237,11 +278,10 @@ final class AuthenticationService
             'expires_at' => date('Y-m-d H:i:s', time() + (self::CSRF_TOKEN_EXPIRY_HOURS * 3600)),
         ]);
         
-        // Clean up old tokens
-        Db::table('csrf_tokens')
-            ->where('expires_at', '<', date('Y-m-d H:i:s'))
-            ->orWhere('used', true)
-            ->delete();
+        // Throttle cleanup: only purge expired tokens every ~5 minutes (probabilistic)
+        if (random_int(1, 100) <= 5) {
+            $this->cleanupExpiredCsrfTokens();
+        }
         
         return $token;
     }
@@ -446,6 +486,14 @@ final class AuthenticationService
                 'current_session_token' => null,
                 'session_expires_at' => null,
             ]);
+
+        // Clear session cache in Redis
+        try {
+            $this->redis->del('session:validated:' . $tokenHash);
+            $this->redis->del('session:activity:' . $tokenHash);
+        } catch (\Throwable) {
+            // Non-critical
+        }
     }
     
     /**
@@ -623,5 +671,21 @@ final class AuthenticationService
                 'last_login_ip' => $this->piiEncryption->encrypt($ipAddress),
                 'last_user_agent' => $userAgent,
             ]);
+    }
+
+    /**
+     * Delete expired or used CSRF tokens.
+     *
+     * Called probabilistically during token generation and deterministically
+     * by the csrf:cleanup console command.
+     *
+     * @return int Number of deleted rows
+     */
+    public function cleanupExpiredCsrfTokens(): int
+    {
+        return Db::table('csrf_tokens')
+            ->where('expires_at', '<', date('Y-m-d H:i:s'))
+            ->orWhere('used', true)
+            ->delete();
     }
 }

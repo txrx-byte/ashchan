@@ -45,11 +45,35 @@ final class RateLimitMiddleware implements MiddlewareInterface
         $key = 'ratelimit:gateway:' . hash('sha256', $ip);
         $now = time();
 
-        // Clean old entries
-        $this->redis->zRemRangeByScore($key, '-inf', (string) ($now - self::WINDOW));
-        $count = (int) $this->redis->zCard($key);
+        // Use Lua script for atomic rate limiting (prevents race conditions)
+        $luaScript = <<<'LUA'
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local max_reqs = tonumber(ARGV[3])
+local member = ARGV[4]
+redis.call('ZREMRANGEBYSCORE', key, '-inf', now - window)
+local count = redis.call('ZCARD', key)
+if count >= max_reqs then
+    return {count, 0}
+end
+redis.call('ZADD', key, now, member)
+redis.call('EXPIRE', key, window)
+return {count, 1}
+LUA;
 
-        if ($count >= self::MAX_REQS) {
+        $member = $now . ':' . random_int(0, 99999);
+        /** @var array{int, int} $result */
+        $result = $this->redis->eval(
+            $luaScript,
+            [$key, (string) $now, (string) self::WINDOW, (string) self::MAX_REQS, (string) $member],
+            1
+        );
+
+        $count = (int) $result[0];
+        $allowed = (int) $result[1];
+
+        if ($allowed === 0) {
             $response = new \Hyperf\HttpMessage\Server\Response();
             $json = json_encode(['error' => 'Rate limit exceeded', 'retry_after' => self::WINDOW]);
             return $response
@@ -58,9 +82,6 @@ final class RateLimitMiddleware implements MiddlewareInterface
                 ->withHeader('Retry-After', (string) self::WINDOW)
                 ->withBody(new \Hyperf\HttpMessage\Stream\SwooleStream($json ?: ''));
         }
-
-        $this->redis->zAdd($key, $now, (string) $now . ':' . random_int(0, 99999));
-        $this->redis->expire($key, self::WINDOW);
 
         $response = $handler->handle($request);
 
@@ -72,14 +93,16 @@ final class RateLimitMiddleware implements MiddlewareInterface
 
     private function getClientIp(ServerRequestInterface $request): string
     {
-        // Only trust X-Forwarded-For if set by a trusted reverse proxy.
-        // In production behind a load balancer, use X-Real-IP set by the LB.
+        // Only trust X-Real-IP which is set by our trusted reverse proxy (nginx)
         $realIp = $request->getHeaderLine('X-Real-IP');
-        if ($realIp !== '') {
+        if ($realIp !== '' && filter_var(trim($realIp), FILTER_VALIDATE_IP)) {
             return trim($realIp);
         }
         $params = $request->getServerParams();
-        $remoteAddr = $params['remote_addr'] ?? '127.0.0.1';
-        return is_string($remoteAddr) ? $remoteAddr : '127.0.0.1';
+        $remoteAddr = is_string($params['remote_addr'] ?? null) ? trim($params['remote_addr']) : '';
+        if ($remoteAddr !== '' && filter_var($remoteAddr, FILTER_VALIDATE_IP)) {
+            return $remoteAddr;
+        }
+        return '127.0.0.1';
     }
 }

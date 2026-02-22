@@ -191,11 +191,10 @@ final class ModerationController extends AbstractController
     #[PostMapping(path: 'reports/{id:\d+}/clear')]
     public function clearReport(RequestInterface $request, int $id): ResponseInterface
     {
-        // In production, verify staff authentication and get username
-        $staffUsername = $request->input('staff_username', 'system');
-
-        if (!is_string($staffUsername)) {
-            return $this->response->json(['error' => 'Invalid staff username']);
+        // Use authenticated staff username from session context
+        $staffUsername = $this->getAuthenticatedStaffUsername();
+        if ($staffUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
         }
 
         try {
@@ -230,11 +229,16 @@ final class ModerationController extends AbstractController
     #[PostMapping(path: 'ban-requests')]
     public function createBanRequest(RequestInterface $request): ResponseInterface
     {
+        // Use authenticated staff username from session context
+        $janitorUsername = $this->getAuthenticatedStaffUsername();
+        if ($janitorUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
+        }
+
         $board = $request->input('board');
         $postNo = $request->input('post_no');
         $templateId = $request->input('template_id');
         $reason = $request->input('reason');
-        $janitorUsername = $request->input('janitor_username');
 
         // Validation
         if (!is_string($board) || $board === '') {
@@ -245,9 +249,6 @@ final class ModerationController extends AbstractController
         }
         if (!is_numeric($templateId) || (int) $templateId === 0) {
             return $this->response->json(['error' => 'Invalid template_id']);
-        }
-        if (!is_string($janitorUsername) || $janitorUsername === '') {
-            return $this->response->json(['error' => 'Invalid janitor_username']);
         }
 
         // Get post data
@@ -299,10 +300,10 @@ final class ModerationController extends AbstractController
     #[PostMapping(path: 'ban-requests/{id:\d+}/approve')]
     public function approveBanRequest(RequestInterface $request, int $id): ResponseInterface
     {
-        $approverUsername = $request->input('approver_username');
-
-        if (!is_string($approverUsername) || $approverUsername === '') {
-            return $this->response->json(['error' => 'Invalid approver_username']);
+        // Use authenticated staff username from session context
+        $approverUsername = $this->getAuthenticatedStaffUsername();
+        if ($approverUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
         }
 
         try {
@@ -322,10 +323,10 @@ final class ModerationController extends AbstractController
     #[PostMapping(path: 'ban-requests/{id:\d+}/deny')]
     public function denyBanRequest(RequestInterface $request, int $id): ResponseInterface
     {
-        $denierUsername = $request->input('denier_username');
-
-        if (!is_string($denierUsername) || $denierUsername === '') {
-            return $this->response->json(['error' => 'Invalid denier_username']);
+        // Use authenticated staff username from session context
+        $denierUsername = $this->getAuthenticatedStaffUsername();
+        if ($denierUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
         }
 
         try {
@@ -356,9 +357,11 @@ final class ModerationController extends AbstractController
         }
 
         if (is_string($board) && $board !== '') {
-            $query->where(function ($q) use ($board) {
+            // Escape LIKE wildcards (backslashes first, then % and _)
+            $escapedBoard = addcslashes($board, '\\%_');
+            $query->where(function ($q) use ($escapedBoard) {
                 $q->where('boards', '')
-                  ->orWhere('boards', 'like', "%{$board}%");
+                  ->orWhere('boards', 'like', "%{$escapedBoard}%");
             });
         }
 
@@ -455,13 +458,18 @@ final class ModerationController extends AbstractController
     #[PostMapping(path: 'bans')]
     public function createBan(RequestInterface $request): ResponseInterface
     {
+        // Use authenticated staff username from session context
+        $adminUsername = $this->getAuthenticatedStaffUsername();
+        if ($adminUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
+        }
+
         $templateId = $request->input('template_id');
         $board = $request->input('board');
         $postNo = $request->input('post_no');
         $targetIp = $request->input('ip');
         $passId = $request->input('pass_id');
         $customReason = $request->input('reason');
-        $adminUsername = $request->input('admin_username');
 
         // Validation
         if (!is_numeric($templateId) || (int) $templateId === 0) {
@@ -472,9 +480,6 @@ final class ModerationController extends AbstractController
         }
         if (!is_numeric($postNo)) {
             return $this->response->json(['error' => 'Invalid post_no']);
-        }
-        if (!is_string($adminUsername) || $adminUsername === '') {
-            return $this->response->json(['error' => 'Invalid admin_username']);
         }
 
         $template = BanTemplate::find((int) $templateId);
@@ -509,10 +514,10 @@ final class ModerationController extends AbstractController
     #[PostMapping(path: 'bans/{id:\d+}/unban')]
     public function unban(RequestInterface $request, int $id): ResponseInterface
     {
-        $staffUsername = $request->input('staff_username');
-
-        if (!is_string($staffUsername) || $staffUsername === '') {
-            return $this->response->json(['error' => 'Invalid staff_username'], 400);
+        // Use authenticated staff username from session context
+        $staffUsername = $this->getAuthenticatedStaffUsername();
+        if ($staffUsername === null) {
+            return $this->response->json(['error' => 'Staff authentication required'], 401);
         }
 
         $result = $this->modService->unbanUser($id, $staffUsername);
@@ -610,5 +615,17 @@ final class ModerationController extends AbstractController
         ];
 
         return hash('sha256', json_encode($headers) ?: '');
+    }
+
+    /**
+     * Get the authenticated staff username from the session context.
+     * Returns null if not authenticated.
+     */
+    private function getAuthenticatedStaffUsername(): ?string
+    {
+        /** @var array<string, mixed> $staffInfo */
+        $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
+        $username = $staffInfo['username'] ?? null;
+        return is_string($username) && $username !== '' ? $username : null;
     }
 }

@@ -20,6 +20,14 @@ declare(strict_types=1);
 
 use App\Database\PostgresConnector;
 
+/*
+ * Dependency injection bindings.
+ *
+ * Registers the custom PostgreSQL connector and connection resolver so that
+ * Hyperf's database layer uses our secure PostgresConnector (with input
+ * validation on SET statements) instead of the default.
+ */
+
 // Register the pgsql connection resolver at load time
 \Hyperf\Database\Connection::resolverFor('pgsql', function (\PDO|\Closure $connection, string $database, string $prefix, array $config) {
     return new \App\Database\PostgresConnection($connection, $database, $prefix, $config);

@@ -27,10 +27,22 @@ use Hyperf\Database\Schema\Grammars\Grammar as SchemaGrammar;
 use Exception;
 use PDOStatement;
 
-class PostgresConnection extends Connection
+/**
+ * Custom PostgreSQL connection with proper PDO parameter binding.
+ *
+ * Extends the base Hyperf connection to provide:
+ *  - Correct PDO type mapping (bool → PARAM_BOOL, int → PARAM_INT)
+ *  - PostgreSQL-specific unique constraint error detection
+ */
+final class PostgresConnection extends Connection
 {
     /**
      * Bind values to their parameters in the given statement.
+     *
+     * Maps PHP types to the correct PDO parameter types for PostgreSQL.
+     * This is critical for boolean and integer columns — using PARAM_STR
+     * for booleans would cause query issues with PostgreSQL's strict typing.
+     *
      * @param array<string|int, mixed> $bindings
      */
     public function bindValues(PDOStatement $statement, array $bindings): void
@@ -52,13 +64,15 @@ class PostgresConnection extends Connection
 
     /**
      * Determine if the given database exception was caused by a unique constraint violation.
+     *
+     * Matches PostgreSQL error messages for:
+     *  - "duplicate key value violates unique constraint"
+     *  - "unique_violation" (SQLSTATE 23505)
      */
     protected function isUniqueConstraintError(Exception $exception): bool
     {
         return (bool) preg_match('#unique.*violation|duplicate\s+key#i', $exception->getMessage());
     }
-
-
 
     /**
      * Get the default post processor instance.

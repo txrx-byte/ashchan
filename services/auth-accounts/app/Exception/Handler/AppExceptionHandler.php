@@ -25,11 +25,19 @@ use Hyperf\HttpMessage\Stream\SwooleStream;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
-class AppExceptionHandler extends ExceptionHandler
+/**
+ * Global exception handler — catches all unhandled exceptions.
+ *
+ * Security: Never exposes stack traces, file paths, or error details to clients.
+ * All internal details are logged to STDERR for ops visibility.
+ * The client always receives a generic 500 JSON response.
+ */
+final class AppExceptionHandler extends ExceptionHandler
 {
     public function handle(Throwable $throwable, ResponseInterface $response): ResponseInterface
     {
-        // Log the full error to stdout so we can see it in podman logs
+        // Log full details to STDERR for ops/debugging — never to the client.
+        // Format: [ExceptionClass] message in /path/to/file.php:line
         $msg = sprintf(
             "[AppExceptionHandler] %s: %s in %s:%d\n%s",
             get_class($throwable),
@@ -42,6 +50,8 @@ class AppExceptionHandler extends ExceptionHandler
 
         $this->stopPropagation();
 
+        // SECURITY: Return only a generic error message to prevent information leakage.
+        // Internal details (class name, message, stack trace) are logged above.
         return $response
             ->withStatus(500)
             ->withHeader('Content-Type', 'application/json')
@@ -50,8 +60,11 @@ class AppExceptionHandler extends ExceptionHandler
             ])));
     }
 
+    /**
+     * This handler catches ALL exception types as the last line of defense.
+     */
     public function isValid(Throwable $throwable): bool
     {
-        return true; // Catch ALL exceptions
+        return true;
     }
 }

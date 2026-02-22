@@ -38,7 +38,7 @@ use Psr\Http\Server\RequestHandlerInterface;
  * - CSRF validation for state-changing requests
  * - Comprehensive audit logging
  */
-class StaffAuthMiddleware implements MiddlewareInterface
+final class StaffAuthMiddleware implements MiddlewareInterface
 {
     private AuthenticationService $authService;
     private HttpResponse $response;

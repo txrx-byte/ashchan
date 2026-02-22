@@ -54,20 +54,25 @@ final class ViewService
             $vars['staff_info'] = Context::get('staff_info', []);
         }
 
-        extract($vars);
-        
-        ob_start();
-        include $file;
-        $html = (string) ob_get_clean();
+        // Render in an isolated closure scope so templates cannot access $this,
+        // class properties, or the ViewService internals.
+        $html = (static function (string $__file, array $__vars): string {
+            extract($__vars, EXTR_SKIP);
+            ob_start();
+            include $__file;
+            return (string) ob_get_clean();
+        })($file, $vars);
 
         // Auto-inject CSRF meta tag + fetch interceptor for staff pages
         if (isset($vars['csrf_token']) && $vars['csrf_token'] !== '' && str_contains($template, 'staff/')) {
-            $token = htmlspecialchars((string) $vars['csrf_token'], ENT_QUOTES, 'UTF-8');
+            $tokenHtml = htmlspecialchars((string) $vars['csrf_token'], ENT_QUOTES, 'UTF-8');
+            // Use JSON encoding for safe JavaScript string interpolation (prevents XSS via quote injection)
+            $tokenJs = json_encode((string) $vars['csrf_token'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?: '""';
             $csrfSnippet = <<<HTML
-<meta name="csrf-token" content="{$token}">
+<meta name="csrf-token" content="{$tokenHtml}">
 <script>
 (function(){
-    var t='{$token}';
+    var t={$tokenJs};
     // Intercept fetch for AJAX calls
     var origFetch=window.fetch;
     window.fetch=function(url,opts){

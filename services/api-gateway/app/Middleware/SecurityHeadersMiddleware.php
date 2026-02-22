@@ -28,7 +28,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * SecurityHeadersMiddleware - Adds defense-in-depth security headers to all responses.
  */
-class SecurityHeadersMiddleware implements MiddlewareInterface
+final class SecurityHeadersMiddleware implements MiddlewareInterface
 {
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {

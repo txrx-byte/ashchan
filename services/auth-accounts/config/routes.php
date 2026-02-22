@@ -22,9 +22,18 @@ use Hyperf\HttpServer\Router\Router;
 use App\Controller\HealthController;
 use App\Controller\AuthController;
 
+/*
+ * Route definitions for the auth-accounts service.
+ *
+ * Note: AuthController also uses annotation-based routing (#[Controller], #[RequestMapping]).
+ * These file-based routes are kept for compatibility and must stay in sync with the annotations.
+ * If a route exists in both places, the annotation takes precedence.
+ */
+
+// Health check (unauthenticated, used by load balancers and service mesh)
 Router::get('/health', [HealthController::class, 'check']);
 
-// Auth
+// Authentication
 Router::post('/api/v1/auth/login', [AuthController::class, 'login']);
 Router::post('/api/v1/auth/logout', [AuthController::class, 'logout']);
 Router::get('/api/v1/auth/validate', [AuthController::class, 'validate']);
@@ -32,6 +41,6 @@ Router::post('/api/v1/auth/register', [AuthController::class, 'register']);
 Router::post('/api/v1/auth/ban', [AuthController::class, 'ban']);
 Router::post('/api/v1/auth/unban', [AuthController::class, 'unban']);
 
-// Consent & Data Rights
+// Consent & Data Rights (GDPR/COPPA/CCPA)
 Router::post('/api/v1/consent', [AuthController::class, 'recordConsent']);
 Router::post('/api/v1/auth/data-request', [AuthController::class, 'dataRequest']);

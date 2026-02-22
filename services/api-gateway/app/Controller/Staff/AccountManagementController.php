@@ -32,6 +32,12 @@ use Psr\Http\Message\ResponseInterface;
 #[Controller(prefix: '/staff/accounts')]
 final class AccountManagementController
 {
+    private const ALLOWED_BOARDS = [
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr',
+        'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg',
+        'vr', 'w', 'wg',
+    ];
+
     public function __construct(
         private HttpResponse $response,
         private RequestInterface $request,
@@ -56,7 +62,7 @@ final class AccountManagementController
     {
         $html = $this->viewService->render('staff/accounts/create', [
             'access_levels' => ['janitor' => 'Janitor', 'mod' => 'Moderator', 'manager' => 'Manager', 'admin' => 'Admin'],
-            'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'boards' => self::ALLOWED_BOARDS,
         ]);
         return $this->response->html($html);
     }
@@ -72,11 +78,20 @@ final class AccountManagementController
         if (strlen((string) ($body['password'] ?? '')) < 8) $errors[] = 'Password must be at least 8 characters';
         if (Db::table('staff_users')->where('username', $body['username'] ?? '')->first()) $errors[] = 'Username exists';
         if (Db::table('staff_users')->where('email', $body['email'] ?? '')->first()) $errors[] = 'Email exists';
+        // Validate access_level against allowed values
+        $validLevels = ['janitor', 'mod', 'manager', 'admin'];
+        $accessLevel = (string) ($body['access_level'] ?? 'janitor');
+        if (!in_array($accessLevel, $validLevels, true)) {
+            $errors[] = 'Invalid access level';
+        }
         if (!empty($errors)) return $this->response->json(['success' => false, 'errors' => $errors], 400);
+
+        $boardAccess = $this->sanitizeBoards((array) ($body['boards'] ?? []));
+
         Db::table('staff_users')->insertGetId([
             'username' => trim((string) ($body['username'] ?? '')), 'email' => trim((string) ($body['email'] ?? '')),
             'password_hash' => password_hash((string) ($body['password'] ?? ''), PASSWORD_ARGON2ID),
-            'access_level' => $body['access_level'] ?? 'janitor', 'board_access' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'access_level' => $accessLevel, 'board_access' => $boardAccess,
             'is_active' => true, 'created_at' => date('Y-m-d H:i:s'),
         ]);
         return $this->response->json(['success' => true, 'redirect' => '/staff/accounts']);
@@ -91,7 +106,7 @@ final class AccountManagementController
         $html = $this->viewService->render('staff/accounts/edit', [
             'user' => $user,
             'access_levels' => ['janitor' => 'Janitor', 'mod' => 'Moderator', 'manager' => 'Manager', 'admin' => 'Admin'],
-            'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'boards' => self::ALLOWED_BOARDS,
         ]);
         return $this->response->html($html);
     }
@@ -103,9 +118,18 @@ final class AccountManagementController
         if (!$user) return $this->response->json(['error' => 'Not found'], 404);
         /** @var array<string, mixed> $body */
         $body = (array) $this->request->getParsedBody();
+        // Validate access_level against allowed values
+        $validLevels = ['janitor', 'mod', 'manager', 'admin'];
+        $accessLevel = (string) ($body['access_level'] ?? $user->access_level);
+        if (!in_array($accessLevel, $validLevels, true)) {
+            return $this->response->json(['success' => false, 'errors' => ['Invalid access level']], 400);
+        }
+
+        $boardAccess = $this->sanitizeBoards((array) ($body['boards'] ?? []));
+
         Db::table('staff_users')->where('id', $id)->update([
-            'access_level' => $body['access_level'] ?? $user->access_level,
-            'board_access' => '{' . implode(',', array_map(fn(mixed $b) => '"' . (string) $b . '"', (array) ($body['boards'] ?? []))) . '}',
+            'access_level' => $accessLevel,
+            'board_access' => $boardAccess,
             'is_active' => isset($body['is_active']) ? 1 : 0,
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
@@ -131,9 +155,9 @@ final class AccountManagementController
     {
         $user = Db::table('staff_users')->where('id', $id)->first();
         if (!$user) return $this->response->json(['error' => 'Not found'], 404);
-        $tempPass = bin2hex(random_bytes(8));
+        $tempPass = bin2hex(random_bytes(12));
         Db::table('staff_users')->where('id', $id)->update([
-            'password_hash' => password_hash($tempPass, PASSWORD_BCRYPT, ['cost' => 12]),
+            'password_hash' => password_hash($tempPass, PASSWORD_ARGON2ID),
             'failed_login_attempts' => 0, 'is_locked' => false, 'locked_until' => null,
         ]);
         return $this->response->json(['success' => true, 'temp_password' => $tempPass]);
@@ -144,5 +168,24 @@ final class AccountManagementController
     {
         Db::table('staff_users')->where('id', $id)->update(['is_locked' => false, 'locked_until' => null, 'failed_login_attempts' => 0]);
         return $this->response->json(['success' => true]);
+    }
+
+    /**
+     * Sanitize, validate, and deduplicate board slugs, returning a PostgreSQL array literal.
+     *
+     * @param array<mixed> $input Raw board values from user input
+     * @return string PostgreSQL array literal, e.g. '{"a","b"}'
+     */
+    private function sanitizeBoards(array $input): string
+    {
+        $boards = array_map(
+            static fn(mixed $b): string => preg_replace('/[^a-z0-9]/', '', strtolower(trim((string) $b))) ?: '',
+            $input
+        );
+        $boards = array_filter($boards, static fn(string $b): bool => $b !== '');
+        $boards = array_filter($boards, static fn(string $b): bool => in_array($b, self::ALLOWED_BOARDS, true));
+        $boards = array_unique($boards);
+
+        return '{' . implode(',', array_map(static fn(string $b): string => '"' . $b . '"', $boards)) . '}';
     }
 }

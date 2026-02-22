@@ -23,29 +23,33 @@ namespace App\Model;
 use Hyperf\DbConnection\Model\Model;
 
 /**
- * GDPR/CCPA data deletion request.
+ * GDPR/CCPA data rights request (export or deletion).
  *
- * @property int    $id
- * @property int    $user_id
- * @property string $status     (pending|processing|completed|denied)
- * @property string $request_type (data_export|data_deletion)
- * @property string $requested_at
- * @property string $completed_at
+ * Tracks the lifecycle of user-initiated data requests. Status transitions:
+ *   pending → processing → completed
+ *   pending → denied
+ *
+ * @property int         $id
+ * @property int         $user_id       The requesting user's ID
+ * @property string      $status        One of: pending, processing, completed, denied
+ * @property string      $request_type  One of: data_export, data_deletion
+ * @property string      $requested_at  When the request was submitted
+ * @property string|null $completed_at  When the request was fulfilled (null while pending)
  * @method static DeletionRequest|null find(mixed $id)
  * @method static \Hyperf\Database\Model\Builder<DeletionRequest> query()
  * @method static DeletionRequest create(array<string, mixed> $attributes)
  */
-class DeletionRequest extends Model
+final class DeletionRequest extends Model
 {
     protected ?string $table = 'deletion_requests';
     public bool $timestamps = false;
 
-    /** @var string[] */
+    /** @var string[] Columns that may be mass-assigned. */
     protected array $fillable = [
         'user_id', 'status', 'request_type', 'requested_at',
     ];
 
-    /** @var array<string, string> */
+    /** @var array<string, string> Column type casts. */
     protected array $casts = [
         'id'      => 'integer',
         'user_id' => 'integer',

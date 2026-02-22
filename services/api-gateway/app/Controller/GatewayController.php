@@ -56,6 +56,12 @@ final class GatewayController
     /** Proxy media requests to MinIO, with local disk fallback */
     public function proxyMedia(RequestInterface $request, string $path): ResponseInterface
     {
+        // Sanitize path to prevent directory traversal attacks
+        $path = ltrim($path, '/');
+        if ($path === '' || str_contains($path, '..') || str_contains($path, "\0") || preg_match('#[^a-zA-Z0-9._/\-]#', $path)) {
+            return $this->response->raw('Invalid path')->withStatus(400);
+        }
+
         $minioUrl  = getenv('OBJECT_STORAGE_ENDPOINT') ?: 'http://localhost:9000';
         $bucket    = getenv('OBJECT_STORAGE_BUCKET')   ?: 'ashchan';
         $accessKey = getenv('OBJECT_STORAGE_ACCESS_KEY') ?: 'minioadmin';
@@ -94,9 +100,13 @@ final class GatewayController
                 ->withHeader('Cache-Control', 'public, max-age=86400');
         }
 
-        // Fallback: try local disk
-        $localPath = (getenv('LOCAL_STORAGE_PATH') ?: '/workspaces/ashchan/data/media') . '/' . $path;
-        if (is_file($localPath)) {
+        // Fallback: try local disk (with realpath validation to prevent traversal)
+        $baseDir = getenv('LOCAL_STORAGE_PATH') ?: '/workspaces/ashchan/data/media';
+        $localPath = $baseDir . '/' . $path;
+        $realLocal = realpath($localPath);
+        $realBase  = realpath($baseDir);
+        if ($realLocal && $realBase && str_starts_with($realLocal, $realBase . '/') && is_file($realLocal)) {
+            $localPath = $realLocal;
             $ext = pathinfo($localPath, PATHINFO_EXTENSION);
             $mimeTypes = [
                 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
@@ -118,7 +128,7 @@ final class GatewayController
     {
         $service = $this->resolveService($path);
         if (!$service) {
-            return $this->response->json(['error' => 'Route not found']);
+            return $this->response->json(['error' => 'Route not found'])->withStatus(404);
         }
 
         $method  = $request->getMethod();

@@ -23,12 +23,21 @@ namespace App\Controller;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * Lightweight health check endpoint for load balancer and service mesh probes.
+ *
+ * Returns a simple JSON response to indicate the service is running.
+ * This endpoint should remain unauthenticated and fast.
+ */
 final class HealthController
 {
     public function __construct(private HttpResponse $response)
     {
     }
 
+    /**
+     * GET /health — Returns 200 if the service is accepting requests.
+     */
     public function check(): ResponseInterface
     {
         return $this->response->json(['status' => 'ok']);

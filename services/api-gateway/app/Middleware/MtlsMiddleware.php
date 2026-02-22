@@ -34,17 +34,15 @@ use Psr\Http\Server\RequestHandlerInterface;
  * Validates client certificates on all incoming mTLS connections.
  * Only requests with valid certificates signed by the Ashchan CA are allowed.
  */
-class MtlsMiddleware implements MiddlewareInterface
+final class MtlsMiddleware implements MiddlewareInterface
 {
     private bool $enabled;
-    private string $caFile;
     private bool $verifyPeer;
     private string $minTlsVersion;
 
     public function __construct(ConfigInterface $config)
     {
         $this->enabled = (bool) $config->get('mtls.enabled', true);
-        $this->caFile = (string) $config->get('mtls.ca_file', '/etc/mtls/ca/ca.crt');
         $this->verifyPeer = (bool) $config->get('mtls.verify_peer', true);
         $this->minTlsVersion = (string) $config->get('mtls.min_tls_version', 'TLSv1.3');
     }
@@ -211,91 +209,10 @@ class MtlsMiddleware implements MiddlewareInterface
             'reason' => $reason,
         ], JSON_PRETTY_PRINT) ?: '{}';
 
-        return new class ($body) implements ResponseInterface {
-            private string $body;
-
-            public function __construct(string $body)
-            {
-                $this->body = $body;
-            }
-
-            public function getProtocolVersion(): string
-            {
-                return '1.1';
-            }
-
-            public function withProtocolVersion($version): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function getHeaders(): array
-            {
-                return [
-                    'Content-Type' => ['application/json'],
-                    'Content-Length' => [(string) strlen($this->body)],
-                ];
-            }
-
-            public function hasHeader($name): bool
-            {
-                return in_array(strtolower($name), ['content-type', 'content-length']);
-            }
-
-            public function getHeader($name): array
-            {
-                return match (strtolower($name)) {
-                    'content-type' => ['application/json'],
-                    'content-length' => [(string) strlen($this->body)],
-                    default => [],
-                };
-            }
-
-            public function getHeaderLine($name): string
-            {
-                return implode(', ', $this->getHeader($name));
-            }
-
-            public function withHeader($name, $value): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function withAddedHeader($name, $value): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function withoutHeader($name): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function getBody(): \Psr\Http\Message\StreamInterface
-            {
-                return new SwooleStream($this->body);
-            }
-
-            public function withBody($body): ResponseInterface
-            {
-                $this->body = (string) $body;
-                return $this;
-            }
-
-            public function getStatusCode(): int
-            {
-                return 403;
-            }
-
-            public function withStatus($code, $reasonPhrase = ''): ResponseInterface
-            {
-                return $this;
-            }
-
-            public function getReasonPhrase(): string
-            {
-                return 'Forbidden';
-            }
-        };
+        $response = new \Hyperf\HttpMessage\Server\Response();
+        return $response
+            ->withStatus(403)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody(new SwooleStream($body));
     }
 }
