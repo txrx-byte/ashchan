@@ -95,6 +95,21 @@ INSERT INTO report_categories (id, board, title, weight, exclude_boards, filtere
 VALUES (31, '', 'This post violates applicable law.', 1000.00, '', 0, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO report_categories (id, board, title, weight, exclude_boards, filtered, op_only, reply_only, image_only)
+VALUES
+    (1,  '_all_', 'Racism',                          10.00, '', 0, 0, 0, 0),
+    (2,  '_all_', 'Pornography',                     50.00, '', 0, 0, 0, 0),
+    (3,  '_all_', 'Advertising / Spam',              30.00, '', 0, 0, 0, 0),
+    (4,  '_all_', 'Off-topic',                       5.00,  '', 0, 0, 0, 0),
+    (5,  '_all_', 'Trolling',                        5.00,  '', 0, 0, 0, 0),
+    (6,  '_all_', 'Harassment / Doxxing',            80.00, '', 0, 0, 0, 0),
+    (7,  '_all_', 'Gore / Shock content',            90.00, '', 0, 0, 0, 0),
+    (8,  '_all_', 'Underage content',               100.00, '', 0, 0, 0, 0),
+    (9,  '_all_', 'Ban evasion',                     20.00, '', 0, 0, 0, 0),
+    (10, '_all_', 'Flooding / Duplicate threads',    15.00, '', 0, 0, 0, 0),
+    (11, '_ws_',  'NSFW on worksafe board',          40.00, '', 0, 0, 0, 0)
+ON CONFLICT (id) DO NOTHING;
+
 -- ═══════════════════════════════════════════════════════════════
 -- 5. BAN TEMPLATES (from OpenYotsuba setup.php)
 -- ═══════════════════════════════════════════════════════════════

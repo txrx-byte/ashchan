@@ -33,6 +33,7 @@ use App\Controller\Staff\AutopurgeController;
 use App\Controller\Staff\DmcaController;
 use App\Controller\Staff\BlotterController;
 use App\Controller\Staff\SiteMessageController;
+use App\Controller\ReportController;
 use App\Controller\Staff\BoardConfigController;
 
 // Health check
@@ -209,6 +210,10 @@ Router::post('/api/v1/captcha/verify', [App\Controller\ModerationController::cla
 Router::get('/api/v1/altcha/challenge', [App\Controller\AltchaController::class, 'challenge']);
 
 // ============== Frontend Routes ==============
+
+// Report popup (must be before board catch-all)
+Router::get('/report/{board}/{no:\d+}', [ReportController::class, 'show']);
+Router::post('/report/{board}/{no:\d+}', [ReportController::class, 'submit']);
 
 // Homepage
 Router::get('/', [FrontendController::class, 'home']);

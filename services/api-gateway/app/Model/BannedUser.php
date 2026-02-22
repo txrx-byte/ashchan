@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Model;
 
+use Carbon\Carbon;
 use Hyperf\DbConnection\Model\Model;
 
 /**
@@ -121,7 +122,7 @@ class BannedUser extends Model
     public function scopeActive(\Hyperf\Database\Model\Builder $query): \Hyperf\Database\Model\Builder
     {
         return $query->where('active', 1)
-                     ->where('length', '>', now());
+                     ->where('length', '>', Carbon::now());
     }
 
     /**
@@ -215,7 +216,7 @@ class BannedUser extends Model
             return 0;
         }
 
-        $remaining = $length->diffInSeconds(now(), false);
+        $remaining = $length->diffInSeconds(Carbon::now(), false);
         return (int) max(0, $remaining);
     }
 

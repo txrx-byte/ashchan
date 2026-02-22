@@ -20,6 +20,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use Carbon\Carbon;
+
 use App\Model\BanRequest;
 use App\Model\BanTemplate;
 use App\Model\BannedUser;
@@ -27,7 +29,6 @@ use App\Model\ModerationDecision;
 use App\Model\Report;
 use App\Model\ReportCategory;
 use App\Model\ReportClearLog;
-use Hyperf\Di\Annotation\Inject;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -38,10 +39,8 @@ use Psr\Log\LoggerInterface;
  */
 final class ModerationService
 {
-    #[Inject]
     private LoggerInterface $logger;
 
-    #[Inject]
     private PiiEncryptionService $piiEncryption;
 
     // Admin-configurable moderation queue settings (loaded from site_settings)
@@ -53,8 +52,13 @@ final class ModerationService
     private int $abuseClearBanInterval;
     private int $reportAbuseTemplateId;
 
-    public function __construct(SiteConfigService $config)
-    {
+    public function __construct(
+        SiteConfigService $config,
+        LoggerInterface $logger,
+        PiiEncryptionService $piiEncryption,
+    ) {
+        $this->logger = $logger;
+        $this->piiEncryption = $piiEncryption;
         $this->globalThreshold = $config->getInt('report_global_threshold', 1500);
         $this->highlightThreshold = $config->getInt('report_highlight_threshold', 500);
         $this->threadWeightBoost = $config->getFloat('thread_weight_boost', 1.25);
@@ -137,7 +141,7 @@ final class ModerationService
             'cleared' => $isCleared,
             'cleared_by' => $clearedBy,
             'ws' => $isWorksafe,
-            'ts' => now(),
+            'ts' => Carbon::now(),
         ]);
 
         // Log action
@@ -400,9 +404,9 @@ final class ModerationService
         if ($banDays === -1) {
             $length = null; // Permanent
         } elseif ($banDays === 0) {
-            $length = now()->addSeconds(10); // Warning
+            $length = Carbon::now()->addSeconds(10); // Warning
         } else {
-            $length = now()->addDays($banDays);
+            $length = Carbon::now()->addDays($banDays);
         }
 
         $ban = BannedUser::create([
@@ -414,7 +418,7 @@ final class ModerationService
             'host_hash' => $targetIp !== null ? hash('sha256', $targetIp) : '',
             'reason' => $customReason ?: $template->getAttribute('public_reason'),
             'length' => $length,
-            'now' => now(),
+            'now' => Carbon::now(),
             'admin' => $adminUsername,
             'post_num' => $postNo,
             'rule' => $template->getAttribute('rule'),
@@ -457,7 +461,7 @@ final class ModerationService
                 }
             })
             ->where(function ($q) {
-                $q->where('length', '>', now())
+                $q->where('length', '>', Carbon::now())
                   ->orWhereNull('length'); // Permanent bans
             });
 
@@ -528,7 +532,7 @@ final class ModerationService
                     $q->orWhere('pwd', $pwd);
                 }
             })
-            ->where('created_at', '>', now()->subDays(2))
+            ->where('created_at', '>', Carbon::now()->subDays(2))
             ->count();
 
         if ($clearCount >= $filterThreshold) {
@@ -578,7 +582,7 @@ final class ModerationService
                 'requested_template' => $requestedTpl,
                 'accepted_template' => $acceptedTpl,
                 'mod_username' => $modUsername,
-                'created_at' => now(),
+                'created_at' => Carbon::now(),
             ]);
         } catch (\Throwable $e) {
             // Table may not exist yet — log and continue
@@ -630,7 +634,7 @@ final class ModerationService
         }
 
         $ban->setAttribute('active', 0);
-        $ban->setAttribute('unbannedon', now());
+        $ban->setAttribute('unbannedon', Carbon::now());
         $ban->setAttribute('admin', $staffUsername);
         $ban->save();
 

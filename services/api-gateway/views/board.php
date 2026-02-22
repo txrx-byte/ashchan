@@ -31,11 +31,12 @@ declare(strict_types=1);
 
 <!-- Post Form Toggle -->
 <div id="togglePostFormLink" class="desktop">
-  [<a href="javascript:void(0);" onclick="var f=document.getElementById('postForm');f.style.display=f.style.display==='none'?'table':'none';">Start a New Thread</a>]
+  [<a href="javascript:void(0);">Start a New Thread</a>]
 </div>
 
 <!-- Blotter -->
 <?php if (!empty($blotter)): ?>
+<hr class="aboveBlotter">
 <div id="blotter" class="desktop">
   <table>
     <tbody>
@@ -59,6 +60,7 @@ declare(strict_types=1);
 <div id="blotterShow" class="desktop" style="display:none;text-align:center;font-size:11px;margin:5px 0;">
   [<a href="javascript:void(0);" onclick="document.getElementById('blotter').classList.remove('hidden');this.parentNode.style.display='none';">Show Blotter</a>]
 </div>
+<hr class="belowBlotter">
 <?php endif; ?>
 
 <!-- Post Form -->

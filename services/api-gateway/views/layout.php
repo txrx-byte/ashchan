@@ -35,9 +35,9 @@
   <link rel="stylesheet" href="/static/css/mobile.css">
   <link rel="stylesheet" href="/static/css/common.css">
   <?= $extra_css ?? '' ?>
-  <script src="/static/js/core.js" defer></script>
+  <script src="/static/js/core.js?v=3" defer></script>
   <script src="/static/js/altcha.min.js" defer></script>
-  <script src="/static/js/extension.js" defer></script>
+  <script src="/static/js/extension.js?v=3" defer></script>
 <?php if (!empty($is_staff)): ?>
 <?php
   $__staff_level = $staff_level ?? '';

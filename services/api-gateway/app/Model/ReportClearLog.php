@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace App\Model;
 
+use Carbon\Carbon;
 use Hyperf\DbConnection\Model\Model;
 
 /**
@@ -72,7 +73,7 @@ class ReportClearLog extends Model
         int $days
     ): \Hyperf\Database\Model\Builder {
         return $query->where('ip', $ip)
-                     ->where('created_at', '>', now()->subDays($days));
+                     ->where('created_at', '>', Carbon::now()->subDays($days));
     }
 
     /**
@@ -99,6 +100,6 @@ class ReportClearLog extends Model
                 $q->orWhere('pass_id', $passId);
             }
         })
-        ->where('created_at', '>', now()->subDays($days));
+        ->where('created_at', '>', Carbon::now()->subDays($days));
     }
 }

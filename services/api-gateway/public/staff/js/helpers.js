@@ -77,8 +77,17 @@ function ajax(url, options) {
   options = options || {};
   
   var xhr = new XMLHttpRequest();
-  xhr.open(options.method || 'GET', url, true);
+  var method = (options.method || 'GET').toUpperCase();
+  xhr.open(method, url, true);
   xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  
+  // Auto-inject CSRF token for state-changing requests
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].indexOf(method) >= 0) {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) {
+      xhr.setRequestHeader('X-CSRF-Token', meta.getAttribute('content'));
+    }
+  }
   
   if (options.headers) {
     for (var key in options.headers) {
@@ -120,7 +129,7 @@ function ajaxGet(url, callback) {
   });
 }
 
-function ajaxPost(url, data, callback) {
+function ajaxPost(url, data, callback, errorCallback) {
   var formData;
   if (typeof data === 'string') {
     formData = data;
@@ -137,18 +146,28 @@ function ajaxPost(url, data, callback) {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
     data: formData,
-    success: callback
+    success: callback,
+    error: errorCallback || function(xhr) {
+      var msg = 'Request failed (' + xhr.status + ')';
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+      alert(msg);
+    }
   });
 }
 
-function ajaxJSON(url, data, callback) {
+function ajaxJSON(url, data, callback, errorCallback) {
   return ajax(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     data: JSON.stringify(data),
-    success: callback
+    success: callback,
+    error: errorCallback || function(xhr) {
+      var msg = 'Request failed (' + xhr.status + ')';
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+      alert(msg);
+    }
   });
 }
 

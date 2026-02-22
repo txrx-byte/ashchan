@@ -40,12 +40,17 @@ declare(strict_types=1);
   <a href="#" class="mobilePostFormToggle mobile hidden button">Post a Reply</a>
 </div>
 
+<!-- Post Reply Toggle -->
+<div id="togglePostFormLink" class="desktop">
+  [<a href="javascript:void(0);">Post a Reply</a>]
+</div>
+
 <!-- Post Form -->
 <form name="post" action="/<?= htmlspecialchars((string) $board_slug) ?>/thread/<?= htmlspecialchars((string) $thread_id) ?>/posts" method="post" enctype="multipart/form-data">
   <input type="hidden" name="MAX_FILE_SIZE" value="4194304">
   <input type="hidden" name="mode" value="regist">
   <input type="hidden" name="resto" value="<?= htmlspecialchars((string) $thread_id) ?>">
-  <table class="postForm" id="postForm">
+  <table class="postForm" id="postForm" style="display:none;">
     <tbody>
       <tr data-type="Name">
         <td>Name</td>

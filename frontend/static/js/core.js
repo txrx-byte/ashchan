@@ -95,15 +95,10 @@ var PostForm = {
     if (link && form) {
       $.on(link, 'click', function(e) {
         e.preventDefault();
-        if (form.style.display === 'table') {
-          form.style.display = '';
-          link.textContent = 'Start a New Thread';
-        } else {
-          form.style.display = 'table';
-          link.textContent = 'Close Post Form';
-          var name = form.querySelector('input[name="name"]');
-          if (name) name.focus();
-        }
+        form.style.display = 'table';
+        link.style.display = 'none';
+        var name = form.querySelector('input[name="name"]');
+        if (name) name.focus();
       });
     }
   }
@@ -146,7 +141,7 @@ var PostQuoting = {
     if (form.style.display !== 'table') {
       form.style.display = 'table';
       var toggle = $.id('togglePostFormLink');
-      if (toggle) toggle.textContent = 'Close Post Form';
+      if (toggle) toggle.style.display = 'none';
     }
     
     var text = '>>' + id + '\n';

@@ -1056,6 +1056,7 @@ var PostMenu = {
         case 'hide-reply': case 'show-reply': e.preventDefault(); ReplyHiding.toggle(pid); break;
         case 'highlight-id': e.preventDefault(); IDHighlight.toggle(t.getAttribute('data-id')); break;
         case 'filter-id': e.preventDefault(); Filter.addID(t.getAttribute('data-id')); break;
+        case 'report': e.preventDefault(); Report.open(pid); break;
       }
       PostMenu.close();
     }
@@ -1066,6 +1067,7 @@ var PostMenu = {
     var uidEl=$.qs('.posteruid .hand',post), uid=uidEl?uidEl.textContent:null;
     var h='<ul class="post-menu-list"><li data-cmd="'+(isHidden?'show':'hide')+'-reply" data-pid="'+pid+'">'+(isHidden?'Show':'Hide')+' reply</li>';
     if(uid){h+='<li data-cmd="highlight-id" data-id="'+uid+'">Highlight ID</li><li data-cmd="filter-id" data-id="'+uid+'">Filter ID</li>';}
+    h+='<li data-cmd="report" data-pid="'+pid+'">Report post</li>';
     h+='</ul>';
     var menu=$.el('div'); menu.id='post-menu'; menu.className='post-menu'; menu.innerHTML=h;
     document.dispatchEvent(new CustomEvent('ashchanPostMenuReady',{detail:{menu:menu,pid:pid,btn:btn}}));
@@ -1076,6 +1078,42 @@ var PostMenu = {
   close: function() {
     if(PostMenu.activeMenu){PostMenu.activeMenu.remove();PostMenu.activeMenu=null;}
     if(PostMenu.activeBtn){$.removeClass(PostMenu.activeBtn,'menuOpen');PostMenu.activeBtn=null;}
+  }
+};
+
+// ============================================================
+//  REPORT POPUP
+// ============================================================
+var Report = {
+  popup: null,
+  init: function() {
+    // Wire up the bottom "Report" button for checkbox-selected posts
+    var btn = $.id('bottomReportBtn');
+    if (btn) {
+      $.on(btn, 'click', function() {
+        var checked = document.querySelectorAll('#delform input[type="checkbox"][value="delete"]:checked');
+        if (checked.length === 0) { alert('Please select a post to report.'); return; }
+        // Report the first selected post
+        var pid = checked[0].getAttribute('name');
+        if (pid) Report.open(pid);
+      });
+    }
+    // Listen for postMessage from popup
+    $.on(window, 'message', function(e) {
+      if (e.data === 'done-report' && Report.popup) {
+        try { Report.popup.close(); } catch(ex) {}
+        Report.popup = null;
+      }
+    });
+  },
+  open: function(pid) {
+    var board = document.body.getAttribute('data-board-slug');
+    if (!board) { alert('Cannot determine board.'); return; }
+    var url = '/report/' + encodeURIComponent(board) + '/' + encodeURIComponent(pid);
+    var w = 340, h = 340;
+    var left = (screen.width - w) / 2, top = (screen.height - h) / 2;
+    Report.popup = window.open(url, 'report_' + pid, 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes');
+    if (Report.popup) Report.popup.focus();
   }
 };
 
@@ -1259,7 +1297,12 @@ function init() {
   if (!Main.isThread) {
     ThreadHiding.init();
     if(Config.filter) Filter.init();
+    Parser.init();
+    PostMenu.init();
   }
+
+  // Report popup (works on both board index and thread pages)
+  Report.init();
 
   // Keyboard
   KeyBinds.init();
