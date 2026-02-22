@@ -107,6 +107,7 @@ make mtls-status
 | [docs/SERVICEMESH.md](docs/SERVICEMESH.md) | **mTLS architecture, certificate management, security** |
 | [docs/system-design.md](docs/system-design.md) | Request flows, caching, failure isolation |
 | [docs/security.md](docs/security.md) | Security controls, encryption, audit logging |
+| [docs/FIREWALL_HARDENING.md](docs/FIREWALL_HARDENING.md) | **Firewall, fail2ban, sysctl hardening (Linux & FreeBSD)** |
 
 ### API & Contracts
 | Document | Description |

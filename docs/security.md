@@ -329,3 +329,9 @@ make mtls-status
 - [ ] Rate limit alerts configured
 - [ ] Incident response plan tested
 - [ ] Security patches applied
+
+---
+
+## See Also
+
+- [docs/FIREWALL_HARDENING.md](FIREWALL_HARDENING.md) — Firewall rules (nftables, iptables, pf, ipfw), fail2ban, sysctl hardening
