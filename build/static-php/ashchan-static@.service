@@ -1,0 +1,55 @@
+# Ashchan Static Binary — Systemd Service Template
+#
+# Install: Copy to /etc/systemd/system/ and replace %SERVICE% placeholders.
+# Or use: systemd-escape and template instantiation.
+#
+# For a template approach (recommended):
+#   cp ashchan-static@.service /etc/systemd/system/
+#   systemctl enable ashchan-static@gateway
+#   systemctl start ashchan-static@gateway
+#
+# Instances: gateway, auth, boards, media, search, moderation
+
+[Unit]
+Description=Ashchan %i Service (static binary)
+After=network.target postgresql.service redis.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ashchan
+Group=ashchan
+
+# Binary location — adjust to your deployment path
+WorkingDirectory=/opt/ashchan
+ExecStart=/opt/ashchan/bin/ashchan-%i start
+
+# Environment files (optional — service reads .env from WorkingDirectory too)
+EnvironmentFile=-/opt/ashchan/services/%i/.env
+Environment=APP_ENV=production
+
+# Restart policy
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Resource limits
+LimitNOFILE=65535
+MemoryMax=512M
+CPUQuota=200%
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ashchan/runtime /tmp
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ashchan-%i
+
+[Install]
+WantedBy=multi-user.target

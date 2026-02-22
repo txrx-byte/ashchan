@@ -34,6 +34,8 @@ storage/logs/
 
 # Build artifacts
 .build-cache/
+build/static-php/dist/
+build/static-php/.spc/
 
 # Node (if any frontend tooling)
 node_modules/

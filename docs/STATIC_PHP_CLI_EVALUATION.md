@@ -109,13 +109,17 @@ php bin/hyperf.php start
 - Resource overhead from container runtime
 - Additional layer of abstraction for debugging
 
-### Option 2: Static PHP Binary (swoole-cli)
+### Option 2: Static PHP Binary (static-php-cli)
 
-**Deferred** for future consideration.
+**Now available** as an optional build target.
 
-- Could be useful for truly portable deployments
-- Build complexity not justified currently
-- Can revisit if containerization becomes necessary
+- Produces single portable executables per service
+- Uses [static-php-cli](https://github.com/crazywhalecc/static-php-cli) v2.4.x
+- Builds PHP + Swoole + all extensions as a musl-linked static binary
+- Each service is packed into a PHAR, then fused with `micro.sfx`
+- Zero runtime dependencies — runs on any Linux of the same architecture
+- Activated via `make build-static` (see `build/static-php/build.sh`)
+- Systemd template provided at `build/static-php/ashchan-static@.service`
 
 ### Option 3: Kubernetes
 
@@ -241,6 +245,28 @@ mTLS is now configured directly in Hyperf/Swoole server settings rather than rel
 ---
 
 ## Future Considerations
+
+### Static Binary Deployment (Available Now)
+
+The `make build-static` target produces portable executables:
+
+```bash
+# Build all services
+make build-static
+
+# Output: build/static-php/dist/ashchan-{gateway,auth,boards,media,search,moderation}
+# Each binary is self-contained — no PHP, no vendor/, no extensions needed at runtime
+
+# Deploy to production
+scp build/static-php/dist/ashchan-* prod:/opt/ashchan/bin/
+ssh prod 'systemctl enable ashchan-static@gateway && systemctl start ashchan-static@gateway'
+```
+
+Performance characteristics of static binaries:
+- **Faster cold start**: No autoloader, no file scanning, single binary load
+- **Lower memory**: Unused extensions not loaded, PHAR memory-mapped
+- **Simpler deployment**: `scp` one file per service, no dependency management
+- **Consistent**: Same binary across dev/staging/prod, no "works on my machine"
 
 ### If Containerization Becomes Necessary
 

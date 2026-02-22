@@ -217,6 +217,26 @@ make clean        # Clean runtime artifacts
 make clean-certs  # Remove all generated certificates
 ```
 
+### Static Binary Build (Optional)
+
+Build portable, self-contained executables with no PHP runtime dependency. Uses [static-php-cli](https://github.com/crazywhalecc/static-php-cli) to compile PHP + Swoole + all extensions into a single static binary per service.
+
+```bash
+make build-static           # Build all services as static binaries
+make build-static-gateway   # Build only the gateway
+make build-static-boards    # Build only boards service
+make build-static-php       # Build the static PHP binary only
+make build-static-clean     # Remove build artifacts
+```
+
+Output binaries go to `build/static-php/dist/`:
+```bash
+./build/static-php/dist/ashchan-gateway start     # No PHP install needed
+PORT=9501 ./ashchan-gateway start                  # Override port via env
+```
+
+See [build/static-php/build.sh](build/static-php/build.sh) for full options and environment variables.
+
 ---
 
 ## Certificate Management
