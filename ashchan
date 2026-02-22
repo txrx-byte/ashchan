@@ -39,6 +39,10 @@
 #   anubis:restart   Restart the Anubis AI firewall
 #   anubis:status    Show Anubis status
 #   compile          Install composer dependencies for all services
+#   build            Build all static binaries (static-php-cli)
+#   build:php        Build only the static PHP runtime
+#   build:clean      Remove static build artifacts
+#   build:<service>  Build static binary for one service
 #   lint             Lint all PHP source files
 #   test             Run test suites
 #   clean            Remove runtime artifacts and logs
@@ -85,6 +89,8 @@ CA_DIR="${CERTS_DIR}/ca"
 SERVICES_DIR="${CERTS_DIR}/services"
 DB_DIR="${SCRIPT_DIR}/db"
 ANUBIS_DIR="${SCRIPT_DIR}/config/anubis"
+BUILD_SCRIPT="${SCRIPT_DIR}/build/static-php/build.sh"
+STATIC_DIST="${SCRIPT_DIR}/build/static-php/dist"
 ANUBIS_BIN="$(command -v anubis 2>/dev/null || echo '/usr/local/bin/anubis')"
 ANUBIS_PORT=8080
 ANUBIS_METRICS_PORT=9091
@@ -861,6 +867,54 @@ cmd_logs() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Static binary builds
+# ─────────────────────────────────────────────────────────────────────────────
+
+cmd_build() {
+    local target="${1:-all}"
+    if [[ ! -f "$BUILD_SCRIPT" ]]; then
+        die "Build script not found: ${BUILD_SCRIPT}"
+    fi
+
+    case "$target" in
+        all)
+            step "Building all static binaries"
+            info "This downloads static-php-cli and compiles PHP + all services"
+            info "First run may take 15-30 minutes depending on hardware"
+            echo
+            bash "$BUILD_SCRIPT"
+            echo
+            success "Static binaries available in build/static-php/dist/"
+            echo
+            echo -e "  ${BOLD}Deploy with:${NC}"
+            separator
+            echo "  scp build/static-php/dist/ashchan-* user@server:/opt/ashchan/"
+            echo "  cp build/static-php/ashchan-static@.service /etc/systemd/system/"
+            echo "  systemctl enable --now ashchan-static@gateway"
+            echo
+            ;;
+        php)
+            step "Building static PHP runtime only"
+            bash "$BUILD_SCRIPT" --php-only
+            ;;
+        clean)
+            step "Cleaning static build artifacts"
+            bash "$BUILD_SCRIPT" --clean
+            success "Static build artifacts removed"
+            ;;
+        *)
+            if [[ -n "${SVC_DIRS[$target]+x}" ]]; then
+                step "Building static binary: ${SVC_LABELS[$target]}"
+                bash "$BUILD_SCRIPT" "$target"
+                success "Built: build/static-php/dist/ashchan-${target}"
+            else
+                die "Unknown build target: ${target}. Available: all php clean ${SVC_NAMES[*]}"
+            fi
+            ;;
+    esac
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Full install
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -868,27 +922,43 @@ cmd_install() {
     banner "Full Installation"
 
     # ─── 1. Prerequisites ───
-    step "1/7  Checking prerequisites"
+    step "1/8  Checking prerequisites"
     check_php
     check_php_extensions || true
     check_composer
     check_openssl
 
     # ─── 2. mTLS ───
-    step "2/7  Setting up mTLS certificates"
+    step "2/8  Setting up mTLS certificates"
     certs_init_ca
     certs_generate_all
 
     # ─── 3. Environment ───
-    step "3/7  Configuring environment"
+    step "3/8  Configuring environment"
     setup_env_files
 
     # ─── 4. Dependencies ───
-    step "4/7  Compiling services"
+    step "4/8  Compiling services"
     compile_services
 
-    # ─── 5. Database ───
-    step "5/7  Database setup"
+    # ─── 5. Static binaries (optional) ───
+    step "5/8  Static binary build (optional)"
+    if [[ -f "$BUILD_SCRIPT" ]]; then
+        info "Static builds produce single-file executables for deployment"
+        info "This step is optional — services work fine without it"
+        echo
+        if confirm "Build static binaries? (takes 15-30 min on first run)"; then
+            echo
+            cmd_build all
+        else
+            info "Skipped — run later with:  ./ashchan build"
+        fi
+    else
+        info "Build script not found — skipping static builds"
+    fi
+
+    # ─── 6. Database ───
+    step "6/8  Database setup"
     if check_db 2>/dev/null; then
         cmd_db_install
         cmd_db_seed
@@ -897,15 +967,15 @@ cmd_install() {
         info "Run later:  ./ashchan db:install && ./ashchan db:seed"
     fi
 
-    # ─── 6. Start services ───
-    step "6/8  Starting services"
+    # ─── 7. Start services ───
+    step "7/8  Starting services"
     for svc in "${SVC_NAMES[@]}"; do
         svc_start "$svc"
         sleep 1
     done
 
-    # ─── 7. Start Anubis ───
-    step "7/8  Starting Anubis (AI firewall)"
+    # Anubis (best-effort, not a numbered step)
+    info "Starting Anubis (AI firewall)..."
     if check_anubis 2>/dev/null; then
         anubis_start || warn "Anubis not started — site runs without bot protection"
     else
@@ -1004,6 +1074,12 @@ cmd_help() {
     echo -e "    ${C}anubis:stop${NC}        Stop Anubis"
     echo -e "    ${C}anubis:restart${NC}     Restart Anubis"
     echo -e "    ${C}anubis:status${NC}      Show Anubis status"
+    echo
+    echo -e "  ${BOLD}Build${NC}"
+    echo -e "    ${C}build${NC}              Build all static binaries"
+    echo -e "    ${C}build:php${NC}          Build only the static PHP runtime"
+    echo -e "    ${C}build:clean${NC}        Remove static build artifacts"
+    echo -e "    ${C}build:<service>${NC}    Build one service as static binary"
     echo
     echo -e "  ${BOLD}Quality${NC}"
     echo -e "    ${C}lint${NC}               Check PHP syntax"
@@ -1147,6 +1223,23 @@ main() {
             check_php
             check_composer
             compile_services
+            ;;
+        build)
+            banner "Static Build"
+            cmd_build "${args[0]:-all}"
+            ;;
+        build:php)
+            banner "Static Build"
+            cmd_build php
+            ;;
+        build:clean)
+            banner "Static Build"
+            cmd_build clean
+            ;;
+        build:*)
+            banner "Static Build"
+            local svc_target="${cmd#build:}"
+            cmd_build "$svc_target"
             ;;
         lint)
             banner "Lint"
