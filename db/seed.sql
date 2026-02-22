@@ -300,7 +300,8 @@ INSERT INTO site_settings (key, value, description, category, value_type) VALUES
     ('thumbnail_max_height',    '250',    'Thumbnail max height in pixels',                                           'media', 'int'),
 
     -- ── Search ──
-    ('search_index_ttl',        '604800', 'Search index TTL (seconds, default 7 days)',                               'search', 'int'),\n    ('search_default_per_page', '25',     'Default results per page for search queries',                               'search', 'int'),
+    ('search_index_ttl',        '604800', 'Search index TTL (seconds, default 7 days)',                               'search', 'int'),
+    ('search_default_per_page', '25',     'Default results per page for search queries',                               'search', 'int'),
     ('search_results_per_page', '25',     'Default search results per page',                                          'search', 'int'),
     ('search_min_query_length', '2',      'Minimum search query length in characters',                                'search', 'int'),
     ('search_excerpt_length',   '200',    'Length of search result text excerpt',                                      'search', 'int'),
@@ -351,7 +352,9 @@ INSERT INTO site_settings (key, value, description, category, value_type) VALUES
     ('upload_timeout',          '15',     'cURL total timeout for S3 uploads (seconds)',                                'media', 'int'),
     ('local_storage_path',      '/workspaces/ashchan/data/media', 'Local disk fallback path for media when S3 is unreachable', 'media', 'string'),
     ('object_storage_bucket',   'ashchan', 'S3/MinIO bucket name for media storage',                                   'media', 'string'),
-    ('object_storage_endpoint', 'http://minio:9000', 'S3/MinIO endpoint URL',                                          'media', 'string')
+    ('object_storage_endpoint', 'http://minio:9000', 'S3/MinIO endpoint URL',                                          'media', 'string'),
+    ('object_storage_access_key','minioadmin', 'S3/MinIO access key (credential)',                                      'media', 'string'),
+    ('object_storage_secret_key','minioadmin', 'S3/MinIO secret key (credential)',                                      'media', 'string')
 
 ON CONFLICT (key) DO NOTHING;
 

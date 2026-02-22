@@ -23,23 +23,20 @@ use function Hyperf\Support\env;
 $isProduction = env('APP_ENV', 'production') === 'production';
 
 return [
-    'default' => 'default',
-    'channels' => [
-        'default' => [
-            'handler' => [
-                'class' => Monolog\Handler\StreamHandler::class,
-                'constructor' => [
-                    'stream' => 'php://stdout',
-                    'level' => $isProduction ? Monolog\Level::Info : Monolog\Level::Debug,
-                ],
+    'default' => [
+        'handler' => [
+            'class' => Monolog\Handler\StreamHandler::class,
+            'constructor' => [
+                'stream' => 'php://stdout',
+                'level' => $isProduction ? Monolog\Level::Info : Monolog\Level::Debug,
             ],
-            'formatter' => [
-                'class' => Monolog\Formatter\LineFormatter::class,
-                'constructor' => [
-                    'format' => null,
-                    'dateFormat' => 'Y-m-d H:i:s',
-                    'allowInlineLineBreaks' => true,
-                ],
+        ],
+        'formatter' => [
+            'class' => Monolog\Formatter\LineFormatter::class,
+            'constructor' => [
+                'format' => null,
+                'dateFormat' => 'Y-m-d H:i:s',
+                'allowInlineLineBreaks' => true,
             ],
         ],
     ],

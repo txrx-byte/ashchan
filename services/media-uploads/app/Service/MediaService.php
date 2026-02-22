@@ -48,6 +48,8 @@ final class MediaService
     private int $uploadConnectTimeout;
     private int $uploadTimeout;
     private string $localStoragePath;
+    private string $storageAccessKey;
+    private string $storageSecretKey;
 
     public function __construct(
         EventPublisher $eventPublisher,
@@ -55,6 +57,8 @@ final class MediaService
     ) {
         $this->storageBucket        = $config->get('object_storage_bucket', 'ashchan');
         $this->storageEndpoint      = $config->get('object_storage_endpoint', 'http://minio:9000');
+        $this->storageAccessKey     = $config->get('object_storage_access_key', 'minioadmin');
+        $this->storageSecretKey     = $config->get('object_storage_secret_key', 'minioadmin');
         $this->maxFileSize          = $config->getInt('max_file_size', 4194304);
         $this->eventPublisher       = $eventPublisher;
         $this->allowedMimes         = $config->getList('allowed_mimes', 'image/jpeg,image/png,image/gif,image/webp');
@@ -263,8 +267,8 @@ final class MediaService
      */
     private function uploadToStorage(string $localPath, string $key, string $mime): void
     {
-        $accessKey = getenv('OBJECT_STORAGE_ACCESS_KEY') ?: 'minioadmin';
-        $secretKey = getenv('OBJECT_STORAGE_SECRET_KEY') ?: 'minioadmin';
+        $accessKey = $this->storageAccessKey;
+        $secretKey = $this->storageSecretKey;
         $bucket    = $this->storageBucket;
         $endpoint  = $this->storageEndpoint;
 

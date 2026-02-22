@@ -48,11 +48,11 @@ final class ProxyClient
     public function __construct(ConfigInterface $config)
     {
         $this->services = [
-            'auth'       => (string) ($config->get('services.auth.url') ?: env('AUTH_SERVICE_URL', 'http://auth-accounts:9502')),
-            'boards'     => (string) ($config->get('services.boards.url') ?: env('BOARDS_SERVICE_URL', 'http://boards-threads-posts:9503')),
-            'media'      => (string) ($config->get('services.media.url') ?: env('MEDIA_SERVICE_URL', 'http://media-uploads:9504')),
-            'search'     => (string) ($config->get('services.search.url') ?: env('SEARCH_SERVICE_URL', 'http://search-indexing:9505')),
-            'moderation' => (string) ($config->get('services.moderation.url') ?: env('MODERATION_SERVICE_URL', 'http://moderation-anti-spam:9506')),
+            'auth'       => (string) ($config->get('services.auth.url') ?: env('AUTH_SERVICE_URL', 'https://localhost:8444')),
+            'boards'     => (string) ($config->get('services.boards.url') ?: env('BOARDS_SERVICE_URL', 'https://localhost:8445')),
+            'media'      => (string) ($config->get('services.media.url') ?: env('MEDIA_SERVICE_URL', 'https://localhost:8446')),
+            'search'     => (string) ($config->get('services.search.url') ?: env('SEARCH_SERVICE_URL', 'https://localhost:8447')),
+            'moderation' => (string) ($config->get('services.moderation.url') ?: env('MODERATION_SERVICE_URL', 'https://localhost:8448')),
         ];
 
         $this->clientCert = (string) env('MTLS_CLIENT_CERT_FILE', '/etc/mtls/gateway/gateway.crt');

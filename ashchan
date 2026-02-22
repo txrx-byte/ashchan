@@ -669,6 +669,96 @@ compile_services() {
 # Database
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Auto-provision PostgreSQL if not available (for first-time install)
+provision_postgres() {
+    # Already reachable — nothing to do
+    if check_db 2>/dev/null; then return 0; fi
+
+    info "PostgreSQL not reachable — attempting auto-provision..."
+
+    # Install psql client if missing
+    if ! command -v psql &>/dev/null; then
+        info "Installing PostgreSQL client and server..."
+        if command -v apk &>/dev/null; then
+            sudo apk add --quiet postgresql16 postgresql16-client postgresql16-contrib 2>/dev/null
+        elif command -v apt-get &>/dev/null; then
+            sudo apt-get install -y -qq postgresql postgresql-client 2>/dev/null
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y -q postgresql-server postgresql 2>/dev/null
+        elif command -v pkg &>/dev/null; then
+            sudo pkg install -y postgresql16-server postgresql16-client 2>/dev/null
+        else
+            warn "No supported package manager found — cannot auto-install PostgreSQL"
+            return 1
+        fi
+    fi
+
+    if ! command -v psql &>/dev/null; then
+        warn "PostgreSQL installation failed"
+        return 1
+    fi
+
+    # Check if pg_ctl is available (server installed)
+    if ! command -v pg_ctl &>/dev/null; then
+        warn "PostgreSQL server not installed — only client found"
+        return 1
+    fi
+
+    # Determine data directory
+    local pg_data="/var/lib/postgresql/16/data"
+    if [[ "$(uname -s)" == "FreeBSD" ]]; then
+        pg_data="/var/db/postgres/data16"
+    fi
+
+    # Initialize if needed
+    if [[ ! -f "${pg_data}/PG_VERSION" ]]; then
+        info "Initializing PostgreSQL data directory..."
+        sudo mkdir -p "$pg_data"
+        sudo chown postgres:postgres "$pg_data"
+        sudo su - postgres -c "initdb -D '${pg_data}'" &>/dev/null || {
+            warn "Failed to initialize PostgreSQL"
+            return 1
+        }
+        # Enable TCP connections with password auth
+        echo "host all all 127.0.0.1/32 md5" | sudo tee -a "${pg_data}/pg_hba.conf" >/dev/null
+        echo "host all all ::1/128 md5" | sudo tee -a "${pg_data}/pg_hba.conf" >/dev/null
+    fi
+
+    # Ensure runtime dir exists
+    sudo mkdir -p /run/postgresql 2>/dev/null
+    sudo chown postgres:postgres /run/postgresql 2>/dev/null
+
+    # Start server if not running
+    if ! sudo su - postgres -c "pg_ctl -D '${pg_data}' status" &>/dev/null; then
+        info "Starting PostgreSQL server..."
+        sudo su - postgres -c "pg_ctl -D '${pg_data}' -l '${pg_data}/../logfile' start" &>/dev/null || {
+            warn "Failed to start PostgreSQL"
+            return 1
+        }
+        sleep 1
+    fi
+
+    # Create user and database if they don't exist
+    if ! sudo su - postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'\"" 2>/dev/null | grep -q 1; then
+        info "Creating database user '${DB_USER}'..."
+        sudo su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';\"" &>/dev/null
+    fi
+
+    if ! sudo su - postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'\"" 2>/dev/null | grep -q 1; then
+        info "Creating database '${DB_NAME}'..."
+        sudo su - postgres -c "psql -c \"CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};\"" &>/dev/null
+    fi
+
+    # Verify connection
+    if check_db 2>/dev/null; then
+        success "PostgreSQL auto-provisioned successfully"
+        return 0
+    else
+        warn "PostgreSQL provisioned but connection check failed"
+        return 1
+    fi
+}
+
 db_exec() {
     PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "$@"
 }
@@ -2190,9 +2280,12 @@ cmd_install() {
     if check_db 2>/dev/null; then
         cmd_db_install
         cmd_db_seed
+    elif provision_postgres; then
+        cmd_db_install
+        cmd_db_seed
     else
         warn "Skipping DB setup — PostgreSQL not reachable"
-        info "Run later:  ./ashchan db:install && ./ashchan db:seed"
+        info "Install PostgreSQL, then run:  ./ashchan db:install && ./ashchan db:seed"
     fi
 
     # ─── 7. Firewall hardening (optional) ───
