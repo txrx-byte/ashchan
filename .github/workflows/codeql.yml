@@ -1,0 +1,46 @@
+name: "CodeQL Advanced"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '24 6 * * 6'
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Ubuntu is perfectly fine and standard for PHP analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        # Replaced default languages with PHP. 
+        # PHP is interpreted, so build-mode is set to 'none'.
+        - language: php
+          build-mode: none
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+        # Optional: Uncomment the line below to enable more rigorous security checks
+        # queries: security-extended,security-and-quality
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:${{matrix.language}}"
