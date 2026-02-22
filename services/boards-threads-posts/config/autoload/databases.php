@@ -32,12 +32,14 @@ return [
         'username' => env('DB_USER', 'ashchan'),
         'password' => env('DB_PASSWORD', 'ashchan'),
         'charset' => env('DB_CHARSET', 'utf8'),
+        'schema' => 'public',
+        'application_name' => 'boards-threads-posts',
         'pool' => [
-            'min_connections' => 1,
-            'max_connections' => 10,
+            'min_connections' => (int) env('DB_POOL_MIN', 2),
+            'max_connections' => (int) env('DB_POOL_MAX', 25),
             'connect_timeout' => 10.0,
             'wait_timeout' => 3.0,
-            'heartbeat' => -1,
+            'heartbeat' => 30,
             'max_idle_time' => 60.0,
         ],
         'commands' => [

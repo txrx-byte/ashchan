@@ -84,7 +84,8 @@ final class IpRetentionService
 
         try {
             $affected = Db::update(
-                "UPDATE posts SET ip_address = NULL WHERE ip_address IS NOT NULL AND created_at < NOW() - INTERVAL '{$days} days'"
+                'UPDATE posts SET ip_address = NULL WHERE ip_address IS NOT NULL AND created_at < NOW() - make_interval(days => ?)',
+                [$days]
             );
 
             if ($affected > 0) {
@@ -110,7 +111,8 @@ final class IpRetentionService
 
         try {
             $affected = Db::update(
-                "UPDATE posts SET email = NULL WHERE email IS NOT NULL AND email != '' AND created_at < NOW() - INTERVAL '{$days} days'"
+                'UPDATE posts SET email = NULL WHERE email IS NOT NULL AND email != \'\'  AND created_at < NOW() - make_interval(days => ?)',
+                [$days]
             );
 
             if ($affected > 0) {

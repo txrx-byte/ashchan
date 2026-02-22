@@ -20,6 +20,8 @@ declare(strict_types=1);
 
 use Hyperf\Server\Event;
 
+use function Hyperf\Support\env;
+
 return [
     'mode' => SWOOLE_PROCESS,
     'servers' => [
@@ -27,7 +29,7 @@ return [
             'name' => 'http',
             'type' => Hyperf\Server\Server::SERVER_HTTP,
             'host' => '0.0.0.0',
-            'port' => (int) (getenv('PORT') ?: 9503),
+            'port' => (int) env('PORT', 9503),
             'sock_type' => SWOOLE_SOCK_TCP,
             'callbacks' => [
                 Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
@@ -37,23 +39,23 @@ return [
             'name' => 'mtls',
             'type' => Hyperf\Server\Server::SERVER_HTTP,
             'host' => '0.0.0.0',
-            'port' => (int) (getenv('MTLS_PORT') ?: 8443),
+            'port' => (int) env('MTLS_PORT', 8443),
             'sock_type' => SWOOLE_SOCK_TCP | SWOOLE_SSL,
             'callbacks' => [
                 Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
             ],
             'settings' => [
-                'ssl_cert_file' => getenv('MTLS_CERT_FILE'),
-                'ssl_key_file' => getenv('MTLS_KEY_FILE'),
-                'ssl_verify_peer' => filter_var(getenv('MTLS_VERIFY_PEER'), FILTER_VALIDATE_BOOLEAN),
-                'ssl_client_cert_file' => getenv('MTLS_CA_FILE'),
+                'ssl_cert_file' => env('MTLS_CERT_FILE'),
+                'ssl_key_file' => env('MTLS_KEY_FILE'),
+                'ssl_verify_peer' => (bool) env('MTLS_VERIFY_PEER', false),
+                'ssl_client_cert_file' => env('MTLS_CA_FILE'),
             ],
         ],
     ],
     'settings' => [
         'enable_coroutine' => true,
         'hook_flags' => SWOOLE_HOOK_ALL,
-        'worker_num' => (int) (getenv('WORKER_NUM') ?: 2),
+        'worker_num' => (int) env('WORKER_NUM', 2),
         'pid_file' => BASE_PATH . '/runtime/hyperf.pid',
         'open_tcp_nodelay' => true,
         'max_coroutine' => 100000,

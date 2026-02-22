@@ -18,6 +18,10 @@ declare(strict_types=1);
  */
 
 
+use function Hyperf\Support\env;
+
+$isProduction = env('APP_ENV', 'production') === 'production';
+
 return [
     'default' => 'default',
     'channels' => [
@@ -26,7 +30,7 @@ return [
                 'class' => Monolog\Handler\StreamHandler::class,
                 'constructor' => [
                     'stream' => 'php://stdout',
-                    'level' => Monolog\Level::Debug,
+                    'level' => $isProduction ? Monolog\Level::Info : Monolog\Level::Debug,
                 ],
             ],
             'formatter' => [

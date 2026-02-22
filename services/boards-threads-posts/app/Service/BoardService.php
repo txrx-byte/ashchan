@@ -26,6 +26,7 @@ use App\Model\Thread;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
 use function Hyperf\Support\env;
+use function Hyperf\Collection\collect;
 
 final class BoardService
 {
@@ -241,11 +242,18 @@ final class BoardService
     {
         try {
             $this->redis->del('boards:all');
-            // Scan and delete individual board caches
-            /** @var array<int, string>|false $keys */
-            $keys = $this->redis->keys('board:*');
-            if (is_array($keys) && count($keys) > 0) {
-                $this->redis->del(...$keys);
+            // Use SCAN instead of KEYS to avoid blocking Redis
+            $cursor = null;
+            $keysToDelete = [];
+            do {
+                /** @var array{0: int|string, 1: array<int, string>}|false $result */
+                $result = $this->redis->scan($cursor, 'board:*', 100);
+                if ($result !== false && count($result[1]) > 0) {
+                    $keysToDelete = array_merge($keysToDelete, $result[1]);
+                }
+            } while ($cursor > 0);
+            if (count($keysToDelete) > 0) {
+                $this->redis->del(...$keysToDelete);
             }
         } catch (\Throwable $e) {
             // Redis unavailable
@@ -277,38 +285,51 @@ final class BoardService
             ->where('archived', false)
             ->count();
 
+        if ($threads->isEmpty()) {
+            return [
+                'threads'     => [],
+                'page'        => $page,
+                'total_pages' => (int) ceil($total / $perPage),
+                'total'       => $total,
+            ];
+        }
+
+        // Batch-load OPs for all threads (avoids N+1)
+        $threadIds = $threads->pluck('id')->toArray();
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $allOps */
+        $allOps = Post::query()
+            ->whereIn('thread_id', $threadIds)
+            ->where('is_op', true)
+            ->where('deleted', false)
+            ->get()
+            ->keyBy('thread_id');
+
+        // Batch-load latest 5 replies per thread using a single query
+        // Get the last 5 reply IDs per thread via subquery
+        $allReplies = Post::query()
+            ->whereIn('thread_id', $threadIds)
+            ->where('is_op', false)
+            ->where('deleted', false)
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('thread_id');
+
         $result = [];
         foreach ($threads as $thread) {
             /** @var Thread $thread */
             /** @var Post|null $op */
-            $op = Post::query()
-                ->where('thread_id', $thread->id)
-                ->where('is_op', true)
-                ->where('deleted', false)
-                ->first();
+            $op = $allOps->get($thread->id);
 
-            /** @var \Hyperf\Database\Model\Collection<int, Post> $latestReplies */
-            $latestReplies = Post::query()
-                ->where('thread_id', $thread->id)
-                ->where('is_op', false)
-                ->where('deleted', false)
-                ->orderByDesc('id')
-                ->limit(5)
-                ->get()
-                ->reverse()
-                ->values();
+            /** @var \Hyperf\Database\Model\Collection<int, Post> $threadReplies */
+            $threadReplies = $allReplies->get($thread->id, collect());
+            $latestReplies = $threadReplies->take(5)->reverse()->values();
 
             $totalReplies = $thread->reply_count;
             $shownReplies = $latestReplies->count();
             $omittedPosts = max(0, $totalReplies - $shownReplies);
             $omittedImages = 0;
             if ($omittedPosts > 0) {
-                $totalImages = Post::query()
-                    ->where('thread_id', $thread->id)
-                    ->where('is_op', false)
-                    ->where('deleted', false)
-                    ->whereNotNull('media_url')
-                    ->count();
+                $totalImages = $threadReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
                 $shownImages = $latestReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
                 $omittedImages = max(0, $totalImages - $shownImages);
             }
@@ -404,15 +425,25 @@ final class BoardService
             ->limit($board->max_threads ?: 200)
             ->get();
 
+        if ($threads->isEmpty()) {
+            return [];
+        }
+
+        // Batch-load all OPs (avoids N+1)
+        $threadIds = $threads->pluck('id')->toArray();
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $allOps */
+        $allOps = Post::query()
+            ->whereIn('thread_id', $threadIds)
+            ->where('is_op', true)
+            ->where('deleted', false)
+            ->get()
+            ->keyBy('thread_id');
+
         $result = [];
         foreach ($threads as $thread) {
             /** @var Thread $thread */
             /** @var Post|null $op */
-            $op = Post::query()
-                ->where('thread_id', $thread->id)
-                ->where('is_op', true)
-                ->where('deleted', false)
-                ->first();
+            $op = $allOps->get($thread->id);
 
             $result[] = [
                 'id'          => $thread->id,
@@ -449,14 +480,25 @@ final class BoardService
             ->limit(3000)
             ->get();
 
+        if ($threads->isEmpty()) {
+            return [];
+        }
+
+        // Batch-load all OPs (avoids N+1)
+        $threadIds = $threads->pluck('id')->toArray();
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $allOps */
+        $allOps = Post::query()
+            ->whereIn('thread_id', $threadIds)
+            ->where('is_op', true)
+            ->select(['id', 'thread_id', 'subject', 'content_html', 'content'])
+            ->get()
+            ->keyBy('thread_id');
+
         $result = [];
         foreach ($threads as $thread) {
             /** @var Thread $thread */
             /** @var Post|null $op */
-            $op = Post::query()
-                ->where('thread_id', $thread->id)
-                ->where('is_op', true)
-                ->first();
+            $op = $allOps->get($thread->id);
 
             $excerpt = $op ? ($op->subject ?: $op->content_preview) : '';
             $result[] = [

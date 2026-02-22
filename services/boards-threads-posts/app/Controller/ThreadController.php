@@ -359,7 +359,9 @@ final class ThreadController
         // Limit to 50 lookups per call
         $posts = array_slice($posts, 0, 50);
 
-        $results = [];
+        // Group by board slug, collect unique post IDs per board
+        $boardPostIds = [];
+        $keyMap = []; // maps "board:no" to avoid duplicates
         foreach ($posts as $item) {
             /** @var array<string, mixed> $item */
             $board = (string) ($item['board'] ?? '');
@@ -367,19 +369,26 @@ final class ThreadController
             if ($board === '' || $no === 0) {
                 continue;
             }
-
             $key = $board . ':' . $no;
-            if (isset($results[$key])) {
+            if (isset($keyMap[$key])) {
                 continue;
             }
+            $keyMap[$key] = true;
+            $boardPostIds[$board][] = $no;
+        }
 
-            /** @var \App\Model\Post|null $post */
-            $post = \App\Model\Post::query()
+        $results = [];
+
+        // Batch query per board slug (typically 1-3 boards per call)
+        foreach ($boardPostIds as $boardSlug => $postIds) {
+            /** @var \Hyperf\Database\Model\Collection<int, \App\Model\Post> $foundPosts */
+            $foundPosts = \App\Model\Post::query()
                 ->join('threads', 'posts.thread_id', '=', 'threads.id')
                 ->join('boards', 'threads.board_id', '=', 'boards.id')
-                ->where('boards.slug', $board)
-                ->where('posts.id', $no)
+                ->where('boards.slug', $boardSlug)
+                ->whereIn('posts.id', $postIds)
                 ->select([
+                    'posts.id',
                     'posts.thumb_url',
                     'posts.media_url',
                     'posts.media_filename',
@@ -389,9 +398,11 @@ final class ThreadController
                     'posts.content',
                     'posts.content_html',
                 ])
-                ->first();
+                ->get();
 
-            if ($post) {
+            foreach ($foundPosts as $post) {
+                $postId = (int) $post->getAttribute('id');
+                $key = $boardSlug . ':' . $postId;
                 $results[$key] = [
                     'thumb_url' => $post->getAttribute('thumb_url'),
                     'media_url' => $post->getAttribute('media_url'),

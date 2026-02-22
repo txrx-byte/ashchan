@@ -28,15 +28,23 @@ return [
     'app_env' => env('APP_ENV', 'production'),
     'scan_cacheable' => env('SCAN_CACHEABLE', false),
     StdoutLoggerInterface::class => [
-        'log_level' => [
-            LogLevel::ALERT,
-            LogLevel::CRITICAL,
-            LogLevel::DEBUG,
-            LogLevel::EMERGENCY,
-            LogLevel::ERROR,
-            LogLevel::INFO,
-            LogLevel::NOTICE,
-            LogLevel::WARNING,
-        ],
+        'log_level' => env('APP_ENV', 'production') === 'production'
+            ? [
+                LogLevel::ALERT,
+                LogLevel::CRITICAL,
+                LogLevel::EMERGENCY,
+                LogLevel::ERROR,
+                LogLevel::WARNING,
+            ]
+            : [
+                LogLevel::ALERT,
+                LogLevel::CRITICAL,
+                LogLevel::DEBUG,
+                LogLevel::EMERGENCY,
+                LogLevel::ERROR,
+                LogLevel::INFO,
+                LogLevel::NOTICE,
+                LogLevel::WARNING,
+            ],
     ],
 ];

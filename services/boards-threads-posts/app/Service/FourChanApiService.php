@@ -23,6 +23,8 @@ use App\Model\Board;
 use App\Model\Post;
 use App\Model\Thread;
 
+use function Hyperf\Collection\collect;
+
 /**
  * Service that transforms ashchan data into the exact 4chan API JSON format.
  *
@@ -137,6 +139,28 @@ final class FourChanApiService
             ->limit($perPage * $maxPages)
             ->get();
 
+        if ($threads->isEmpty()) {
+            return [];
+        }
+
+        // Batch-load all OPs and replies (avoids N+1)
+        $threadIds = $threads->pluck('id')->toArray();
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $allOps */
+        $allOps = Post::query()
+            ->whereIn('thread_id', $threadIds)
+            ->where('is_op', true)
+            ->where('deleted', false)
+            ->get()
+            ->keyBy('thread_id');
+
+        $allReplies = Post::query()
+            ->whereIn('thread_id', $threadIds)
+            ->where('is_op', false)
+            ->where('deleted', false)
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('thread_id');
+
         $pages = [];
         $chunks = $threads->chunk($perPage);
         $pageNum = 1;
@@ -145,17 +169,13 @@ final class FourChanApiService
             $threadEntries = [];
             foreach ($chunk as $thread) {
                 /** @var Thread $thread */
-                $op = Post::query()
-                    ->where('thread_id', $thread->id)
-                    ->where('is_op', true)
-                    ->where('deleted', false)
-                    ->first();
+                /** @var Post|null $op */
+                $op = $allOps->get($thread->id);
 
                 if (!$op) {
                     continue;
                 }
 
-                /** @var Post $op */
                 $entry = $this->formatPost4chan($op, $thread, true);
 
                 // Add catalog-specific fields
@@ -164,30 +184,18 @@ final class FourChanApiService
                 $entry['omitted_posts'] = max(0, $thread->reply_count - self::CATALOG_LAST_REPLIES);
                 $entry['omitted_images'] = 0;
 
+                /** @var \Hyperf\Database\Model\Collection<int, Post> $threadReplies */
+                $threadReplies = $allReplies->get($thread->id, collect());
+
                 if ($thread->reply_count > 0 && $entry['omitted_posts'] > 0) {
-                    $totalImages = Post::query()
-                        ->where('thread_id', $thread->id)
-                        ->where('is_op', false)
-                        ->where('deleted', false)
-                        ->whereNotNull('media_url')
-                        ->count();
-                    $shownImages = 0;
-                    // Count images in last_replies below
-                    $entry['omitted_images'] = $totalImages; // Will be adjusted after counting shown images
+                    $totalImages = $threadReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
+                    $entry['omitted_images'] = $totalImages;
                 }
 
                 $entry['last_modified'] = $this->toTimestamp($thread->updated_at);
 
                 // last_replies: most recent N replies
-                $lastReplies = Post::query()
-                    ->where('thread_id', $thread->id)
-                    ->where('is_op', false)
-                    ->where('deleted', false)
-                    ->orderByDesc('id')
-                    ->limit(self::CATALOG_LAST_REPLIES)
-                    ->get()
-                    ->reverse()
-                    ->values();
+                $lastReplies = $threadReplies->take(self::CATALOG_LAST_REPLIES)->reverse()->values();
 
                 $lastRepliesFormatted = [];
                 $shownImageCount = 0;
@@ -257,20 +265,34 @@ final class FourChanApiService
             return null;
         }
 
+        // Batch-load all OPs and replies (avoids N+1)
+        $threadIds = $threads->pluck('id')->toArray();
+        /** @var \Hyperf\Database\Model\Collection<int, Post> $allOps */
+        $allOps = Post::query()
+            ->whereIn('thread_id', $threadIds)
+            ->where('is_op', true)
+            ->where('deleted', false)
+            ->get()
+            ->keyBy('thread_id');
+
+        $allReplies = Post::query()
+            ->whereIn('thread_id', $threadIds)
+            ->where('is_op', false)
+            ->where('deleted', false)
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('thread_id');
+
         $threadEntries = [];
         foreach ($threads as $thread) {
             /** @var Thread $thread */
-            $op = Post::query()
-                ->where('thread_id', $thread->id)
-                ->where('is_op', true)
-                ->where('deleted', false)
-                ->first();
+            /** @var Post|null $op */
+            $op = $allOps->get($thread->id);
 
             if (!$op) {
                 continue;
             }
 
-            /** @var Post $op */
             $opFormatted = $this->formatPost4chan($op, $thread, true);
             $opFormatted['replies'] = $thread->reply_count;
             $opFormatted['images'] = $thread->image_count;
@@ -285,16 +307,10 @@ final class FourChanApiService
                 $opFormatted['imagelimit'] = 1;
             }
 
-            // Preview replies
-            $latestReplies = Post::query()
-                ->where('thread_id', $thread->id)
-                ->where('is_op', false)
-                ->where('deleted', false)
-                ->orderByDesc('id')
-                ->limit(self::PREVIEW_REPLIES)
-                ->get()
-                ->reverse()
-                ->values();
+            // Preview replies from batch-loaded data
+            /** @var \Hyperf\Database\Model\Collection<int, Post> $threadReplies */
+            $threadReplies = $allReplies->get($thread->id, collect());
+            $latestReplies = $threadReplies->take(self::PREVIEW_REPLIES)->reverse()->values();
 
             $totalReplies = $thread->reply_count;
             $shownReplies = $latestReplies->count();
@@ -303,13 +319,8 @@ final class FourChanApiService
             if ($omittedPosts > 0) {
                 $opFormatted['omitted_posts'] = $omittedPosts;
 
-                $totalImages = Post::query()
-                    ->where('thread_id', $thread->id)
-                    ->where('is_op', false)
-                    ->where('deleted', false)
-                    ->whereNotNull('media_url')
-                    ->count();
-                $shownImages = $latestReplies->filter(fn(object $r): bool => $r instanceof Post && (bool) $r->media_url)->count();
+                $totalImages = $threadReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
+                $shownImages = $latestReplies->filter(fn(Post $r) => (bool) $r->media_url)->count();
                 $opFormatted['omitted_images'] = max(0, $totalImages - $shownImages);
             }
 
@@ -685,14 +696,31 @@ final class FourChanApiService
 
     /**
      * Get unique IP count for a thread.
+     *
+     * Since IP addresses are encrypted with unique nonces, counting DISTINCT
+     * ip_address would always equal the total post count. Instead, use
+     * poster_id (deterministic per IP+thread+day) when available.
      */
     private function getUniqueIpCount(int $threadId): int
     {
+        // poster_id is a deterministic hash of IP per thread; DISTINCT gives true unique posters
+        $distinctPosters = (int) Post::query()
+            ->where('thread_id', $threadId)
+            ->where('deleted', false)
+            ->whereNotNull('poster_id')
+            ->where('poster_id', '!=', '')
+            ->distinct()
+            ->count('poster_id');
+
+        if ($distinctPosters > 0) {
+            return $distinctPosters;
+        }
+
+        // Fallback: count all non-deleted posts (upper bound; boards without poster IDs)
         return (int) Post::query()
             ->where('thread_id', $threadId)
             ->where('deleted', false)
-            ->distinct()
-            ->count('ip_address');
+            ->count();
     }
 
     /**

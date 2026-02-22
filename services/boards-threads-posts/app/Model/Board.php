@@ -55,7 +55,7 @@ class Board extends Model
         'slug', 'title', 'subtitle', 'category', 'nsfw',
         'max_threads', 'bump_limit', 'image_limit',
         'cooldown_seconds', 'text_only', 'require_subject', 'rules',
-        'staff_only', 'user_ids', 'country_flags', 'next_post_no',
+        'archived', 'staff_only', 'user_ids', 'country_flags', 'next_post_no',
     ];
 
     /**
