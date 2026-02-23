@@ -70,7 +70,7 @@ var Main = {
     var b = document.body;
     Main.board = b.getAttribute('data-board-slug');
     Main.tid   = b.getAttribute('data-thread-id');
-    Main.isThread = $.hasClass(b, 'is_thread');
+    Main.isThread = $.hasClass(b, 'is_thread') || (Main.tid !== null && Main.tid !== '');
   }
 };
 
@@ -675,39 +675,43 @@ var TopPageNav = {
 // ============================================================
 var EmbedYouTube = {
   re: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/gi,
-  urlRe: /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11}[^\s<]*)/gi,
   init: function() {
     if (!Config.embedYouTube) return;
     var msgs=$.qsa('.postMessage'); for(var i=0;i<msgs.length;i++) EmbedYouTube.exec(msgs[i]);
   },
   exec: function(msg) {
-    // First pass: linkify bare YouTube URLs in text nodes
+    // Pass 1: find bare YouTube URLs in text nodes, wrap in <a> + add embed toggle
     var walker=document.createTreeWalker(msg, NodeFilter.SHOW_TEXT, null, false);
     var textNodes=[];
     while(walker.nextNode()) textNodes.push(walker.currentNode);
     for(var j=0;j<textNodes.length;j++){
-      var tn=textNodes[j]; if(!tn.parentNode||tn.parentNode.tagName==='A') continue;
-      EmbedYouTube.urlRe.lastIndex=0;
-      if(!EmbedYouTube.urlRe.test(tn.nodeValue)) continue;
-      var frag=document.createDocumentFragment(), txt=tn.nodeValue, last=0;
-      EmbedYouTube.urlRe.lastIndex=0;
-      var um;
-      while((um=EmbedYouTube.urlRe.exec(txt))!==null){
+      var tn=textNodes[j];
+      if(!tn.parentNode||tn.parentNode.tagName==='A'||tn.parentNode.tagName==='SCRIPT') continue;
+      var txt=tn.nodeValue||'';
+      var ytRe = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})[^\s]*)/g;
+      var um = ytRe.exec(txt);
+      if(!um) continue;
+      ytRe.lastIndex=0;
+      var frag=document.createDocumentFragment(), last=0;
+      while((um=ytRe.exec(txt))!==null){
         if(um.index>last) frag.appendChild(document.createTextNode(txt.slice(last,um.index)));
-        var a=$.el('a'); a.href=um[0]; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent=um[0];
+        var a=document.createElement('a'); a.href=um[1]; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent=um[1];
         frag.appendChild(a);
-        last=EmbedYouTube.urlRe.lastIndex;
+        var s=document.createElement('span'); s.className='yt-embed-toggle';
+        s.innerHTML=' [<a href="javascript:;" data-cmd="yt-embed" data-vid="'+um[2]+'">Embed</a>]';
+        frag.appendChild(s);
+        last=ytRe.lastIndex;
       }
       if(last<txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
       tn.parentNode.replaceChild(frag,tn);
     }
-    // Second pass: add embed toggles to all YouTube <a> tags
+    // Pass 2: add embed toggles to existing <a> tags pointing to YouTube
     var links=$.qsa('a',msg);
     for(var i=0;i<links.length;i++) {
       var href=links[i].href||''; EmbedYouTube.re.lastIndex=0;
       var m=EmbedYouTube.re.exec(href); if(!m) continue;
       if (links[i].nextElementSibling && $.hasClass(links[i].nextElementSibling,'yt-embed-toggle')) continue;
-      var s=$.el('span'); s.className='yt-embed-toggle';
+      var s=document.createElement('span'); s.className='yt-embed-toggle';
       s.innerHTML=' [<a href="javascript:;" data-cmd="yt-embed" data-vid="'+m[1]+'">Embed</a>]';
       links[i].parentNode.insertBefore(s,links[i].nextSibling);
     }
