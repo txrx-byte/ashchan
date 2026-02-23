@@ -22,6 +22,7 @@
 11. [Infrastructure Changes](#11-infrastructure-changes)
 12. [Migration Strategy](#12-migration-strategy)
 13. [Testing Plan](#13-testing-plan)
+14. [Known Risks and Mitigations](#14-known-risks-and-mitigations)
 
 ---
 
@@ -220,7 +221,35 @@ Swoole WebSocket Server (api-gateway :9501)
         └── Spam scoring, ban checks
 ```
 
-### 3.2 Key Differences from Meguca
+### 3.2 Architecture Decision: Gateway vs Dedicated Service
+
+An important question is whether liveposting should run inside the API Gateway or as a separate dedicated service (e.g., `liveposting:9507`).
+
+**Decision: Run inside the API Gateway, with a migration path to extraction.**
+
+| Factor | Gateway (chosen) | Dedicated Service |
+|--------|-------------------|--------------------|
+| Deployment risk | Redeploying gateway disconnects all WS clients | Independent lifecycle |
+| Operational simplicity | No new service to manage, monitor, or certificate | Another mTLS endpoint, systemd unit, health check |
+| Shared state | Direct access to auth middleware, rate limiter, ban cache | Must duplicate or RPC for every handshake |
+| Latency | Zero-hop for HTTP→WS upgrade on same port | Extra proxy hop or separate DNS |
+| nginx routing | Single upstream, path-based split | Separate upstream block |
+| Cloudflare tunnel | Works as-is (same origin) | May need separate tunnel route |
+
+**Rationale:** At our current scale, the operational cost of a 7th service outweighs the deployment-isolation benefit. The gateway already handles all client-facing traffic, and Swoole's graceful restart (`SIGUSR1`) performs a rolling worker reload that drains existing WebSocket connections before spawning new ones — meaning a gateway redeployment does **not** necessarily sever all connections simultaneously.
+
+**Migration path:** If liveposting grows to dominate gateway resource usage or deployment cadence diverges, the WebSocket components are cleanly isolated in `app/WebSocket/` and `app/Feed/` and can be extracted into `services/liveposting/` with minimal refactoring. The client only knows the `/api/socket` path, which nginx can re-route transparently.
+
+**Graceful restart procedure for zero-downtime deploys:**
+```bash
+# Rolling worker reload — existing WS connections finish on old workers
+kill -USR1 $(cat runtime/hyperf.pid)
+# Swoole spawns new workers, old workers drain and exit after idle timeout
+```
+
+If truly zero-disconnect deploys are required (e.g., during schema migrations that change the WS protocol), a blue/green deployment with nginx upstream switching is the recommended approach.
+
+### 3.3 Key Differences from Meguca
 
 | Aspect | Meguca (Go) | Ashchan (Swoole) |
 |--------|-------------|------------------|
@@ -235,7 +264,7 @@ Swoole WebSocket Server (api-gateway :9501)
 | Binary protocol | Custom binary frames | Same binary frame format (compatible) |
 | Multi-worker | Single process | Multiple Swoole workers (shared via Swoole Table) |
 
-### 3.3 Component Map
+### 3.4 Component Map
 
 ```
 services/api-gateway/
@@ -474,20 +503,31 @@ final class ThreadFeed
         });
     }
 
+    // Guard flag prevents timer callback stacking if flush is slow
+    private bool $flushing = false;
+
     private function flush(): void
     {
+        if ($this->flushing) {
+            return; // Previous flush still in progress — skip this tick
+        }
         if ($this->messageBuffer->isEmpty()) {
             \Swoole\Timer::clear($this->timerId);
             $this->timerId = 0;
             return;
         }
-        $messages = [];
-        while (!$this->messageBuffer->isEmpty()) {
-            $messages[] = $this->messageBuffer->dequeue();
+        $this->flushing = true;
+        try {
+            $messages = [];
+            while (!$this->messageBuffer->isEmpty()) {
+                $messages[] = $this->messageBuffer->dequeue();
+            }
+            // Encode as MessageConcat and send to all
+            $encoded = BinaryProtocol::encodeConcat($messages);
+            $this->broadcastText($encoded);
+        } finally {
+            $this->flushing = false;
         }
-        // Encode as MessageConcat and send to all
-        $encoded = BinaryProtocol::encodeConcat($messages);
-        $this->broadcastText($encoded);
     }
 }
 ```
@@ -564,15 +604,33 @@ final class AppendHandler
 ```php
 final class BinaryProtocol
 {
-    // Encode post ID as float64 LE (matches meguca's JS DataView.getFloat64)
+    /**
+     * Encode post ID as float64 LE (matches meguca's JS DataView.getFloat64).
+     *
+     * CAVEAT: IEEE 754 double-precision floats have 53 bits of integer
+     * mantissa. Post IDs above 2^53 (9,007,199,254,740,992) will lose
+     * precision. PostgreSQL BIGINT goes up to 2^63, so this encoding is
+     * safe for the first ~9 quadrillion posts. If ashchan ever approaches
+     * this limit, switch to a fixed 8-byte uint64 LE encoding and update
+     * the JS decoder to use BigInt. For now, the float64 approach matches
+     * meguca's battle-tested wire format and gives us the fastest JS
+     * decode path (DataView.getFloat64 is a single V8 intrinsic).
+     *
+     * This MUST be validated in the BinaryProtocol integration tests
+     * with boundary values: 0, 1, 2^53-1, 2^53, 2^53+1.
+     */
     public static function encodePostId(int $postId): string
     {
+        assert($postId >= 0 && $postId <= (2**53), 'Post ID exceeds float64 safe integer range');
         return pack('e', (float) $postId);  // 'e' = little-endian double
     }
 
     public static function decodePostId(string $data): int
     {
-        return (int) unpack('e', substr($data, 0, 8))[1];
+        $float = unpack('e', substr($data, 0, 8))[1];
+        $int = (int) $float;
+        assert(abs($float - $int) < 0.5, 'Post ID lost precision in float64 decode');
+        return $int;
     }
 
     public static function encodeAppend(int $postId, string $charUtf8): string
@@ -818,7 +876,7 @@ These data structures live in shared memory, accessible by all Swoole workers wi
 |-------|-----|---------|---------|
 | `connections` | fd (int) | ip, thread_id, board, worker_id, connected_at | Client registry |
 | `ip_counts` | ip_hash (string) | count (int) | Connection limiting |
-| `open_posts` | post_id (int) | fd, thread_id, body (2KB), char_count, line_count | Open post state |
+| `open_posts` | post_id (int) | fd, thread_id, body (2KB), char_count, line_count | Open post state (see §14.1 for sizing) |
 | `feed_registry` | thread_id (int) | worker_ids (bitmask), client_count | Cross-worker routing |
 
 ### 9.2 Performance Characteristics
@@ -881,7 +939,7 @@ location /api/socket {
 | Max connections per IP | 16 | Swoole Table `ip_counts` + atomic increment |
 | Handshake timeout | 5s | Swoole WebSocket setting |
 | Idle connection timeout | 5min | Swoole Timer, no message = disconnect |
-| Ping interval | 60s | Server→Client ping frame |
+| Ping interval | 45s | Server→Client ping frame (must be < Cloudflare's 100s idle timeout) |
 | Ping timeout | 30s | No pong = disconnect |
 | Max frame size | 4KB | Swoole `websocket_max_frame_size` |
 
@@ -946,7 +1004,7 @@ location /api/socket {
 
 - Enable **WebSocket** support in the Cloudflare dashboard (free plan supports WebSockets).
 - Cloudflare Tunnel (`cloudflared`) natively supports WebSocket proxying.
-- Set `proxy_read_timeout` > Cloudflare's 100-second idle timeout (use ping frames to keep alive).
+- Set `proxy_read_timeout` > Cloudflare's 100-second idle timeout (use 45s ping frames to keep alive — see §10.1). The 45s interval ensures at least two ping/pong round-trips occur within each 100s Cloudflare window, providing a safety margin over the previous 60s interval.
 
 ### 11.3 Swoole Server Settings
 
@@ -959,7 +1017,7 @@ location /api/socket {
     'websocket_compression' => true,           // permessage-deflate
     'open_websocket_close_frame' => true,
     'max_connection' => 100000,
-    'heartbeat_check_interval' => 60,
+    'heartbeat_check_interval' => 45,       // Ping every 45s (< CF 100s idle timeout)
     'heartbeat_idle_time' => 300,
 ],
 ```
@@ -1053,6 +1111,137 @@ No new Redis databases required. The WebSocket system uses:
 - iOS Safari, Android Chrome (mobile)
 - Behind corporate proxy (Websocket over TLS)
 - With Cloudflare (connection resumption after CF timeout)
+
+---
+
+## 14. Known Risks and Mitigations
+
+### 14.1 Swoole Table Fixed Sizing
+
+**Risk:** Swoole Tables require pre-allocated row counts at server start. If the `open_posts` table fills during a traffic spike, new post allocations will fail silently (`Swoole\Table::set()` returns `false` on a full table).
+
+**Mitigations:**
+
+1. **Over-provision by 4×:** Size tables to 4× expected peak. For `open_posts`, if we expect a peak of 5,000 simultaneous open posts, allocate 20,000 rows (~40MB at 2KB/row — trivial).
+
+2. **Monitoring and alerting:** Expose table utilization via the `/health` endpoint and Prometheus metrics:
+    ```php
+    // In HealthController or a dedicated MetricsController:
+    $table = $this->openPostsTable;
+    $metrics['swoole_table_open_posts_count'] = $table->count();
+    $metrics['swoole_table_open_posts_capacity'] = $table->getSize();
+    $metrics['swoole_table_open_posts_utilization'] = $table->count() / $table->getSize();
+    ```
+    Alert at 70% utilization. Critical alert at 90%.
+
+3. **Graceful rejection:** Always check the return value of `$table->set()`. On failure, return a WebSocket error frame to the client ("server at capacity, try again") rather than silently dropping the post:
+    ```php
+    if (!$this->openPostsTable->set((string) $postId, $row)) {
+        $this->sendError($fd, 'Server at capacity. Please try again shortly.');
+        return;
+    }
+    ```
+
+4. **Dynamic resizing path:** Swoole Tables cannot be resized at runtime. If utilization consistently exceeds 60%, increase the allocation in `server.php` and perform a rolling restart. The table size should be a configurable env var:
+    ```php
+    $tableSize = (int) (getenv('SWOOLE_TABLE_OPEN_POSTS_SIZE') ?: 20000);
+    ```
+
+### 14.2 Memory Leaks in Long-Running Workers
+
+**Risk:** PHP was not designed for week-long process lifetimes. Subtle memory leaks in `ThreadFeed` objects, `SplQueue` message buffers, closures capturing references, and the `$recentPosts` cache can compound over hours.
+
+**Mitigations:**
+
+1. **Worker recycling:** Configure Swoole to restart workers after processing a set number of requests or after a time limit:
+    ```php
+    'settings' => [
+        'max_request' => 500000,           // Restart worker after 500k requests
+        'max_request_grace' => 100000,     // Grace period to finish in-flight work
+    ],
+    ```
+    Additionally, implement a timer-based recycler that triggers worker shutdown after 8 hours regardless of request count:
+    ```php
+    // In WorkerStart callback:
+    \Swoole\Timer::after(8 * 3600 * 1000, function () use ($server, $workerId) {
+        // Graceful: stop accepting new connections, drain existing ones
+        $server->stop($workerId);
+    });
+    ```
+
+2. **Aggressive ThreadFeed cleanup:** When a feed has zero clients, destroy it immediately (don't keep it warm). The `FeedGarbageCollector` process runs every 60 seconds and evicts feeds idle for > 5 minutes:
+    ```php
+    // FeedGarbageCollector:
+    foreach ($this->feeds as $threadId => $feed) {
+        if ($feed->clientCount() === 0 && $feed->idleSince() > 300) {
+            $feed->destroy();  // Clears timers, buffers, cache
+            unset($this->feeds[$threadId]);
+        }
+    }
+    ```
+
+3. **Memory monitoring:** Log `memory_get_usage(true)` per worker every 60 seconds. Alert if any worker exceeds 256MB. Include in `/health` response:
+    ```php
+    $metrics['worker_memory_bytes'] = memory_get_usage(true);
+    $metrics['worker_memory_peak_bytes'] = memory_get_peak_usage(true);
+    $metrics['worker_uptime_seconds'] = time() - $this->workerStartTime;
+    ```
+
+4. **SplQueue drain:** Ensure the `MessageBuffer` is fully drained in `ThreadFeed::destroy()`. Avoid keeping references to dequeued items:
+    ```php
+    public function destroy(): void
+    {
+        if ($this->timerId) {
+            \Swoole\Timer::clear($this->timerId);
+        }
+        // Explicit drain — prevents SplQueue from holding references
+        while (!$this->messageBuffer->isEmpty()) {
+            $this->messageBuffer->dequeue();
+        }
+        $this->clients = [];
+        $this->openPostBodies = [];
+        $this->recentPosts = [];
+    }
+    ```
+
+### 14.3 Timer Callback Stacking
+
+**Risk:** `\Swoole\Timer::tick(100, ...)` fires every 100ms. If `flush()` takes longer than 100ms (e.g., due to a large client set or slow `$server->push()`), the next tick fires while the previous one is still executing, causing unbounded memory growth in the message buffer.
+
+**Mitigation:** A `$flushing` guard flag is implemented in `ThreadFeed::flush()` (see §5.5). If a flush is in progress when the next tick fires, the tick is skipped. This is safe because the in-progress flush will drain the entire buffer. Additionally, if `flush()` consistently takes >50ms (logged via a stopwatch), it indicates the client set is too large for a single feed and should be investigated.
+
+### 14.4 Float64 Post ID Precision
+
+**Risk:** `pack('e', (float) $postId)` encodes the post ID as an IEEE 754 double-precision float. This format has a 53-bit mantissa, meaning integer values above 2^53 (9,007,199,254,740,992) cannot be represented exactly. PHP's `(float)` cast and JavaScript's `DataView.getFloat64()` will both silently round, causing post ID collisions.
+
+**Mitigations:**
+
+1. **Assertion in BinaryProtocol:** `encodePostId()` and `decodePostId()` include assertions that verify the post ID is within the safe integer range (see §5.8). These assertions are active in development and staging.
+
+2. **Practical risk is negligible:** PostgreSQL `BIGSERIAL` starts at 1 and increments. Reaching 2^53 requires 9 quadrillion posts. At 1,000 posts/second sustained, this would take ~285,000 years.
+
+3. **Future-proofing:** If ashchan ever migrates to UUIDs for post IDs (currently used for user-facing PKs but not internal post IDs), the binary protocol must switch to a text-based post ID encoding or a fixed 16-byte UUID frame. This would be a protocol version bump (`ashchan-v2`).
+
+4. **Required test cases:** The `BinaryProtocol` unit test suite must include round-trip tests for these values:
+    ```php
+    $testIds = [0, 1, 42, 2**32, 2**53 - 1]; // All must round-trip exactly
+    $unsafeIds = [2**53, 2**53 + 1];           // Must throw assertion error
+    ```
+
+### 14.5 Cloudflare 100-Second Idle Timeout
+
+**Risk:** Cloudflare terminates WebSocket connections that are idle for 100 seconds (no frames in either direction). The original design used 60s server pings + 30s pong timeout, which cuts it dangerously close: if a ping is sent at t=0, the pong arrives at t=0.1, then the next ping fires at t=60. The connection is "idle" from Cloudflare's perspective from t=0.1 to t=60 — a 59.9s gap. A single delayed ping (e.g., due to Swoole event loop contention) could push this past 100s.
+
+**Mitigation:** Ping interval reduced to **45 seconds** (see §10.1, §11.3). This guarantees:
+- Worst case idle gap: 45s (ping sent) + 30s (pong timeout) = 75s
+- Even with a 20s delay, the gap reaches 65s — well under 100s
+- Two ping/pong exchanges fit comfortably within each 100s Cloudflare window
+
+### 14.6 Cross-Worker State Consistency
+
+**Risk:** Swoole runs multiple workers. WebSocket fd's are worker-local, but the `Swoole\Table` shared state is global. Race conditions can occur when two workers simultaneously modify the same `open_posts` row (e.g., a client disconnects on worker 0 while a reclaim arrives on worker 1).
+
+**Mitigation:** Open post ownership is tied to the fd, which is inherently single-worker. The `open_posts` Swoole Table row includes a `worker_id` column. Any operation on an open post first checks `$row['worker_id'] === $this->workerId`. Cross-worker reclaim requests are forwarded via `$server->sendMessage()` to the owning worker, which processes them sequentially in its event loop — no locks needed.
 
 ---
 
