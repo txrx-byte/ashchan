@@ -49,6 +49,9 @@ use Hyperf\DbConnection\Model\Model;
  * @property string|null $delete_password_hash
  * @property bool        $deleted
  * @property string|null $deleted_at
+ * @property bool        $is_editing
+ * @property string|null $edit_password_hash
+ * @property string|null $edit_expires_at
  * @property string      $created_at
  * @property string      $updated_at
  * 
@@ -75,6 +78,7 @@ class Post extends Model
         'media_filename', 'media_size', 'media_dimensions', 'media_hash',
         'spoiler_image', 'delete_password_hash',
         'deleted', 'deleted_at',
+        'is_editing', 'edit_password_hash', 'edit_expires_at',
     ];
 
     /**
@@ -88,6 +92,7 @@ class Post extends Model
         'spoiler_image'  => 'boolean',
         'deleted'        => 'boolean',
         'board_post_no'  => 'integer',
+        'is_editing'     => 'boolean',
     ];
 
     /** @return \Hyperf\Database\Model\Relations\BelongsTo<Thread, $this> */

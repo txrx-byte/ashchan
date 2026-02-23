@@ -22,6 +22,7 @@ use Hyperf\HttpServer\Router\Router;
 use App\Controller\HealthController;
 use App\Controller\BoardController;
 use App\Controller\ThreadController;
+use App\Controller\LivepostController;
 use App\Controller\FourChanApiController;
 
 Router::get('/health', [HealthController::class, 'check']);
@@ -44,6 +45,13 @@ Router::get('/api/v1/boards/{slug}/threads/{id:\d+}/posts', [ThreadController::c
 Router::post('/api/v1/posts/delete', [ThreadController::class, 'deletePost']);
 Router::post('/api/v1/posts/lookup', [ThreadController::class, 'bulkLookup']);
 Router::get('/api/v1/posts/by-ip-hash/{hash:[0-9a-f]{16}}', [ThreadController::class, 'postsByIpHash']);
+
+// Liveposting — open post lifecycle (@see docs/LIVEPOSTING.md Phase 2)
+Router::post('/api/v1/boards/{slug}/threads/{id:\d+}/open-post', [LivepostController::class, 'openPost']);
+Router::post('/api/v1/posts/{id:\d+}/close', [LivepostController::class, 'closePost']);
+Router::put('/api/v1/posts/{id:\d+}/body', [LivepostController::class, 'updateBody']);
+Router::post('/api/v1/posts/{id:\d+}/reclaim', [LivepostController::class, 'reclaimPost']);
+Router::post('/api/v1/posts/close-expired', [LivepostController::class, 'closeExpired']);
 
 // Staff actions
 Router::delete('/api/v1/boards/{slug}/posts/{id:\d+}', [ThreadController::class, 'staffDeletePost']);

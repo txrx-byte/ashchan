@@ -20,6 +20,12 @@ declare(strict_types=1);
 namespace App\WebSocket;
 
 use App\Feed\ThreadFeedManager;
+use App\WebSocket\Handler\AppendHandler;
+use App\WebSocket\Handler\BackspaceHandler;
+use App\WebSocket\Handler\ClosePostHandler;
+use App\WebSocket\Handler\InsertPostHandler;
+use App\WebSocket\Handler\ReclaimHandler;
+use App\WebSocket\Handler\SpliceHandler;
 use App\WebSocket\Handler\SynchroniseHandler;
 use Psr\Log\LoggerInterface;
 use Swoole\WebSocket\Server as WsServer;
@@ -30,12 +36,15 @@ use Swoole\WebSocket\Server as WsServer;
  * Text messages: first 2 chars are the zero-padded type code.
  * Binary messages: last byte is the type byte.
  *
- * Phase 1 (Foundation) supports:
+ * Supports:
  * - Text type 30 (Synchronise): subscribe to a thread feed
  * - Text type 34 (NOOP): keepalive, no action
- *
- * Phase 2 will add: InsertPost (01), ClosePost (05), Reclaim (31),
- * and binary types Append (0x02), Backspace (0x03), Splice (0x04).
+ * - Text type 01 (InsertPost): allocate an open post
+ * - Text type 05 (ClosePost): finalize an open post
+ * - Text type 31 (Reclaim): reclaim an open post after disconnect
+ * - Binary type 0x02 (Append): character streaming
+ * - Binary type 0x03 (Backspace): delete last character
+ * - Binary type 0x04 (Splice): arbitrary text replacement
  *
  * @see docs/LIVEPOSTING.md §4.2, §5.2
  */
@@ -52,6 +61,12 @@ final class MessageHandler
     public function __construct(
         private readonly ThreadFeedManager $feedManager,
         private readonly SynchroniseHandler $syncHandler,
+        private readonly InsertPostHandler $insertPostHandler,
+        private readonly ClosePostHandler $closePostHandler,
+        private readonly ReclaimHandler $reclaimHandler,
+        private readonly AppendHandler $appendHandler,
+        private readonly BackspaceHandler $backspaceHandler,
+        private readonly SpliceHandler $spliceHandler,
         private readonly WsServer $server,
         private readonly LoggerInterface $logger,
     ) {
@@ -86,11 +101,20 @@ final class MessageHandler
                 break;
 
             case self::TEXT_INSERT_POST:
+                $this->handleInsertPost($fd, $payloadStr, $conn);
+                break;
+
             case self::TEXT_CLOSE_POST:
+                $this->closePostHandler->handle($fd, $conn);
+                break;
+
             case self::TEXT_RECLAIM:
+                $this->handleReclaim($fd, $payloadStr, $conn);
+                break;
+
             case self::TEXT_INSERT_IMAGE:
-                // Phase 2: not yet implemented
-                $this->sendError($fd, 'This feature is not yet available');
+                // Phase 3: not yet implemented
+                $this->sendError($fd, 'Image attachment is not yet available');
                 break;
 
             default:
@@ -122,10 +146,19 @@ final class MessageHandler
 
         switch ($type) {
             case BinaryProtocol::TYPE_APPEND:
+                // Strip the type byte (last byte) and pass the char bytes
+                $charData = substr($data, 0, -1);
+                $this->appendHandler->handle($fd, $charData, $conn);
+                break;
+
             case BinaryProtocol::TYPE_BACKSPACE:
+                $this->backspaceHandler->handle($fd, $conn);
+                break;
+
             case BinaryProtocol::TYPE_SPLICE:
-                // Phase 2: not yet implemented
-                $this->sendError($fd, 'Liveposting is not yet available');
+                // Strip the type byte (last byte) and pass the splice payload
+                $spliceData = substr($data, 0, -1);
+                $this->spliceHandler->handle($fd, $spliceData, $conn);
                 break;
 
             default:
@@ -169,6 +202,59 @@ final class MessageHandler
         }
 
         $this->syncHandler->handle($fd, $conn, $board, $threadId);
+    }
+
+    /**
+     * Handle InsertPost (type 01): allocate an open post.
+     */
+    private function handleInsertPost(int $fd, string $payloadStr, ClientConnection $conn): void
+    {
+        $payload = $this->decodeJsonPayload($fd, $payloadStr, 'InsertPost');
+        if ($payload === null) {
+            return;
+        }
+
+        $this->insertPostHandler->handle($fd, $conn, $payload);
+    }
+
+    /**
+     * Handle Reclaim (type 31): reclaim an open post after disconnect.
+     */
+    private function handleReclaim(int $fd, string $payloadStr, ClientConnection $conn): void
+    {
+        $payload = $this->decodeJsonPayload($fd, $payloadStr, 'Reclaim');
+        if ($payload === null) {
+            return;
+        }
+
+        $this->reclaimHandler->handle($fd, $conn, $payload);
+    }
+
+    /**
+     * Decode a JSON payload string, returning null on failure.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function decodeJsonPayload(int $fd, string $payloadStr, string $context): ?array
+    {
+        if ($payloadStr === '' || $payloadStr === false) {
+            $this->sendError($fd, "Missing {$context} payload");
+            return null;
+        }
+
+        try {
+            $payload = json_decode($payloadStr, true, 8, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            $this->sendError($fd, "Invalid JSON in {$context}");
+            return null;
+        }
+
+        if (!is_array($payload)) {
+            $this->sendError($fd, "Invalid {$context} payload");
+            return null;
+        }
+
+        return $payload;
     }
 
     /**

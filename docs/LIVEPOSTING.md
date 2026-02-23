@@ -1,6 +1,6 @@
 # Liveposting — Real-Time Post Streaming for Ashchan
 
-> **Status:** Design Document  
+> **Status:** Phase 2 Complete (Post Lifecycle)  
 > **Date:** 2026-02-23  
 > **Source Study:** meguca imageboard (Go/Gorilla WebSocket)  
 > **Target Stack:** Hyperf 3.1 / Swoole (PHP-CLI)
@@ -1032,21 +1032,35 @@ No new Redis databases required. The WebSocket system uses:
 
 ## 12. Migration Strategy
 
-### Phase 1: Foundation (Week 1-2)
-1. Add WebSocket server listener to gateway `server.php`.
-2. Implement `WebSocketController` with handshake, ping/pong, basic routing.
-3. Implement `BinaryProtocol` encode/decode.
-4. Implement `ThreadFeedManager` and `ThreadFeed` with client tracking.
-5. Implement `SynchroniseHandler` — client can connect and receive sync state.
-6. Add nginx WebSocket proxy configuration.
+### Phase 1: Foundation (Week 1-2) — ✅ COMPLETE (`de21293`)
+1. ✅ Add WebSocket server listener to gateway `server.php`.
+2. ✅ Implement `WebSocketController` with handshake, ping/pong, basic routing.
+3. ✅ Implement `BinaryProtocol` encode/decode.
+4. ✅ Implement `ThreadFeedManager` and `ThreadFeed` with client tracking.
+5. ✅ Implement `SynchroniseHandler` — client can connect and receive sync state.
+6. ✅ Add nginx WebSocket proxy configuration.
 
-### Phase 2: Post Lifecycle (Week 3-4)
-1. Apply database migrations (`is_editing`, `open_post_bodies`, `spam_scores`).
-2. Implement `InsertPostHandler` — allocate open post via mTLS to boards service.
-3. Implement `AppendHandler`, `BackspaceHandler`, `SpliceHandler` — character streaming.
-4. Implement `ClosePostHandler` — finalize post, parse body, broadcast close.
-5. Implement `ReclaimHandler` — reclaim post after disconnect.
-6. Implement database write debouncing.
+**Implementation notes (Phase 1):**
+- Swoole Tables cannot be created after worker fork — used worker-local arrays for IP rate limiting and connection tracking instead.
+- `onHandShake` does not receive `WsServer` — IP rate limiting moved to controller-local `$connectionsByIp` array.
+- Added `FeedGarbageCollector` custom process (normally Phase 4) since it was trivial to include.
+- Added `FeedCache`, `MessageBuffer`, `ClientConnection`, `OpenPost` supporting classes.
+
+### Phase 2: Post Lifecycle (Week 3-4) — ✅ COMPLETE
+1. ✅ Apply database migrations (`is_editing`, `open_post_bodies`, `spam_scores`) — added to `db/install.sql`.
+2. ✅ Implement `InsertPostHandler` — allocates open post via mTLS to BTP service, sends PostID, broadcasts InsertPost.
+3. ✅ Implement `AppendHandler`, `BackspaceHandler`, `SpliceHandler` — binary character streaming with broadcast.
+4. ✅ Implement `ClosePostHandler` — finalizes post via BTP, broadcasts close; includes `forceClose()` for disconnect cleanup.
+5. ✅ Implement `ReclaimHandler` — reclaims post via BTP password verification, restores OpenPost state.
+6. ✅ Implement database write debouncing — `Timer::after(1000ms)` per open post in `ThreadFeed`, persists via mTLS PUT.
+
+**Implementation notes (Phase 2):**
+- Created separate `BoardService::createOpenPost()` rather than modifying existing `createPost()` — open posts have `is_editing=true`, empty content, body stored in `open_post_bodies` table.
+- `ProxyClient` threaded through `WebSocketController` → `ThreadFeedManager` → `ThreadFeed` to enable mTLS calls for write debouncing.
+- `ClosePostHandler` stored as property on `WebSocketController` for force-close on disconnect in `onClose()`.
+- BTP service exposes 5 new endpoints via `LivepostController`: open-post, close, body update, reclaim, close-expired.
+- Edit password uses bcrypt cost 4 (fast, short-lived credential for reclaim within 15-minute window).
+- Event bus integration included: `livepost.opened`, `livepost.closed`, `livepost.expired` events via Redis Streams.
 
 ### Phase 3: Client (Week 5-6)
 1. Build `livepost/` JavaScript module.
@@ -1059,9 +1073,9 @@ No new Redis databases required. The WebSocket system uses:
 ### Phase 4: Anti-Spam & Polish (Week 7-8)
 1. Implement spam scoring and captcha integration.
 2. Implement cross-worker broadcasting via `$server->sendMessage()`.
-3. Implement `FeedGarbageCollector` process for idle feed eviction.
-4. Implement open post timeout (15 min auto-close).
-5. Add event bus integration (`livepost.opened`, `livepost.closed`).
+3. ~~Implement `FeedGarbageCollector` process for idle feed eviction.~~ ✅ Done in Phase 1.
+4. Implement open post timeout (15 min auto-close via scheduled task calling `closeExpiredPosts()`).
+5. ~~Add event bus integration (`livepost.opened`, `livepost.closed`).~~ ✅ Done in Phase 2.
 6. Load testing and performance tuning.
 
 ### Phase 5: Rollout

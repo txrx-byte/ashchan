@@ -20,6 +20,13 @@ declare(strict_types=1);
 namespace App\WebSocket;
 
 use App\Feed\ThreadFeedManager;
+use App\Service\ProxyClient;
+use App\WebSocket\Handler\AppendHandler;
+use App\WebSocket\Handler\BackspaceHandler;
+use App\WebSocket\Handler\ClosePostHandler;
+use App\WebSocket\Handler\InsertPostHandler;
+use App\WebSocket\Handler\ReclaimHandler;
+use App\WebSocket\Handler\SpliceHandler;
 use App\WebSocket\Handler\SynchroniseHandler;
 use Psr\Log\LoggerInterface;
 use Swoole\Http\Request;
@@ -63,6 +70,9 @@ final class WebSocketController
     /** Worker-local SynchroniseHandler. */
     private ?SynchroniseHandler $syncHandler = null;
 
+    /** Worker-local ClosePostHandler (also used for force-close on disconnect). */
+    private ?ClosePostHandler $closePostHandler = null;
+
     /** Cached WsServer reference (set on first onMessage/onClose call). */
     private ?WsServer $serverRef = null;
 
@@ -87,6 +97,7 @@ final class WebSocketController
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly ProxyClient $proxyClient,
     ) {
         $this->enabled = filter_var(
             getenv('LIVEPOSTING_ENABLED') ?: 'false',
@@ -233,7 +244,10 @@ final class WebSocketController
 
         // Unsubscribe from thread feed
         if ($conn->isSynced() && $this->feedManager !== null) {
-            // Phase 2: close any open post here (persist body, broadcast close)
+            // Force-close any open post (persist body, broadcast close)
+            if ($conn->hasOpenPost() && $this->closePostHandler !== null) {
+                $this->closePostHandler->forceClose($conn);
+            }
             $this->feedManager->unsubscribe($fd, $conn->threadId);
         }
 
@@ -269,7 +283,7 @@ final class WebSocketController
         $this->workerId = $workerId;
 
         if ($this->enabled) {
-            $this->feedManager = new ThreadFeedManager($server, $this->logger, $workerId);
+            $this->feedManager = new ThreadFeedManager($server, $this->logger, $workerId, $this->proxyClient);
 
             $this->logger->info('WebSocket worker started', [
                 'worker_id' => $workerId,
@@ -368,7 +382,7 @@ final class WebSocketController
 
         $this->serverRef = $server;
         $this->workerId = $server->worker_id;
-        $this->feedManager = new ThreadFeedManager($server, $this->logger, $this->workerId);
+        $this->feedManager = new ThreadFeedManager($server, $this->logger, $this->workerId, $this->proxyClient);
     }
 
     /**
@@ -382,15 +396,27 @@ final class WebSocketController
 
         $this->ensureInitialized($server);
 
-        $this->syncHandler = new SynchroniseHandler(
-            $this->feedManager,
-            $server,
-            $this->logger,
-        );
+        /** @var ThreadFeedManager $fm */
+        $fm = $this->feedManager;
+
+        $this->syncHandler = new SynchroniseHandler($fm, $server, $this->logger);
+
+        $insertPostHandler = new InsertPostHandler($fm, $this->proxyClient, $server, $this->logger);
+        $this->closePostHandler = new ClosePostHandler($fm, $this->proxyClient, $server, $this->logger);
+        $reclaimHandler = new ReclaimHandler($fm, $this->proxyClient, $server, $this->logger);
+        $appendHandler = new AppendHandler($fm, $server, $this->logger);
+        $backspaceHandler = new BackspaceHandler($fm, $server, $this->logger);
+        $spliceHandler = new SpliceHandler($fm, $server, $this->logger);
 
         $this->messageHandler = new MessageHandler(
-            $this->feedManager,
+            $fm,
             $this->syncHandler,
+            $insertPostHandler,
+            $this->closePostHandler,
+            $reclaimHandler,
+            $appendHandler,
+            $backspaceHandler,
+            $spliceHandler,
             $server,
             $this->logger,
         );

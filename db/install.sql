@@ -325,7 +325,11 @@ CREATE TABLE IF NOT EXISTS posts (
     spoiler_image BOOLEAN DEFAULT false,
     delete_password_hash VARCHAR(255),
     deleted BOOLEAN DEFAULT false,
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMPTZ,
+    -- Liveposting: open/editing post state (§7.1)
+    is_editing BOOLEAN NOT NULL DEFAULT FALSE,
+    edit_password_hash TEXT,
+    edit_expires_at TIMESTAMPTZ
 );
 
 ALTER TABLE threads ADD CONSTRAINT fk_op_post FOREIGN KEY (op_post_id) REFERENCES posts(id) ON DELETE SET NULL;
@@ -337,6 +341,27 @@ CREATE INDEX IF NOT EXISTS idx_posts_email_retention ON posts(created_at) WHERE 
 CREATE INDEX IF NOT EXISTS idx_posts_board_post_no ON posts(board_post_no);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_posts_board_post_no_unique ON posts(board_post_no, thread_id);
 CREATE INDEX IF NOT EXISTS idx_posts_not_deleted ON posts(thread_id, created_at) WHERE deleted = false;
+CREATE INDEX IF NOT EXISTS idx_posts_is_editing ON posts(is_editing) WHERE is_editing = TRUE;
+CREATE INDEX IF NOT EXISTS idx_posts_edit_expires ON posts(edit_expires_at) WHERE is_editing = TRUE AND edit_expires_at IS NOT NULL;
+
+-- Open post bodies: rapidly-changing body text stored separately to
+-- avoid write amplification on the main posts table. @see docs/LIVEPOSTING.md §7.2
+CREATE TABLE IF NOT EXISTS open_post_bodies (
+    post_id    BIGINT PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,
+    body       TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Spam scoring for liveposting rate limiting. @see docs/LIVEPOSTING.md §7.3
+CREATE TABLE IF NOT EXISTS spam_scores (
+    ip_hash    TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    score      INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (ip_hash, session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_spam_scores_updated ON spam_scores(updated_at);
 
 -- ═══════════════════════════════════════════════════════════════
 -- 4. MODERATION SYSTEM

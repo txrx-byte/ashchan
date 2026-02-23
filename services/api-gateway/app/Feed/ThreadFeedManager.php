@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 namespace App\Feed;
 
+use App\Service\ProxyClient;
 use App\WebSocket\ClientConnection;
 use Psr\Log\LoggerInterface;
 use Swoole\WebSocket\Server as WsServer;
@@ -70,6 +71,7 @@ final class ThreadFeedManager
         private readonly WsServer $server,
         private readonly LoggerInterface $logger,
         private readonly int $workerId,
+        private readonly ?ProxyClient $proxyClient = null,
     ) {
         $this->maxConnectionsPerIp = (int) (getenv('WS_MAX_CONNECTIONS_PER_IP') ?: 16);
     }
@@ -80,7 +82,7 @@ final class ThreadFeedManager
     public function getOrCreate(int $threadId): ThreadFeed
     {
         if (!isset($this->feeds[$threadId])) {
-            $feed = new ThreadFeed($threadId, $this->server, $this->logger);
+            $feed = new ThreadFeed($threadId, $this->server, $this->logger, $this->proxyClient);
             $this->feeds[$threadId] = $feed;
 
             $this->logger->debug('ThreadFeed created', [

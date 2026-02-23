@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 namespace App\Feed;
 
+use App\Service\ProxyClient;
 use App\WebSocket\BinaryProtocol;
 use App\WebSocket\ClientConnection;
 use Psr\Log\LoggerInterface;
@@ -45,6 +46,9 @@ final class ThreadFeed
     /** Flush interval in milliseconds. */
     private const TICK_INTERVAL_MS = 100;
 
+    /** Debounce interval for database body writes (milliseconds). */
+    private const BODY_WRITE_DEBOUNCE_MS = 1000;
+
     /** @var array<int, ClientConnection> fd → connection */
     private array $clients = [];
 
@@ -63,6 +67,16 @@ final class ThreadFeed
     /** Guard flag to prevent timer callback stacking. */
     private bool $flushing = false;
 
+    /**
+     * Debounce timers for database body writes: postId → timer ID.
+     *
+     * Each open post gets at most one write per second to reduce DB load.
+     * @see docs/LIVEPOSTING.md §9.3
+     *
+     * @var array<int, int>
+     */
+    private array $bodyWriteTimers = [];
+
     /** Unix timestamp when the last client was removed (for GC). */
     private int $idleSince = 0;
 
@@ -73,6 +87,7 @@ final class ThreadFeed
         private readonly int $threadId,
         private readonly WsServer $server,
         private readonly LoggerInterface $logger,
+        private readonly ?ProxyClient $proxyClient = null,
     ) {
         $this->messageBuffer = new MessageBuffer();
         $this->createdAt = time();
@@ -188,11 +203,15 @@ final class ThreadFeed
      * Update the cached body of an open post.
      *
      * This in-memory cache is used to serve instant sync to newly-connecting
-     * clients without hitting the database.
+     * clients without hitting the database. Also schedules a debounced
+     * database write (at most once per second per post).
+     *
+     * @see docs/LIVEPOSTING.md §9.3
      */
     public function updateOpenBody(int $postId, string $body): void
     {
         $this->openPostBodies[$postId] = $body;
+        $this->scheduleBodyWrite($postId);
     }
 
     /**
@@ -200,6 +219,12 @@ final class ThreadFeed
      */
     public function removeOpenBody(int $postId): void
     {
+        // Flush any pending body write before removal
+        if (isset($this->bodyWriteTimers[$postId])) {
+            Timer::clear($this->bodyWriteTimers[$postId]);
+            unset($this->bodyWriteTimers[$postId]);
+            $this->flushBodyWrite($postId);
+        }
         unset($this->openPostBodies[$postId]);
     }
 
@@ -282,6 +307,14 @@ final class ThreadFeed
             $this->timerId = 0;
         }
 
+        // Clear all body write debounce timers
+        foreach ($this->bodyWriteTimers as $postId => $timerId) {
+            Timer::clear($timerId);
+            // Flush pending body writes immediately
+            $this->flushBodyWrite($postId);
+        }
+        $this->bodyWriteTimers = [];
+
         // Explicit drain to release SplQueue references
         $this->messageBuffer->clear();
 
@@ -290,6 +323,59 @@ final class ThreadFeed
         $this->recentPosts = [];
 
         $this->logger->debug('ThreadFeed destroyed', ['thread_id' => $this->threadId]);
+    }
+
+    /**
+     * Schedule a debounced database write for an open post body.
+     *
+     * Uses a one-shot timer: if no new update arrives within 1 second,
+     * the body is persisted to the database. Each subsequent call resets
+     * the timer, ensuring at most one write per second per post.
+     *
+     * @see docs/LIVEPOSTING.md §9.3
+     */
+    private function scheduleBodyWrite(int $postId): void
+    {
+        if ($this->proxyClient === null) {
+            return; // No proxy client available (Phase 1 fallback)
+        }
+
+        // If a timer is already running for this post, don't create another.
+        // The existing timer will fire and persist the latest body.
+        if (isset($this->bodyWriteTimers[$postId])) {
+            return;
+        }
+
+        $this->bodyWriteTimers[$postId] = Timer::after(self::BODY_WRITE_DEBOUNCE_MS, function () use ($postId): void {
+            unset($this->bodyWriteTimers[$postId]);
+            $this->flushBodyWrite($postId);
+        });
+    }
+
+    /**
+     * Immediately persist an open post body to the database via mTLS.
+     */
+    private function flushBodyWrite(int $postId): void
+    {
+        $body = $this->openPostBodies[$postId] ?? null;
+        if ($body === null || $this->proxyClient === null) {
+            return;
+        }
+
+        try {
+            $this->proxyClient->forward(
+                'boards',
+                'PUT',
+                "/api/v1/posts/{$postId}/body",
+                ['Content-Type' => 'application/json'],
+                json_encode(['body' => $body], JSON_THROW_ON_ERROR),
+            );
+        } catch (\Throwable $e) {
+            $this->logger->error('Body write failed', [
+                'post_id' => $postId,
+                'error'   => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

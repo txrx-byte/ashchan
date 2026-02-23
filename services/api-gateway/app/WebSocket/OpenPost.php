@@ -163,4 +163,26 @@ final class OpenPost
         $this->lineCount = $newLineCount;
         return true;
     }
+
+    /**
+     * Get the current body text.
+     */
+    public function getBody(): string
+    {
+        return $this->body;
+    }
+
+    /**
+     * Restore body from server state (used after reclamation).
+     *
+     * Replaces the current body and recalculates char/line counts.
+     *
+     * @param string $body The body text from the server
+     */
+    public function restoreBody(string $body): void
+    {
+        $this->body = $body;
+        $this->charCount = mb_strlen($body, 'UTF-8');
+        $this->lineCount = substr_count($body, "\n");
+    }
 }

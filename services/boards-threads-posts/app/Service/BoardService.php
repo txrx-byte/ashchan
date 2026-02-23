@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Model\Board;
+use App\Model\OpenPostBody;
 use App\Model\Post;
 use App\Model\Thread;
 use Ashchan\EventBus\CloudEvent;
@@ -1404,5 +1405,323 @@ final class BoardService
             throw new \RuntimeException('ip_hash_salt must be configured in site settings (or IP_HASH_SALT env var)');
         }
         return $this->ipHashSalt;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+     * LIVEPOSTING — Open Post Lifecycle
+     * @see docs/LIVEPOSTING.md §5.7, §7
+     * ══════════════════════════════════════════════════════════════ */
+
+    /**
+     * Allocate an open (editing) post for liveposting.
+     *
+     * Creates a post row with is_editing=true and an empty body,
+     * plus an open_post_bodies row for the rapidly-changing text.
+     * The post is visible to thread viewers immediately (as an
+     * "open" post with a live cursor).
+     *
+     * @param Thread $thread The target thread
+     * @param array{
+     *     name?: string,
+     *     email?: string,
+     *     password?: string,
+     *     ip_address?: string,
+     * } $data Post creation data
+     * @return array{post_id: int, thread_id: int, board_post_no: int|null}
+     * @throws \RuntimeException if the thread is locked
+     */
+    public function createOpenPost(Thread $thread, array $data): array
+    {
+        if ($thread->locked) {
+            throw new \RuntimeException('Thread is locked');
+        }
+
+        $board = $thread->board;
+
+        /** @var array{post_id: int, thread_id: int, board_post_no: int|null} $result */
+        $result = Db::transaction(function () use ($thread, $data, $board): array {
+            $boardPostNo = $board ? $this->allocateBoardPostNo($board) : null;
+
+            $rawName = $data['name'] ?? '';
+            [$name, $trip] = $this->formatter->parseNameTrip(is_string($rawName) ? $rawName : '');
+
+            $rawEmail = $data['email'] ?? '';
+            $email = is_string($rawEmail) ? $rawEmail : '';
+
+            // Generate poster ID and country if board features are enabled
+            $posterId = ($board && $board->user_ids) ? $this->generatePosterId(
+                (string) ($data['ip_address'] ?? ''),
+                $thread->id
+            ) : null;
+            [$countryCode, $countryName] = ($board && $board->country_flags)
+                ? $this->resolveCountry((string) ($data['ip_address'] ?? ''))
+                : [null, null];
+
+            // Hash the reclaim password (low-cost bcrypt for fast reclamation)
+            $passwordRaw = $data['password'] ?? '';
+            $editPasswordHash = (is_string($passwordRaw) && $passwordRaw !== '')
+                ? password_hash($passwordRaw, PASSWORD_BCRYPT, ['cost' => 4])
+                : null;
+
+            /** @var Post $post */
+            $post = Post::create([
+                'thread_id'            => $thread->id,
+                'is_op'                => false,
+                'author_name'          => $name,
+                'tripcode'             => $trip,
+                'email'                => $email ?: null,
+                'subject'              => null,
+                'content'              => '',
+                'content_html'         => '',
+                'ip_address'           => $this->piiEncryption->encrypt((string) ($data['ip_address'] ?? '')),
+                'country_code'         => $countryCode,
+                'country_name'         => $countryName,
+                'poster_id'            => $posterId,
+                'board_post_no'        => $boardPostNo,
+                'spoiler_image'        => false,
+                'is_editing'           => true,
+                'edit_password_hash'   => $editPasswordHash,
+                'edit_expires_at'      => (new \DateTimeImmutable('+15 minutes'))->format(\DateTimeInterface::RFC3339),
+                'delete_password_hash' => (isset($data['password']) && is_string($data['password']) && $data['password'] !== '')
+                    ? password_hash($data['password'], PASSWORD_BCRYPT)
+                    : null,
+            ]);
+
+            // Create the separate body row
+            OpenPostBody::create([
+                'post_id'    => $post->id,
+                'body'       => '',
+                'updated_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
+            ]);
+
+            // Increment thread reply count (open posts count as replies)
+            $thread->newQuery()->where('id', $thread->id)->increment('reply_count');
+
+            // Bump thread unless sage
+            $isSage = strtolower(trim($email)) === 'sage';
+            if (!$isSage) {
+                $bumpLimit = $board ? $board->bump_limit : 300;
+                if ($thread->reply_count <= $bumpLimit) {
+                    $thread->update(['bumped_at' => \Carbon\Carbon::now()]);
+                }
+            }
+
+            // Don't invalidate caches yet — the post is empty and being edited.
+            // Cache invalidation happens on closeOpenPost().
+
+            return [
+                'post_id'       => $post->id,
+                'thread_id'     => $thread->id,
+                'board_post_no' => $boardPostNo,
+            ];
+        });
+
+        // Publish livepost.opened event
+        $boardSlug = $board ? $board->slug : '';
+        $this->eventPublisher->publish(CloudEvent::create(
+            'livepost.opened',
+            [
+                'board_id'   => $boardSlug,
+                'thread_id'  => (string) $result['thread_id'],
+                'post_id'    => (string) $result['post_id'],
+                'ip_hash'    => hash('sha256', (string) ($data['ip_address'] ?? '')),
+            ],
+        ));
+
+        return $result;
+    }
+
+    /**
+     * Close (finalize) an open post.
+     *
+     * Copies the body from open_post_bodies to posts.content, parses
+     * markup into content_html, clears the editing state, and deletes
+     * the open_post_bodies row.
+     *
+     * @param int $postId The post to close
+     * @return array{post_id: int, thread_id: int, content_html: string}|null Null if not found or not editing
+     */
+    public function closeOpenPost(int $postId): ?array
+    {
+        /** @var Post|null $post */
+        $post = Post::find($postId);
+        if ($post === null || !$post->is_editing) {
+            return null;
+        }
+
+        /** @var OpenPostBody|null $openBody */
+        $openBody = OpenPostBody::find($postId);
+        $finalBody = $openBody ? $openBody->body : '';
+
+        // Parse the final body into HTML
+        $contentHtml = $this->formatter->format($finalBody);
+
+        $result = Db::transaction(function () use ($post, $finalBody, $contentHtml, $openBody): array {
+            $post->update([
+                'content'            => $finalBody,
+                'content_html'       => $contentHtml,
+                'is_editing'         => false,
+                'edit_password_hash' => null,
+                'edit_expires_at'    => null,
+            ]);
+
+            // Remove the separate body row
+            if ($openBody !== null) {
+                $openBody->delete();
+            }
+
+            // Invalidate caches — the post now has final content
+            $this->redis->del("thread:{$post->thread_id}");
+            $board = $post->thread?->board;
+            if ($board) {
+                $this->redis->del("catalog:{$board->slug}");
+            }
+
+            return [
+                'post_id'      => $post->id,
+                'thread_id'    => $post->thread_id,
+                'content_html' => $contentHtml,
+            ];
+        });
+
+        // Publish livepost.closed event
+        $thread = $post->thread;
+        $boardSlug = $thread?->board?->slug ?? '';
+        $this->eventPublisher->publish(CloudEvent::create(
+            'livepost.closed',
+            [
+                'board_id'         => $boardSlug,
+                'thread_id'        => (string) $post->thread_id,
+                'post_id'          => (string) $post->id,
+                'final_body'       => mb_substr($finalBody, 0, 10000),
+                'duration_seconds' => time() - (int) strtotime($post->created_at),
+            ],
+        ));
+
+        return $result;
+    }
+
+    /**
+     * Update the body of an open post (debounced persistence from gateway).
+     *
+     * @param int    $postId The open post ID
+     * @param string $body   The current body text
+     * @return bool True if updated, false if not found or not editing
+     */
+    public function setOpenBody(int $postId, string $body): bool
+    {
+        /** @var Post|null $post */
+        $post = Post::find($postId);
+        if ($post === null || !$post->is_editing) {
+            return false;
+        }
+
+        OpenPostBody::query()
+            ->where('post_id', $postId)
+            ->update([
+                'body'       => $body,
+                'updated_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
+            ]);
+
+        return true;
+    }
+
+    /**
+     * Reclaim an open post after disconnection.
+     *
+     * Verifies the password hash matches the one stored at post creation.
+     *
+     * @param int    $postId  The post to reclaim
+     * @param string $password The plaintext password to verify
+     * @return array{post_id: int, thread_id: int, body: string}|null Null if verification fails or not editing
+     */
+    public function reclaimPost(int $postId, string $password): ?array
+    {
+        /** @var Post|null $post */
+        $post = Post::find($postId);
+        if ($post === null || !$post->is_editing) {
+            return null;
+        }
+
+        // Verify the reclaim password
+        if ($post->edit_password_hash === null || !password_verify($password, $post->edit_password_hash)) {
+            return null;
+        }
+
+        // Extend the expiry (grant another 15 minutes)
+        $post->update([
+            'edit_expires_at' => (new \DateTimeImmutable('+15 minutes'))->format(\DateTimeInterface::RFC3339),
+        ]);
+
+        // Return the current body for the client to resume editing
+        /** @var OpenPostBody|null $openBody */
+        $openBody = OpenPostBody::find($postId);
+
+        return [
+            'post_id'   => $post->id,
+            'thread_id' => $post->thread_id,
+            'body'      => $openBody ? $openBody->body : '',
+        ];
+    }
+
+    /**
+     * Force-close expired open posts (called by a cleanup timer).
+     *
+     * @return int Number of posts closed
+     */
+    public function closeExpiredPosts(): int
+    {
+        $expired = Post::query()
+            ->where('is_editing', true)
+            ->where('edit_expires_at', '<=', now())
+            ->get();
+
+        $count = 0;
+        foreach ($expired as $post) {
+            $result = $this->closeOpenPost($post->id);
+            if ($result !== null) {
+                // Publish livepost.expired event
+                $thread = $post->thread;
+                $boardSlug = $thread?->board?->slug ?? '';
+                $this->eventPublisher->publish(CloudEvent::create(
+                    'livepost.expired',
+                    [
+                        'board_id'  => $boardSlug,
+                        'thread_id' => (string) $post->thread_id,
+                        'post_id'   => (string) $post->id,
+                        'reason'    => 'timeout',
+                    ],
+                ));
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Get the formatted output for an open post (for sync messages).
+     *
+     * @param Post $post
+     * @return array<string, mixed>
+     */
+    public function formatOpenPostOutput(Post $post): array
+    {
+        /** @var OpenPostBody|null $openBody */
+        $openBody = OpenPostBody::find($post->id);
+
+        return [
+            'id'              => $post->id,
+            'board_post_no'   => $post->board_post_no,
+            'author_name'     => $post->author_name,
+            'tripcode'        => $post->tripcode,
+            'poster_id'       => $post->poster_id,
+            'country_code'    => $post->country_code,
+            'country_name'    => $post->country_name,
+            'created_at'      => $this->toTimestamp($post->created_at),
+            'formatted_time'  => $this->formatTime($post->created_at),
+            'is_editing'      => true,
+            'body'            => $openBody ? $openBody->body : '',
+        ];
     }
 }
