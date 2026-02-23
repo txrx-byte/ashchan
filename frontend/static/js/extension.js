@@ -435,7 +435,18 @@ var QuickReply = {
     var slug=Main.board, tid=Main.tid, cnt=$.el('div');
     cnt.id='quickReply'; cnt.className='extPanel reply';
     cnt.setAttribute('data-trackpos','QR-position');
-    cnt.style.right='0px'; cnt.style.top='10%';
+    var savedPos = localStorage.getItem('QR-position');
+    if (savedPos) {
+      try {
+        var sp = JSON.parse(savedPos);
+        cnt.style.right = Math.max(0, Math.min(sp.right || 0, window.innerWidth - 360)) + 'px';
+        cnt.style.top = Math.max(0, Math.min(sp.top || 0, window.innerHeight - 200)) + 'px';
+      } catch(ex) {
+        cnt.style.right = '0px'; cnt.style.top = '10%';
+      }
+    } else {
+      cnt.style.right = '0px'; cnt.style.top = '10%';
+    }
 
     // Header: postblock style, draggable
     var h = '<div id="qrHeader" class="drag postblock">'
@@ -453,11 +464,11 @@ var QuickReply = {
     // Options (email/sage)
     h += '<div><input type="text" name="email" id="qrEmail" placeholder="Options" tabindex="" autocomplete="off"></div>';
     // Comment
-    h += '<div><textarea name="com" cols="48" rows="4" maxlength="2000" tabindex=""></textarea></div>';
+    h += '<div><textarea name="com" rows="4" maxlength="2000" tabindex=""></textarea></div>';
     // ALTCHA Captcha
     h += '<div id="qrCaptchaContainer"><altcha-widget id="qrAltcha" challengeurl="/api/v1/altcha/challenge" name="altcha" hidefooter hidelogo auto="onfocus"></altcha-widget></div>';
     // File + Spoiler + Submit button
-    h += '<div><input type="file" name="upfile" id="qrFile" size="19" accept="image/jpeg,image/png,image/gif,image/webp" tabindex="">'
+    h += '<div><input type="file" name="upfile" id="qrFile" accept="image/jpeg,image/png,image/gif,image/webp" tabindex="">'
        + '<span id="qrSpoiler"><label>[<input type="checkbox" value="on" name="spoiler">Spoiler?]</label></span>'
        + '<input type="submit" value="Post" tabindex=""></div>';
 
@@ -518,7 +529,7 @@ var QuickReply = {
   },
   resetFile: function() {
     var old=$.id('qrFile'); if(!old) return;
-    var nf=$.el('input'); nf.id='qrFile'; nf.type='file'; nf.size='19'; nf.name='upfile';
+    var nf=$.el('input'); nf.id='qrFile'; nf.type='file'; nf.name='upfile';
     nf.accept='image/jpeg,image/png,image/gif,image/webp';
     old.parentNode.replaceChild(nf,old);
     $.on(nf,'click',function(e){ if(e.shiftKey){e.preventDefault();QuickReply.resetFile();} });
@@ -568,8 +579,19 @@ var QuickReply = {
     var hdr=$.id('qrHeader'); if(!hdr) return;
     var ox,oy,drag=false;
     $.on(hdr,'mousedown',function(e){if(e.target.id==='qrClose')return;drag=true;ox=e.clientX-el.getBoundingClientRect().left;oy=e.clientY-el.getBoundingClientRect().top;e.preventDefault();});
-    $.on(document,'mousemove',function(e){if(!drag)return;el.style.left=(e.clientX-ox)+'px';el.style.top=(e.clientY-oy)+'px';el.style.right='auto';el.style.bottom='auto';});
-    $.on(document,'mouseup',function(){drag=false;});
+    $.on(document,'mousemove',function(e){
+      if(!drag)return;
+      var x=Math.max(0,Math.min(e.clientX-ox, window.innerWidth-el.offsetWidth));
+      var y=Math.max(0,Math.min(e.clientY-oy, window.innerHeight-el.offsetHeight));
+      el.style.left=x+'px';el.style.top=y+'px';el.style.right='auto';el.style.bottom='auto';
+    });
+    $.on(document,'mouseup',function(){
+      if(!drag)return; drag=false;
+      // Save position as right/top for consistency
+      var r=window.innerWidth-el.getBoundingClientRect().right;
+      var t=el.getBoundingClientRect().top;
+      try{localStorage.setItem('QR-position',JSON.stringify({right:Math.max(0,r),top:Math.max(0,t)}));}catch(e){}
+    });
   }
 };
 

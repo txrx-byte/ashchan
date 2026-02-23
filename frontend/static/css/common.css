@@ -1086,6 +1086,8 @@ li.settings-sub label {
   position: fixed;
   z-index: 9000;
   padding: 0;
+  width: 350px;
+  max-width: calc(100vw - 20px);
 }
 
 /* ALTCHA widget integration */
@@ -1134,7 +1136,8 @@ altcha-widget {
 
 #qrForm textarea {
   resize: vertical;
-  min-height: 120px;
+  min-height: 80px;
+  height: 80px;
   font-family: arial, helvetica, sans-serif;
 }
 
