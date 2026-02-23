@@ -238,7 +238,7 @@ final class FrontendController
             'user_ids'       => !empty($board['user_ids']),
             'country_flags'  => !empty($board['country_flags']),
             'is_staff'       => $this->isStaff($request),
-            'staff_level'    => $this->getStaffLevel(),
+            'staff_level'    => $this->getStaffLevel($request),
             'extra_css'      => $this->getExtraCss($board),
         ]));
 
@@ -315,7 +315,7 @@ final class FrontendController
             'thread_id'   => '',
             'page_num'    => 1,
             'is_staff'    => $this->isStaff($request),
-            'staff_level' => $this->getStaffLevel(),
+            'staff_level' => $this->getStaffLevel($request),
             'extra_css'   => $this->getExtraCss($board),
         ]));
 
@@ -391,7 +391,7 @@ final class FrontendController
             'thread_id'        => '',
             'page_num'         => 1,
             'is_staff'         => $this->isStaff($request),
-            'staff_level'      => $this->getStaffLevel(),
+            'staff_level'      => $this->getStaffLevel($request),
             'extra_css'        => $this->getExtraCss($board),
         ]));
 
@@ -487,7 +487,7 @@ final class FrontendController
             'user_ids'      => !empty($board['user_ids']),
             'country_flags' => !empty($board['country_flags']),
             'is_staff'      => $this->isStaff($request),
-            'staff_level'   => $this->getStaffLevel(),
+            'staff_level'   => $this->getStaffLevel($request),
             'extra_css'     => $this->getExtraCss($board),
         ]));
 
@@ -505,11 +505,25 @@ final class FrontendController
         return in_array($role, ['admin', 'manager', 'moderator', 'janitor'], true);
     }
 
-    private function getStaffLevel(): string
+    /**
+     * @param ?RequestInterface $request Optional request for role fallback
+     */
+    private function getStaffLevel(?RequestInterface $request = null): string
     {
         /** @var array<string, mixed> $staffInfo */
         $staffInfo = \Hyperf\Context\Context::get('staff_info', []);
-        return (string) ($staffInfo['level'] ?? '');
+        if (!empty($staffInfo['level'])) {
+            return (string) $staffInfo['level'];
+        }
+        // Fallback: role attribute set by AuthMiddleware
+        if ($request !== null) {
+            $role = $request->getAttribute('role');
+            if (is_string($role) && $role !== '') {
+                // Normalise 'moderator' → 'mod' to match staff_info convention
+                return $role === 'moderator' ? 'mod' : $role;
+            }
+        }
+        return '';
     }
 
     /**
@@ -544,13 +558,14 @@ final class FrontendController
      * Get the capcode value for the current staff member on a staff-only board.
      *
      * @param array<string, mixed> $board
+     * @param ?RequestInterface $request Optional request for role fallback
      */
-    private function getStaffCapcode(array $board): ?string
+    private function getStaffCapcode(array $board, ?RequestInterface $request = null): ?string
     {
         if (empty($board['staff_only'])) {
             return null;
         }
-        $level = $this->getStaffLevel();
+        $level = $this->getStaffLevel($request);
         return match ($level) {
             'admin' => 'Admin',
             'manager' => 'Manager',
@@ -647,7 +662,7 @@ final class FrontendController
         $input = $request->all();
 
         // Auto-capcode on staff-only boards
-        $capcode = $this->getStaffCapcode($board ?? []);
+        $capcode = $this->getStaffCapcode($board ?? [], $request);
         if ($capcode) {
             $input['capcode'] = $capcode;
         }
