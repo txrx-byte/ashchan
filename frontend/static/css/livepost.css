@@ -1,0 +1,211 @@
+/*
+ * Copyright 2026 txrx-byte
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * livepost.css
+ * Styles for the liveposting system: live reply form, open post indicators,
+ * and character streaming visual feedback.
+ *
+ * Uses the `lp-` prefix to avoid collisions with existing styles.
+ * Theme-specific colors use CSS variables with fallbacks to the
+ * Yotsuba B palette (default theme).
+ */
+
+/* ================================================================
+   Live Reply Form
+   ================================================================ */
+
+.lp-form {
+    margin: 10px auto;
+    text-align: center;
+}
+
+.lp-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.lp-title {
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.lp-status {
+    color: #117743;
+    font-style: italic;
+}
+
+.lp-viewers {
+    color: #888;
+    font-size: 11px;
+}
+
+/* Connection indicator */
+.lp-conn {
+    font-size: 11px;
+}
+
+.lp-connected {
+    color: #117743;
+}
+
+.lp-disconnected {
+    color: #c41e3a;
+}
+
+/* Controls row below the textarea */
+.lp-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    padding: 0 2px;
+}
+
+/* Character counter */
+.lp-char-count {
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+}
+
+.lp-char-warning {
+    color: #c41e3a;
+    font-weight: bold;
+}
+
+/* Done button */
+.lp-done {
+    padding: 2px 16px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.lp-done:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ================================================================
+   Open Post Indicators
+   ================================================================ */
+
+/* Pulsing dot next to post number for open (being-typed) posts */
+.lp-indicator {
+    color: #117743;
+    font-size: 14px;
+    margin-left: 4px;
+    animation: lp-pulse 1.5s ease-in-out infinite;
+    display: inline-block;
+}
+
+@keyframes lp-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+}
+
+/* Open post border glow */
+.post.reply.editing {
+    border-left: 3px solid #117743 !important;
+    transition: border-color 0.3s ease;
+}
+
+/* Subtle background tint for open posts (Yotsuba B compatible) */
+.post.reply.editing .postMessage {
+    background-color: rgba(17, 119, 67, 0.03);
+    min-height: 1.2em;
+}
+
+/* ================================================================
+   Typing cursor indicator for open posts from other users
+   ================================================================ */
+
+.post.reply.editing .postMessage::after {
+    content: '\2588'; /* Block cursor █ */
+    color: #117743;
+    animation: lp-blink 1s step-start infinite;
+    font-weight: normal;
+}
+
+@keyframes lp-blink {
+    50% { opacity: 0; }
+}
+
+/* ================================================================
+   Theme adjustments — Tomorrow (dark theme)
+   ================================================================ */
+
+/*
+ * Theme detection uses a JS-set class on <body> or the data attribute.
+ * The Tomorrow theme stylesheet is detected via the livepost JS module
+ * which adds a .lp-dark class to <body> when the Tomorrow theme is active.
+ * Alternatively, styles inherit from CSS custom properties if themes set them.
+ */
+
+body.lp-dark .lp-indicator,
+body.lp-dark .lp-connected,
+body.lp-dark .lp-status {
+    color: #5cb85c;
+}
+
+body.lp-dark .post.reply.editing {
+    border-left-color: #5cb85c !important;
+}
+
+body.lp-dark .post.reply.editing .postMessage {
+    background-color: rgba(92, 184, 92, 0.05);
+}
+
+body.lp-dark .post.reply.editing .postMessage::after {
+    color: #5cb85c;
+}
+
+body.lp-dark .lp-disconnected {
+    color: #e74c3c;
+}
+
+body.lp-dark .lp-char-warning {
+    color: #e74c3c;
+}
+
+/* ================================================================
+   Mobile responsive
+   ================================================================ */
+
+@media (max-width: 480px) {
+    .lp-header {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .lp-form .postForm {
+        width: 100%;
+    }
+
+    .lp-form .postForm textarea {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .lp-controls {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+}

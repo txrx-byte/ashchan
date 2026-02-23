@@ -1,6 +1,6 @@
 # Liveposting — Real-Time Post Streaming for Ashchan
 
-> **Status:** Phase 2 Complete (Post Lifecycle)  
+> **Status:** Phase 3 Complete (Client)  
 > **Date:** 2026-02-23  
 > **Source Study:** meguca imageboard (Go/Gorilla WebSocket)  
 > **Target Stack:** Hyperf 3.1 / Swoole (PHP-CLI)
@@ -1062,13 +1062,25 @@ No new Redis databases required. The WebSocket system uses:
 - Edit password uses bcrypt cost 4 (fast, short-lived credential for reclaim within 15-minute window).
 - Event bus integration included: `livepost.opened`, `livepost.closed`, `livepost.expired` events via Redis Streams.
 
-### Phase 3: Client (Week 5-6)
-1. Build `livepost/` JavaScript module.
-2. Implement connection manager with reconnection logic.
-3. Implement post authoring FSM and input diffing.
-4. Implement live DOM updates for incoming mutations.
-5. Implement reply form UI with live preview.
-6. Integrate with existing thread page templates.
+### Phase 3: Client (Week 5-6) — ✅ COMPLETE
+1. ✅ Build `livepost/` JavaScript module — 7 files in `frontend/static/js/livepost/`.
+2. ✅ Implement connection manager with reconnection logic — exponential backoff, keep-alive NOOP.
+3. ✅ Implement post authoring FSM and input diffing — meguca-compatible diff algorithm.
+4. ✅ Implement live DOM updates for incoming mutations — append/backspace/splice with DOM fast paths.
+5. ✅ Implement reply form UI with live preview — inline form, char counter, Done button, Ctrl+Enter.
+6. ✅ Integrate with existing thread page templates — scripts via `extra_scripts` block, CSS via `livepost.css`.
+
+**Implementation notes (Phase 3):**
+- No build tools/bundler required — plain JS files loaded with `<script defer>` in dependency order.
+- Modules communicate via a shared `window.Livepost` namespace (`LP.Connection`, `LP.Protocol`, etc.).
+- Input diffing follows meguca's `FormModel.parseInput()` algorithm exactly: single-char append/backspace
+  are optimized to binary frames; anything else falls back to splice with start/len/text encoding.
+- DOM fast path for append: directly appends text node to `<blockquote>` (no re-render). Splice/backspace
+  that affect mid-body fall back to full re-render with basic greentext highlighting.
+- Open posts from other users show a pulsing `●` indicator and a blinking block cursor `█` via CSS.
+- Dark theme (Tomorrow) detection via `MutationObserver` on the `#themeStylesheet` link's `href` attribute.
+- Reclaim passwords stored in `sessionStorage` — survive page reloads within the same tab, clear on close.
+- Ctrl+Enter / Cmd+Enter keyboard shortcut to close (submit) the live post.
 
 ### Phase 4: Anti-Spam & Polish (Week 7-8)
 1. Implement spam scoring and captcha integration.

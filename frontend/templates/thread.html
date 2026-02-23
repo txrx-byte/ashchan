@@ -16,6 +16,17 @@
 
 {% extends "layout.html" %}
 
+{% block extra_scripts %}
+  <!-- Livepost modules (load order matters — defer preserves order) -->
+  <script src="/static/js/livepost/protocol.js" defer></script>
+  <script src="/static/js/livepost/connection.js" defer></script>
+  <script src="/static/js/livepost/state-machine.js" defer></script>
+  <script src="/static/js/livepost/open-post.js" defer></script>
+  <script src="/static/js/livepost/post-view.js" defer></script>
+  <script src="/static/js/livepost/sync.js" defer></script>
+  <script src="/static/js/livepost/index.js" defer></script>
+{% endblock %}
+
 {% block content %}
 
 <!-- Post Form (Thread Reply) -->
