@@ -455,7 +455,7 @@ var QuickReply = {
       + '</div>';
 
     // Form
-    h += '<form name="qrPost" action="/api/v1/boards/'+slug+'/threads/'+tid+'/replies" method="post" enctype="multipart/form-data">';
+    h += '<form name="qrPost" action="/'+slug+'/thread/'+tid+'/posts" method="post" enctype="multipart/form-data">';
     h += '<input type="hidden" value="'+tid+'" name="resto">';
     h += '<div id="qrForm">';
 
