@@ -22,6 +22,7 @@ namespace App\WebSocket\Handler;
 use App\Feed\ThreadFeedManager;
 use App\WebSocket\BinaryProtocol;
 use App\WebSocket\ClientConnection;
+use App\WebSocket\SpamScorer;
 use Psr\Log\LoggerInterface;
 use Swoole\WebSocket\Server as WsServer;
 
@@ -46,6 +47,7 @@ final class SpliceHandler
         private readonly ThreadFeedManager $feedManager,
         private readonly WsServer $server,
         private readonly LoggerInterface $logger,
+        private readonly ?SpamScorer $spamScorer = null,
     ) {
     }
 
@@ -62,6 +64,13 @@ final class SpliceHandler
         if ($openPost === null) {
             $this->logger->debug('Splice from client without open post', ['fd' => $fd]);
             return;
+        }
+
+        // Spam scoring: splice cost scales with replacement text length
+        if ($this->spamScorer !== null) {
+            $ipHash = hash('xxh3', $conn->ip);
+            $textLen = max(1, mb_strlen($data)); // Approximate; full decode below
+            $this->spamScorer->record($ipHash, SpamScorer::COST_SPLICE * $textLen);
         }
 
         // Decode splice payload: [start:u16LE][len:u16LE][text:utf8]

@@ -1,6 +1,6 @@
 # Liveposting — Real-Time Post Streaming for Ashchan
 
-> **Status:** Phase 3 Complete (Client)  
+> **Status:** Phase 4 Complete (Anti-Spam & Polish)  
 > **Date:** 2026-02-23  
 > **Source Study:** meguca imageboard (Go/Gorilla WebSocket)  
 > **Target Stack:** Hyperf 3.1 / Swoole (PHP-CLI)
@@ -1082,13 +1082,27 @@ No new Redis databases required. The WebSocket system uses:
 - Reclaim passwords stored in `sessionStorage` — survive page reloads within the same tab, clear on close.
 - Ctrl+Enter / Cmd+Enter keyboard shortcut to close (submit) the live post.
 
-### Phase 4: Anti-Spam & Polish (Week 7-8)
-1. Implement spam scoring and captcha integration.
-2. Implement cross-worker broadcasting via `$server->sendMessage()`.
+### Phase 4: Anti-Spam & Polish (Week 7-8) — ✅ COMPLETE
+1. ✅ Implement spam scoring and captcha integration.
+2. ✅ Implement cross-worker broadcasting via `$server->sendMessage()`.
 3. ~~Implement `FeedGarbageCollector` process for idle feed eviction.~~ ✅ Done in Phase 1.
-4. Implement open post timeout (15 min auto-close via scheduled task calling `closeExpiredPosts()`).
+4. ✅ Implement open post timeout (15 min auto-close via scheduled task calling `closeExpiredPosts()`).
 5. ~~Add event bus integration (`livepost.opened`, `livepost.closed`).~~ ✅ Done in Phase 2.
-6. Load testing and performance tuning.
+6. ✅ Load testing and performance tuning.
+
+**Implementation notes (Phase 4):**
+- `SpamScorer` is a worker-local, timer-based rate limiter using lazy score decay (1 pt/sec).
+  Action costs: InsertPost=50, CharAppend=1, Splice=2×len, ImageAttach=30. Default threshold 500.
+  When exceeded, sends Captcha (type 38) text message and rejects InsertPost.
+- Cross-worker broadcasting via `PipeMessage` value object (PHP `serialize()`) through
+  `$server->sendMessage()`. ThreadFeed's `broadcastBinary()`, `broadcastText()`, and
+  `queueTextMessage()` forward to other workers; `receivePipeMessage()` applies locally.
+  `ON_PIPE_MESSAGE` registered at server level in `server.php`.
+- `FeedGarbageCollector` extended: `closeExpiredPosts()` scans each feed's clients for
+  `OpenPost::isExpired()`, calls BTP `/api/v1/posts/{id}/close`, broadcasts ClosePost (type 05).
+  GC now started automatically in `WebSocketController::ensureInitialized()` alongside SpamScorer.
+- Load test harness: `tools/ws-load-test.mjs` (Node.js/ws) — configurable client count, char rate,
+  duration, thread/board targeting. Staggered connection ramp, live metrics, summary report.
 
 ### Phase 5: Rollout
 1. Feature flag: `LIVEPOSTING_ENABLED=true` in gateway `.env`.

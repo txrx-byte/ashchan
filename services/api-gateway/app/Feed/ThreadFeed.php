@@ -22,6 +22,7 @@ namespace App\Feed;
 use App\Service\ProxyClient;
 use App\WebSocket\BinaryProtocol;
 use App\WebSocket\ClientConnection;
+use App\WebSocket\PipeMessage;
 use Psr\Log\LoggerInterface;
 use Swoole\Server as SwooleServer;
 use Swoole\WebSocket\Server as WsServer;
@@ -83,6 +84,9 @@ final class ThreadFeed
     /** Unix timestamp when this feed was created. */
     private readonly int $createdAt;
 
+    /** Number of Swoole workers (for cross-worker IPC). */
+    private readonly int $workerCount;
+
     public function __construct(
         private readonly int $threadId,
         private readonly WsServer $server,
@@ -91,6 +95,7 @@ final class ThreadFeed
     ) {
         $this->messageBuffer = new MessageBuffer();
         $this->createdAt = time();
+        $this->workerCount = (int) ($server->setting['worker_num'] ?? 1);
     }
 
     /**
@@ -147,8 +152,9 @@ final class ThreadFeed
      * Broadcast a binary frame to all clients in this feed (immediate, no buffering).
      *
      * Used for hot-path messages: append, backspace, splice.
+     * Also forwards the frame to other workers via IPC pipe messages.
      */
-    public function broadcastBinary(string $data): void
+    public function broadcastBinary(string $data, bool $localOnly = false): void
     {
         foreach ($this->clients as $fd => $conn) {
             if ($this->server->isEstablished($fd)) {
@@ -158,6 +164,11 @@ final class ThreadFeed
                 unset($this->clients[$fd]);
             }
         }
+
+        // Forward to other workers (unless this is already a forwarded message)
+        if (!$localOnly) {
+            $this->sendToOtherWorkers(PipeMessage::TYPE_BINARY_BROADCAST, $data);
+        }
     }
 
     /**
@@ -165,7 +176,7 @@ final class ThreadFeed
      *
      * Used for sync responses and concat frames.
      */
-    public function broadcastText(string $data): void
+    public function broadcastText(string $data, bool $localOnly = false): void
     {
         foreach ($this->clients as $fd => $conn) {
             if ($this->server->isEstablished($fd)) {
@@ -173,6 +184,11 @@ final class ThreadFeed
             } else {
                 unset($this->clients[$fd]);
             }
+        }
+
+        // Forward to other workers (unless this is already a forwarded message)
+        if (!$localOnly) {
+            $this->sendToOtherWorkers(PipeMessage::TYPE_TEXT_BROADCAST, $data);
         }
     }
 
@@ -192,11 +208,18 @@ final class ThreadFeed
      * If the ticker is not running, starts it. Text messages that are not
      * time-critical (e.g., InsertPost, ClosePost) are batched to reduce
      * the number of WebSocket frames sent.
+     *
+     * Also forwards to other workers for their local queueing.
      */
-    public function queueTextMessage(string $message): void
+    public function queueTextMessage(string $message, bool $localOnly = false): void
     {
         $this->messageBuffer->push($message);
         $this->ensureTickerRunning();
+
+        // Forward to other workers
+        if (!$localOnly) {
+            $this->sendToOtherWorkers(PipeMessage::TYPE_TEXT_QUEUE, $message);
+        }
     }
 
     /**
@@ -292,6 +315,66 @@ final class ThreadFeed
             $ips[$conn->ip] = true;
         }
         return count($ips);
+    }
+
+    /**
+     * Get all client connections that have expired open posts.
+     *
+     * @return array<int, ClientConnection> fd → connection pairs with expired open posts
+     */
+    public function getExpiredOpenPosts(): array
+    {
+        $expired = [];
+        foreach ($this->clients as $fd => $conn) {
+            if ($conn->openPost !== null && $conn->openPost->isExpired()) {
+                $expired[$fd] = $conn;
+            }
+        }
+        return $expired;
+    }
+
+    /**
+     * Handle an incoming cross-worker pipe message.
+     *
+     * This is called when another worker forwards a broadcast or text queue
+     * message to this worker. We apply it locally without re-forwarding.
+     */
+    public function receivePipeMessage(PipeMessage $msg): void
+    {
+        match ($msg->type) {
+            PipeMessage::TYPE_BINARY_BROADCAST => $this->broadcastBinary($msg->data, localOnly: true),
+            PipeMessage::TYPE_TEXT_BROADCAST    => $this->broadcastText($msg->data, localOnly: true),
+            PipeMessage::TYPE_TEXT_QUEUE        => $this->queueTextMessage($msg->data, localOnly: true),
+            default => $this->logger->warning('Unknown PipeMessage type', [
+                'type'      => $msg->type,
+                'thread_id' => $msg->threadId,
+            ]),
+        };
+    }
+
+    /**
+     * Forward a message to all other Swoole workers via IPC pipe messages.
+     *
+     * Uses `$server->sendMessage()` (PHP serialization) to deliver the
+     * PipeMessage value object. The receiving worker's `onPipeMessage`
+     * callback deserializes and routes it to the appropriate feed.
+     */
+    private function sendToOtherWorkers(string $type, string $data): void
+    {
+        if ($this->workerCount <= 1) {
+            return; // Single-worker mode — no IPC needed
+        }
+
+        $currentWorkerId = $this->server->worker_id;
+        $msg = new PipeMessage($type, $this->threadId, $data, $currentWorkerId);
+        $serialized = serialize($msg);
+
+        for ($i = 0; $i < $this->workerCount; $i++) {
+            if ($i === $currentWorkerId) {
+                continue;
+            }
+            $this->server->sendMessage($serialized, $i);
+        }
     }
 
     /**

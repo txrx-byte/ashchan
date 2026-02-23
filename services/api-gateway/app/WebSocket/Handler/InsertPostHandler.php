@@ -24,6 +24,7 @@ use App\Service\ProxyClient;
 use App\WebSocket\BinaryProtocol;
 use App\WebSocket\ClientConnection;
 use App\WebSocket\OpenPost;
+use App\WebSocket\SpamScorer;
 use Psr\Log\LoggerInterface;
 use Swoole\WebSocket\Server as WsServer;
 
@@ -48,6 +49,7 @@ final class InsertPostHandler
         private readonly ProxyClient $proxyClient,
         private readonly WsServer $server,
         private readonly LoggerInterface $logger,
+        private readonly ?SpamScorer $spamScorer = null,
     ) {
     }
 
@@ -73,6 +75,24 @@ final class InsertPostHandler
         if ($conn->hasOpenPost()) {
             $this->sendError($fd, 'Already have an open post — close it first');
             return;
+        }
+
+        // Spam scoring: creating a post is a costly action
+        if ($this->spamScorer !== null) {
+            $ipHash = hash('xxh3', $conn->ip);
+            $this->spamScorer->record($ipHash, SpamScorer::COST_POST_CREATION);
+
+            if ($this->spamScorer->requiresCaptcha($ipHash)) {
+                // Send captcha required (type 38) and reject
+                $captchaMsg = BinaryProtocol::encodeTextMessage(38, [
+                    'required' => true,
+                    'reason'   => 'Rate limit exceeded — solve captcha to continue',
+                ]);
+                if ($this->server->isEstablished($fd)) {
+                    $this->server->push($fd, $captchaMsg, WEBSOCKET_OPCODE_TEXT);
+                }
+                return;
+            }
         }
 
         $name = (string) ($payload['name'] ?? '');

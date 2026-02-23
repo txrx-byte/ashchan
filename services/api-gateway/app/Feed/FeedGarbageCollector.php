@@ -19,15 +19,19 @@ declare(strict_types=1);
 
 namespace App\Feed;
 
+use App\WebSocket\BinaryProtocol;
+use App\WebSocket\ClientConnection;
+use App\Service\ProxyClient;
+
 /**
- * Evicts idle ThreadFeed instances to prevent memory leaks.
+ * Evicts idle ThreadFeed instances and force-closes expired open posts.
  *
  * This is NOT a Swoole Process — it runs as a Swoole Timer within each
- * worker, inspecting worker-local feeds every 60 seconds. A feed is
- * considered idle when it has zero clients for more than 5 minutes.
+ * worker, inspecting worker-local feeds every 60 seconds.
  *
- * Phase 2 will extend this to also force-close expired open posts
- * (15-minute timeout) and log memory usage per worker.
+ * Two sweep duties:
+ * 1. Evict feeds with zero clients for more than 5 minutes.
+ * 2. Force-close open posts that exceed the 15-minute lifetime limit.
  *
  * @see docs/LIVEPOSTING.md §14.2
  */
@@ -45,6 +49,7 @@ final class FeedGarbageCollector
     public function __construct(
         private readonly ThreadFeedManager $feedManager,
         private readonly \Psr\Log\LoggerInterface $logger,
+        private readonly ?ProxyClient $proxyClient = null,
     ) {
     }
 
@@ -75,14 +80,19 @@ final class FeedGarbageCollector
     }
 
     /**
-     * Perform a single GC sweep: evict idle feeds.
+     * Perform a single GC sweep: evict idle feeds and force-close expired open posts.
      */
     private function sweep(): void
     {
         $now = time();
         $evicted = 0;
+        $closedPosts = 0;
 
         foreach ($this->feedManager->getAllFeeds() as $threadId => $feed) {
+            // 1. Force-close expired open posts (15-minute timeout)
+            $closedPosts += $this->closeExpiredPosts($feed);
+
+            // 2. Evict fully idle feeds (no clients for > 5 minutes)
             $idleSince = $feed->idleSince();
             if ($idleSince > 0 && ($now - $idleSince) >= self::IDLE_THRESHOLD_SECONDS) {
                 $this->feedManager->remove($threadId);
@@ -90,12 +100,84 @@ final class FeedGarbageCollector
             }
         }
 
-        if ($evicted > 0) {
+        if ($evicted > 0 || $closedPosts > 0) {
             $this->logger->info('FeedGC sweep completed', [
-                'evicted'     => $evicted,
-                'remaining'   => count($this->feedManager->getAllFeeds()),
+                'evicted'      => $evicted,
+                'closed_posts' => $closedPosts,
+                'remaining'    => count($this->feedManager->getAllFeeds()),
                 'memory_bytes' => memory_get_usage(true),
             ]);
         }
+    }
+
+    /**
+     * Force-close all expired open posts in a feed.
+     *
+     * Calls the boards-threads-posts service to finalize each expired post,
+     * clears the OpenPost state on the client connection, and broadcasts
+     * ClosePost (type 05) to the feed.
+     *
+     * @return int Number of posts force-closed
+     */
+    private function closeExpiredPosts(ThreadFeed $feed): int
+    {
+        $expired = $feed->getExpiredOpenPosts();
+        if (count($expired) === 0) {
+            return 0;
+        }
+
+        $closed = 0;
+        foreach ($expired as $fd => $conn) {
+            $openPost = $conn->openPost;
+            if ($openPost === null) {
+                continue;
+            }
+
+            $postId = $openPost->postId;
+            $threadId = $openPost->threadId;
+
+            // Call boards-threads-posts to finalize the post
+            $contentHtml = '';
+            if ($this->proxyClient !== null) {
+                $response = $this->proxyClient->forward(
+                    'boards',
+                    'POST',
+                    "/api/v1/posts/{$postId}/close",
+                    ['Content-Type' => 'application/json'],
+                    '',
+                );
+
+                if ($response['status'] === 200) {
+                    $result = json_decode((string) $response['body'], true);
+                    $contentHtml = $result['content_html'] ?? '';
+                } else {
+                    $this->logger->warning('Expired post close failed', [
+                        'post_id' => $postId,
+                        'status'  => $response['status'],
+                    ]);
+                }
+            }
+
+            // Clear open post state
+            $conn->openPost = null;
+
+            // Broadcast ClosePost (type 05)
+            $closeMsg = BinaryProtocol::encodeTextMessage(5, [
+                'id'           => $postId,
+                'content_html' => $contentHtml,
+            ]);
+            $feed->queueTextMessage($closeMsg);
+            $feed->removeOpenBody($postId);
+
+            $this->logger->info('Expired post force-closed by GC', [
+                'post_id'   => $postId,
+                'thread_id' => $threadId,
+                'fd'        => $fd,
+            ]);
+
+            $closed++;
+        }
+
+        return $closed;
     }
 }

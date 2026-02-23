@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 namespace App\WebSocket;
 
+use App\Feed\FeedGarbageCollector;
 use App\Feed\ThreadFeedManager;
 use App\Service\ProxyClient;
 use App\WebSocket\Handler\AppendHandler;
@@ -72,6 +73,12 @@ final class WebSocketController
 
     /** Worker-local ClosePostHandler (also used for force-close on disconnect). */
     private ?ClosePostHandler $closePostHandler = null;
+
+    /** Worker-local SpamScorer for rate limiting (started alongside feed manager). */
+    private ?SpamScorer $spamScorer = null;
+
+    /** Worker-local FeedGarbageCollector (started alongside feed manager). */
+    private ?FeedGarbageCollector $garbageCollector = null;
 
     /** Cached WsServer reference (set on first onMessage/onClose call). */
     private ?WsServer $serverRef = null;
@@ -298,17 +305,37 @@ final class WebSocketController
      * Used for cross-worker broadcasting: when a client types on worker 0,
      * the binary frame is forwarded to worker 1 via sendMessage(), and this
      * callback pushes it to worker 1's local clients watching the same thread.
-     *
-     * Phase 2: Implement cross-worker message forwarding.
      */
     public function onPipeMessage(WsServer $server, int $srcWorkerId, mixed $data): void
     {
-        // Phase 2: decode the forwarded message, find local clients for the
-        // target thread, and push to them.
-        $this->logger->debug('PipeMessage received', [
-            'src_worker' => $srcWorkerId,
-            'worker_id'  => $this->workerId,
-        ]);
+        $this->ensureInitialized($server);
+
+        if (!is_string($data)) {
+            return;
+        }
+
+        try {
+            $msg = unserialize($data, ['allowed_classes' => [PipeMessage::class]]);
+        } catch (\Throwable) {
+            $this->logger->warning('Failed to unserialize PipeMessage', [
+                'src_worker' => $srcWorkerId,
+                'worker_id'  => $this->workerId,
+            ]);
+            return;
+        }
+
+        if (!$msg instanceof PipeMessage) {
+            return;
+        }
+
+        // Look up the feed for this thread on the current worker.
+        // If no clients on this worker watch the thread, the feed won't exist — skip.
+        $feed = $this->feedManager?->getFeed($msg->threadId);
+        if ($feed === null) {
+            return;
+        }
+
+        $feed->receivePipeMessage($msg);
     }
 
     /**
@@ -334,6 +361,7 @@ final class WebSocketController
             'feeds'                     => $feedMetrics['feeds'],
             'unique_ips'                => $feedMetrics['unique_ips'],
             'worker_id'                 => $this->workerId,
+            'spam_tracked_ips'          => $this->spamScorer?->getTrackedIpCount() ?? 0,
             'worker_memory_bytes'       => memory_get_usage(true),
             'worker_memory_peak_bytes'  => memory_get_peak_usage(true),
         ];
@@ -383,6 +411,14 @@ final class WebSocketController
         $this->serverRef = $server;
         $this->workerId = $server->worker_id;
         $this->feedManager = new ThreadFeedManager($server, $this->logger, $this->workerId, $this->proxyClient);
+
+        // Start the spam scorer (worker-local, timer-based cleanup)
+        $this->spamScorer = new SpamScorer();
+        $this->spamScorer->start();
+
+        // Start the feed garbage collector (evicts idle feeds + force-closes expired posts)
+        $this->garbageCollector = new FeedGarbageCollector($this->feedManager, $this->logger, $this->proxyClient);
+        $this->garbageCollector->start();
     }
 
     /**
@@ -401,12 +437,12 @@ final class WebSocketController
 
         $this->syncHandler = new SynchroniseHandler($fm, $server, $this->logger);
 
-        $insertPostHandler = new InsertPostHandler($fm, $this->proxyClient, $server, $this->logger);
+        $insertPostHandler = new InsertPostHandler($fm, $this->proxyClient, $server, $this->logger, $this->spamScorer);
         $this->closePostHandler = new ClosePostHandler($fm, $this->proxyClient, $server, $this->logger);
         $reclaimHandler = new ReclaimHandler($fm, $this->proxyClient, $server, $this->logger);
-        $appendHandler = new AppendHandler($fm, $server, $this->logger);
+        $appendHandler = new AppendHandler($fm, $server, $this->logger, $this->spamScorer);
         $backspaceHandler = new BackspaceHandler($fm, $server, $this->logger);
-        $spliceHandler = new SpliceHandler($fm, $server, $this->logger);
+        $spliceHandler = new SpliceHandler($fm, $server, $this->logger, $this->spamScorer);
 
         $this->messageHandler = new MessageHandler(
             $fm,

@@ -22,6 +22,12 @@ use Hyperf\Server\Event;
 
 return [
     'mode' => SWOOLE_PROCESS,
+    // Server-level callbacks — registered on the main Swoole server, not on ports.
+    // ON_PIPE_MESSAGE is required for cross-worker WebSocket broadcasting.
+    // @see docs/LIVEPOSTING.md §11.4
+    'callbacks' => [
+        Event::ON_PIPE_MESSAGE => [App\WebSocket\WebSocketController::class, 'onPipeMessage'],
+    ],
     'servers' => [
         [
             'name' => 'http',

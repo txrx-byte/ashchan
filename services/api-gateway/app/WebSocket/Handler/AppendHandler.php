@@ -22,6 +22,7 @@ namespace App\WebSocket\Handler;
 use App\Feed\ThreadFeedManager;
 use App\WebSocket\BinaryProtocol;
 use App\WebSocket\ClientConnection;
+use App\WebSocket\SpamScorer;
 use Psr\Log\LoggerInterface;
 use Swoole\WebSocket\Server as WsServer;
 
@@ -45,6 +46,7 @@ final class AppendHandler
         private readonly ThreadFeedManager $feedManager,
         private readonly WsServer $server,
         private readonly LoggerInterface $logger,
+        private readonly ?SpamScorer $spamScorer = null,
     ) {
     }
 
@@ -61,6 +63,12 @@ final class AppendHandler
         if ($openPost === null) {
             $this->logger->debug('Append from client without open post', ['fd' => $fd]);
             return;
+        }
+
+        // Spam scoring: each character append adds a small cost
+        if ($this->spamScorer !== null) {
+            $ipHash = hash('xxh3', $conn->ip);
+            $this->spamScorer->record($ipHash, SpamScorer::COST_CHAR_APPEND);
         }
 
         // The data is the character bytes (type byte was the last byte, already identified)

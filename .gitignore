@@ -6,7 +6,7 @@ Desktop.ini
 *.swo
 *~
 *.bak
-
+meguca/
 # IDE / Editor
 .idea/
 .vscode/
