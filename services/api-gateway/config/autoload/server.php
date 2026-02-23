@@ -25,12 +25,19 @@ return [
     'servers' => [
         [
             'name' => 'http',
-            'type' => Hyperf\Server\Server::SERVER_HTTP,
+            // SERVER_WEBSOCKET: Swoole handles both HTTP and WebSocket on the same port.
+            // Regular HTTP requests still route through Hyperf's onRequest handler.
+            // WebSocket upgrades to /api/socket are handled by WebSocketController.
+            // @see docs/LIVEPOSTING.md §5.1
+            'type' => Hyperf\Server\Server::SERVER_WEBSOCKET,
             'host' => '0.0.0.0',
             'port' => (int) (getenv('PORT') ?: 9501),
             'sock_type' => SWOOLE_SOCK_TCP,
             'callbacks' => [
-                Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
+                Event::ON_REQUEST    => [Hyperf\HttpServer\Server::class, 'onRequest'],
+                Event::ON_HAND_SHAKE => [App\WebSocket\WebSocketController::class, 'onHandShake'],
+                Event::ON_MESSAGE    => [App\WebSocket\WebSocketController::class, 'onMessage'],
+                Event::ON_CLOSE      => [App\WebSocket\WebSocketController::class, 'onClose'],
             ],
         ],
         [
@@ -58,8 +65,19 @@ return [
         'open_tcp_nodelay' => true,
         'max_coroutine' => 100000,
         'open_http2_protocol' => true,
-        'max_request' => 100000,
+        'max_request' => (int) (getenv('MAX_REQUEST') ?: 500000),
         'socket_buffer_size' => 2 * 1024 * 1024,
         'buffer_output_size' => 2 * 1024 * 1024,
+
+        // --- WebSocket / Liveposting settings ---
+        // @see docs/LIVEPOSTING.md §11.3
+        'websocket_subprotocol'       => 'ashchan-v1',
+        'open_websocket_ping_frame'   => true,
+        'open_websocket_pong_frame'   => true,
+        'open_websocket_close_frame'  => true,
+        'websocket_compression'       => true,           // permessage-deflate
+        'max_connection'              => (int) (getenv('MAX_CONNECTION') ?: 100000),
+        'heartbeat_check_interval'    => 45,             // Ping every 45s (< CF 100s idle timeout)
+        'heartbeat_idle_time'         => 300,            // Disconnect after 5min idle
     ],
 ];

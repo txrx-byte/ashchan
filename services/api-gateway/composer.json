@@ -17,6 +17,7 @@
     "hyperf/guzzle": "^3.1",
     "hyperf/logger": "^3.1",
     "hyperf/redis": "^3.1",
+    "hyperf/websocket-server": "^3.1",
     "ashchan/event-bus": "*"
   },
   "repositories": [
