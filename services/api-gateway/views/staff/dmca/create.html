@@ -18,169 +18,202 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="never">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create DMCA Notice - Staff Panel</title>
     <link rel="stylesheet" href="/staff/css/admincore.css">
-    <link rel="stylesheet" href="/staff/css/bans.css">
+    <link rel="stylesheet" href="/staff/css/admin.css">
+    <link rel="stylesheet" href="/staff/css/admin-forms.css">
+    <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
 </head>
-<body>
-    <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h1>Staff Panel</h1>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="/staff/admin" class="nav-item">
-                    <span class="nav-icon">📊</span>
-                    <span>Overview</span>
-                </a>
-                <div class="nav-section">Moderation</div>
-                <a href="/staff/reports" class="nav-item">
-                    <span class="nav-icon">🚩</span>
-                    <span>Reports Queue</span>
-                </a>
-                <a href="/staff/reports/ban-requests" class="nav-item">
-                    <span class="nav-icon">⚖️</span>
-                    <span>Ban Requests</span>
-                </a>
-                <a href="/staff/bans" class="nav-item">
-                    <span class="nav-icon">🚫</span>
-                    <span>Bans</span>
-                </a>
-                <div class="nav-section">Management</div>
-                <a href="/staff/accounts" class="nav-item">
-                    <span class="nav-icon">👤</span>
-                    <span>Accounts</span>
-                </a>
-                <a href="/staff/capcodes" class="nav-item">
-                    <span class="nav-icon">🏷️</span>
-                    <span>Capcodes</span>
-                </a>
-                <a href="/staff/iprangebans" class="nav-item">
-                    <span class="nav-icon">🌐</span>
-                    <span>IP Range Bans</span>
-                </a>
-                <a href="/staff/autopurge" class="nav-item">
-                    <span class="nav-icon">🗑️</span>
-                    <span>Autopurge</span>
-                </a>
-                <a href="/staff/dmca" class="nav-item active">
-                    <span class="nav-icon">📧</span>
-                    <span>DMCA</span>
-                </a>
-                <a href="/staff/blotter" class="nav-item">
-                    <span class="nav-icon">📢</span>
-                    <span>Blotter</span>
-                </a>
-                <a href="/staff/site-messages" class="nav-item">
-                    <span class="nav-icon">📝</span>
-                    <span>Site Messages</span>
-                </a>
-                <div class="nav-section">Account</div>
-                <form method="POST" action="/staff/logout" class="nav-item" style="margin:0">
-                    <button type="submit" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0;display:flex;align-items:center;gap:8px;width:100%">
-                    <span class="nav-icon">🚪</span>
-                    <span>Logout</span>
-                    </button>
-                </form>
-            </nav>
-        </aside>
-        <main class="content">
-            <header class="content-header">
-                <h2>Create DMCA Notice</h2>
-                <a href="/staff/dmca" class="btn">Cancel</a>
-            </header>
-
-            <form id="dmcaForm" class="form">
-                <h3>Claimant Information</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="claimant_name">Name *</label>
-                        <input type="text" id="claimant_name" name="claimant_name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="claimant_company">Company</label>
-                        <input type="text" id="claimant_company" name="claimant_company">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="claimant_email">Email *</label>
-                        <input type="email" id="claimant_email" name="claimant_email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="claimant_phone">Phone</label>
-                        <input type="text" id="claimant_phone" name="claimant_phone">
-                    </div>
-                </div>
-
-                <h3>Copyright Information</h3>
-                <div class="form-group">
-                    <label for="copyrighted_work">Copyrighted Work Description *</label>
-                    <textarea id="copyrighted_work" name="copyrighted_work" required rows="3"
-                              placeholder="Describe the copyrighted work being infringed"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="infringing_urls">Infringing URLs *</label>
-                    <textarea id="infringing_urls" name="infringing_urls" required rows="5"
-                              placeholder="Enter one URL per line"></textarea>
-                    <small>One URL per line</small>
-                </div>
-
-                <h3>Legal Statement</h3>
-                <div class="form-group">
-                    <label for="statement">Statement *</label>
-                    <textarea id="statement" name="statement" required rows="4"
-                              placeholder="I have a good faith belief that use of the material..."></textarea>
-                    <small>Standard DMCA statement of good faith belief</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="signature">Signature</label>
-                    <input type="text" id="signature" name="signature" 
-                           placeholder="Full legal name (electronic signature)">
-                    <small>Electronic signature of the claimant</small>
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Create Notice</button>
-                    <a href="/staff/dmca" class="btn">Cancel</a>
-                </div>
-            </form>
-        </main>
+<body class="admin-panel">
+<div id="admin-container">
+  <nav id="admin-nav">
+    <div class="admin-logo">Ashchan Admin</div>
+    <div class="admin-user">
+      <span class="username"><?= htmlspecialchars($username ?? 'Admin') ?></span>
+      <span class="level">(<?= htmlspecialchars(ucfirst($level ?? 'admin')) ?>)</span>
     </div>
-    <script src="/staff/js/admincore.js"></script>
-    <script>
-        document.getElementById('dmcaForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const data = {
-                claimant_name: formData.get('claimant_name'),
-                claimant_company: formData.get('claimant_company'),
-                claimant_email: formData.get('claimant_email'),
-                claimant_phone: formData.get('claimant_phone'),
-                copyrighted_work: formData.get('copyrighted_work'),
-                infringing_urls: formData.get('infringing_urls'),
-                statement: formData.get('statement'),
-                signature: formData.get('signature'),
-            };
 
-            fetch('/staff/dmca/store', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = data.redirect;
-                } else {
-                    alert('Error: ' + (data.errors ? data.errors.join('\n') : data.error));
-                }
-            });
-        });
-    </script>
+    <ul class="nav-section">
+      <li class="nav-header">Main</li>
+      <li><a href="/staff/admin">Overview</a></li>
+      <li><a href="/staff/dashboard">Dashboard</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Moderation</li>
+      <li><a href="/staff/reports">Reports Queue</a></li>
+      <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+      <li><a href="/staff/bans">Bans</a></li>
+      <li><a href="/staff/ban-templates">Ban Templates</a></li>
+      <li><a href="/staff/report-categories">Report Categories</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Search &amp; Tools</li>
+      <li><a href="/staff/search">Search</a></li>
+      <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+      <li><a href="/staff/check-md5">Check MD5</a></li>
+      <li><a href="/staff/check-filter">Check Filter</a></li>
+    </ul>
+
+    <?php if ($isManager ?? false): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Management</li>
+      <li><a href="/staff/boards">Board Configuration</a></li>
+      <li><a href="/staff/staff-roster">Staff Roster</a></li>
+      <li><a href="/staff/capcodes">Capcodes</a></li>
+      <li><a href="/staff/iprangebans">IP Range Bans</a></li>
+      <li><a href="/staff/autopurge">Autopurge</a></li>
+      <li><a href="/staff/dmca" class="active">DMCA Tool</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Logs</li>
+      <li><a href="/staff/stafflog">Staff Action Log</a></li>
+      <li><a href="/staff/floodlog">Flood Log</a></li>
+      <li><a href="/staff/userdellog">User Deletion Log</a></li>
+    </ul>
+    <?php endif ?>
+
+    <?php if ($isAdmin ?? false): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Admin</li>
+      <li><a href="/staff/blotter">Blotter</a></li>
+      <li><a href="/staff/site-messages">Site Messages</a></li>
+      <li><a href="/staff/site-settings">Site Settings</a></li>
+    </ul>
+    <?php endif ?>
+
+    <ul class="nav-section nav-footer">
+      <li><a href="/staff/changepass">Change Password</a></li>
+      <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
+    </ul>
+  </nav>
+
+  <main id="admin-content">
+    <header class="content-header">
+      <h1>Create DMCA Notice</h1>
+      <div class="header-actions">
+        <a href="/staff/dmca" class="button button-light">&larr; Back to Notices</a>
+        <button id="dark-theme-toggle" class="button button-light">
+          <span class="icon">&#x1F319;</span> Dark Theme
+        </button>
+      </div>
+    </header>
+
+    <div class="content-section">
+      <h2>Claimant Information</h2>
+      <form id="dmcaForm" class="admin-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="claimant_name">Name *</label>
+            <input type="text" id="claimant_name" name="claimant_name" required>
+          </div>
+          <div class="form-group">
+            <label for="claimant_company">Company</label>
+            <input type="text" id="claimant_company" name="claimant_company">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="claimant_email">Email *</label>
+            <input type="email" id="claimant_email" name="claimant_email" required>
+          </div>
+          <div class="form-group">
+            <label for="claimant_phone">Phone</label>
+            <input type="text" id="claimant_phone" name="claimant_phone">
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="content-section">
+      <h2>Copyright Information</h2>
+      <div class="admin-form">
+        <div class="form-group">
+          <label for="copyrighted_work">Copyrighted Work Description *</label>
+          <textarea id="copyrighted_work" name="copyrighted_work" form="dmcaForm" required rows="3"
+                    placeholder="Describe the copyrighted work being infringed"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="infringing_urls">Infringing URLs *</label>
+          <textarea id="infringing_urls" name="infringing_urls" form="dmcaForm" required rows="5"
+                    placeholder="Enter one URL per line"></textarea>
+          <small>One URL per line</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-section">
+      <h2>Legal Statement</h2>
+      <div class="admin-form">
+        <div class="form-group">
+          <label for="statement">Statement *</label>
+          <textarea id="statement" name="statement" form="dmcaForm" required rows="4"
+                    placeholder="I have a good faith belief that use of the material..."></textarea>
+          <small>Standard DMCA statement of good faith belief</small>
+        </div>
+
+        <div class="form-group">
+          <label for="signature">Signature</label>
+          <input type="text" id="signature" name="signature" form="dmcaForm"
+                 placeholder="Full legal name (electronic signature)">
+          <small>Electronic signature of the claimant</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" form="dmcaForm" class="button button-primary">Create Notice</button>
+          <a href="/staff/dmca" class="button">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/staff/js/admincore.js"></script>
+<script src="/staff/js/staff.js"></script>
+<script>
+document.getElementById('dark-theme-toggle')?.addEventListener('click', function() {
+  document.body.classList.toggle('dark-theme');
+  localStorage.setItem('dark-theme', document.body.classList.contains('dark-theme') ? '1' : '0');
+});
+if (localStorage.getItem('dark-theme') === '1') {
+  document.body.classList.add('dark-theme');
+}
+
+document.getElementById('dmcaForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  // Also get fields with form= attribute
+  const data = {
+    claimant_name: formData.get('claimant_name'),
+    claimant_company: formData.get('claimant_company'),
+    claimant_email: formData.get('claimant_email'),
+    claimant_phone: formData.get('claimant_phone'),
+    copyrighted_work: document.getElementById('copyrighted_work').value,
+    infringing_urls: document.getElementById('infringing_urls').value,
+    statement: document.getElementById('statement').value,
+    signature: document.getElementById('signature').value,
+  };
+
+  fetch('/staff/dmca/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      window.location.href = data.redirect;
+    } else {
+      alert('Error: ' + (data.errors ? data.errors.join('\n') : data.error));
+    }
+  });
+});
+</script>
 </body>
 </html>

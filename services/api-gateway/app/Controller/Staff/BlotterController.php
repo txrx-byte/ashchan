@@ -45,14 +45,29 @@ final class BlotterController
             ->orderBy('priority', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
-        $html = $this->viewService->render('staff/blotter/index', ['messages' => $messages]);
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        $html = $this->viewService->render('staff/blotter/index', [
+            'messages' => $messages,
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
+        ]);
         return $this->response->html($html);
     }
 
     #[GetMapping(path: 'create')]
     public function create(): ResponseInterface
     {
-        $html = $this->viewService->render('staff/blotter/create');
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        $html = $this->viewService->render('staff/blotter/create', [
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
+        ]);
         return $this->response->html($html);
     }
 
@@ -95,7 +110,15 @@ final class BlotterController
             return $this->response->json(['error' => 'Not found'], 404);
         }
 
-        $html = $this->viewService->render('staff/blotter/edit', ['message' => $message]);
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        $html = $this->viewService->render('staff/blotter/edit', [
+            'message' => $message,
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
+        ]);
         return $this->response->html($html);
     }
 

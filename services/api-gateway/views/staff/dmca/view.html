@@ -18,266 +18,286 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="never">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DMCA Notice #<?= $notice->id ?> - Staff Panel</title>
     <link rel="stylesheet" href="/staff/css/admincore.css">
-    <link rel="stylesheet" href="/staff/css/bans.css">
+    <link rel="stylesheet" href="/staff/css/admin.css">
+    <link rel="stylesheet" href="/staff/css/admin-forms.css">
+    <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
 </head>
-<body>
-    <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h1>Staff Panel</h1>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="/staff/admin" class="nav-item">
-                    <span class="nav-icon">📊</span>
-                    <span>Overview</span>
-                </a>
-                <div class="nav-section">Moderation</div>
-                <a href="/staff/reports" class="nav-item">
-                    <span class="nav-icon">🚩</span>
-                    <span>Reports Queue</span>
-                </a>
-                <a href="/staff/reports/ban-requests" class="nav-item">
-                    <span class="nav-icon">⚖️</span>
-                    <span>Ban Requests</span>
-                </a>
-                <a href="/staff/bans" class="nav-item">
-                    <span class="nav-icon">🚫</span>
-                    <span>Bans</span>
-                </a>
-                <div class="nav-section">Management</div>
-                <a href="/staff/accounts" class="nav-item">
-                    <span class="nav-icon">👤</span>
-                    <span>Accounts</span>
-                </a>
-                <a href="/staff/capcodes" class="nav-item">
-                    <span class="nav-icon">🏷️</span>
-                    <span>Capcodes</span>
-                </a>
-                <a href="/staff/iprangebans" class="nav-item">
-                    <span class="nav-icon">🌐</span>
-                    <span>IP Range Bans</span>
-                </a>
-                <a href="/staff/autopurge" class="nav-item">
-                    <span class="nav-icon">🗑️</span>
-                    <span>Autopurge</span>
-                </a>
-                <a href="/staff/dmca" class="nav-item active">
-                    <span class="nav-icon">📧</span>
-                    <span>DMCA</span>
-                </a>
-                <a href="/staff/blotter" class="nav-item">
-                    <span class="nav-icon">📢</span>
-                    <span>Blotter</span>
-                </a>
-                <a href="/staff/site-messages" class="nav-item">
-                    <span class="nav-icon">📝</span>
-                    <span>Site Messages</span>
-                </a>
-                <div class="nav-section">Account</div>
-                <form method="POST" action="/staff/logout" class="nav-item" style="margin:0">
-                    <button type="submit" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0;display:flex;align-items:center;gap:8px;width:100%">
-                    <span class="nav-icon">🚪</span>
-                    <span>Logout</span>
-                    </button>
-                </form>
-            </nav>
-        </aside>
-        <main class="content">
-            <header class="content-header">
-                <h2>DMCA Notice #<?= $notice->id ?></h2>
-                <a href="/staff/dmca" class="btn">Back to List</a>
-            </header>
-
-            <div class="detail-section">
-                <h3>Claimant Information</h3>
-                <dl class="detail-list">
-                    <dt>Name</dt>
-                    <dd><?= htmlspecialchars($notice->claimant_name) ?></dd>
-                    
-                    <dt>Company</dt>
-                    <dd><?= htmlspecialchars($notice->claimant_company ?? 'N/A') ?></dd>
-                    
-                    <dt>Email</dt>
-                    <dd><?= htmlspecialchars($notice->claimant_email) ?></dd>
-                    
-                    <dt>Phone</dt>
-                    <dd><?= htmlspecialchars($notice->claimant_phone ?? 'N/A') ?></dd>
-                </dl>
-            </div>
-
-            <div class="detail-section">
-                <h3>Copyright Information</h3>
-                <dl class="detail-list">
-                    <dt>Copyrighted Work</dt>
-                    <dd><?= nl2br(htmlspecialchars($notice->copyrighted_work)) ?></dd>
-                    
-                    <dt>Infringing URLs</dt>
-                    <dd>
-                        <ul class="url-list">
-                            <?php 
-                            $urls = is_array($notice->infringing_urls) ? $notice->infringing_urls : [];
-                            foreach ($urls as $url): 
-                            ?>
-                                <li><a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($url) ?></a></li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </dd>
-                </dl>
-            </div>
-
-            <div class="detail-section">
-                <h3>Legal Statement</h3>
-                <div class="statement-box">
-                    <?= nl2br(htmlspecialchars($notice->statement)) ?>
-                </div>
-                <?php if ($notice->signature): ?>
-                    <p><strong>Signature:</strong> <?= htmlspecialchars($notice->signature) ?></p>
-                <?php endif; ?>
-            </div>
-
-            <div class="detail-section">
-                <h3>Status & Processing</h3>
-                <form id="statusForm" class="inline-form">
-                    <label>Status: 
-                        <select name="status" onchange="updateStatus(<?= $notice->id ?>)">
-                            <option value="pending" <?= $notice->status === 'pending' ? 'selected' : '' ?>>Pending</option>
-                            <option value="processed" <?= $notice->status === 'processed' ? 'selected' : '' ?>>Processed</option>
-                            <option value="rejected" <?= $notice->status === 'rejected' ? 'selected' : '' ?>>Rejected</option>
-                        </select>
-                    </label>
-                </form>
-                <p><strong>Received:</strong> <?= date('Y-m-d H:i:s', strtotime($notice->received_at)) ?></p>
-                <?php if ($notice->processed_at): ?>
-                    <p><strong>Processed:</strong> <?= date('Y-m-d H:i:s', strtotime($notice->processed_at)) ?></p>
-                <?php endif; ?>
-                <?php if ($notice->notes): ?>
-                    <p><strong>Notes:</strong></p>
-                    <div class="notes-box"><?= nl2br(htmlspecialchars($notice->notes)) ?></div>
-                <?php endif; ?>
-            </div>
-
-            <?php if (!empty($takedowns)): ?>
-                <div class="detail-section">
-                    <h3>Takedowns (<?= count($takedowns) ?>)</h3>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Board</th>
-                                <th>Post #</th>
-                                <th>Reason</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($takedowns as $takedown): ?>
-                                <tr>
-                                    <td>/<?= htmlspecialchars($takedown->board) ?>/</td>
-                                    <td><?= $takedown->post_no ?></td>
-                                    <td><?= htmlspecialchars($takedown->takedown_reason ?? 'N/A') ?></td>
-                                    <td><?= date('Y-m-d H:i', strtotime($takedown->takedown_at)) ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-
-            <div class="detail-section">
-                <h3>Process Notice</h3>
-                <form id="processForm" class="form">
-                    <div class="form-group">
-                        <label>Takedown Entries</label>
-                        <div id="takedownEntries">
-                            <div class="takedown-entry">
-                                <input type="text" name="takedowns[0][board]" placeholder="Board (e.g., b)" style="width: 100px;">
-                                <input type="number" name="takedowns[0][post_no]" placeholder="Post #" style="width: 120px;">
-                                <input type="text" name="takedowns[0][reason]" placeholder="Reason" style="flex: 1;">
-                                <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">×</button>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm" onclick="addTakedownEntry()">+ Add Entry</button>
-                    </div>
-                    <div class="form-group">
-                        <label for="notes">Notes</label>
-                        <textarea id="notes" name="notes" rows="3" placeholder="Internal notes..."><?= htmlspecialchars($notice->notes ?? '') ?></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Process Notice</button>
-                    </div>
-                </form>
-            </div>
-        </main>
+<body class="admin-panel">
+<div id="admin-container">
+  <nav id="admin-nav">
+    <div class="admin-logo">Ashchan Admin</div>
+    <div class="admin-user">
+      <span class="username"><?= htmlspecialchars($username ?? 'Admin') ?></span>
+      <span class="level">(<?= htmlspecialchars(ucfirst($level ?? 'admin')) ?>)</span>
     </div>
-    <script src="/staff/js/admincore.js"></script>
-    <script>
-        let takedownCount = 1;
-        function addTakedownEntry() {
-            const container = document.getElementById('takedownEntries');
-            const div = document.createElement('div');
-            div.className = 'takedown-entry';
-            div.innerHTML = `
-                <input type="text" name="takedowns[${takedownCount}][board]" placeholder="Board" style="width: 100px;">
-                <input type="number" name="takedowns[${takedownCount}][post_no]" placeholder="Post #" style="width: 120px;">
-                <input type="text" name="takedowns[${takedownCount}][reason]" placeholder="Reason" style="flex: 1;">
-                <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">×</button>
-            `;
-            container.appendChild(div);
-            takedownCount++;
-        }
 
-        function updateStatus(id) {
-            const form = document.getElementById('statusForm');
-            const status = form.querySelector('select').value;
-            fetch('/staff/dmca/' + id + '/status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: status }),
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) {
-                    alert('Error: ' + data.error);
-                }
-            });
-        }
+    <ul class="nav-section">
+      <li class="nav-header">Main</li>
+      <li><a href="/staff/admin">Overview</a></li>
+      <li><a href="/staff/dashboard">Dashboard</a></li>
+    </ul>
 
-        document.getElementById('processForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const takedowns = [];
-            for (let i = 0; i < takedownCount; i++) {
-                const board = formData.get('takedowns[' + i + '][board]');
-                const postNo = formData.get('takedowns[' + i + '][post_no]');
-                if (board && postNo) {
-                    takedowns.push({
-                        board: board,
-                        post_no: postNo,
-                        reason: formData.get('takedowns[' + i + '][reason]') || '',
-                    });
-                }
-            }
-            const data = {
-                status: 'processed',
-                notes: formData.get('notes'),
-                takedowns: takedowns,
-            };
-            fetch('/staff/dmca/<?= $notice->id ?>/process', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            });
-        });
-    </script>
+    <ul class="nav-section">
+      <li class="nav-header">Moderation</li>
+      <li><a href="/staff/reports">Reports Queue</a></li>
+      <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+      <li><a href="/staff/bans">Bans</a></li>
+      <li><a href="/staff/ban-templates">Ban Templates</a></li>
+      <li><a href="/staff/report-categories">Report Categories</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Search &amp; Tools</li>
+      <li><a href="/staff/search">Search</a></li>
+      <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+      <li><a href="/staff/check-md5">Check MD5</a></li>
+      <li><a href="/staff/check-filter">Check Filter</a></li>
+    </ul>
+
+    <?php if ($isManager ?? false): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Management</li>
+      <li><a href="/staff/boards">Board Configuration</a></li>
+      <li><a href="/staff/staff-roster">Staff Roster</a></li>
+      <li><a href="/staff/capcodes">Capcodes</a></li>
+      <li><a href="/staff/iprangebans">IP Range Bans</a></li>
+      <li><a href="/staff/autopurge">Autopurge</a></li>
+      <li><a href="/staff/dmca" class="active">DMCA Tool</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Logs</li>
+      <li><a href="/staff/stafflog">Staff Action Log</a></li>
+      <li><a href="/staff/floodlog">Flood Log</a></li>
+      <li><a href="/staff/userdellog">User Deletion Log</a></li>
+    </ul>
+    <?php endif ?>
+
+    <?php if ($isAdmin ?? false): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Admin</li>
+      <li><a href="/staff/blotter">Blotter</a></li>
+      <li><a href="/staff/site-messages">Site Messages</a></li>
+      <li><a href="/staff/site-settings">Site Settings</a></li>
+    </ul>
+    <?php endif ?>
+
+    <ul class="nav-section nav-footer">
+      <li><a href="/staff/changepass">Change Password</a></li>
+      <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
+    </ul>
+  </nav>
+
+  <main id="admin-content">
+    <header class="content-header">
+      <h1>DMCA Notice #<?= $notice->id ?></h1>
+      <div class="header-actions">
+        <a href="/staff/dmca" class="button button-light">&larr; Back to Notices</a>
+        <button id="dark-theme-toggle" class="button button-light">
+          <span class="icon">&#x1F319;</span> Dark Theme
+        </button>
+      </div>
+    </header>
+
+    <div class="detail-section">
+      <h3>Claimant Information</h3>
+      <dl class="detail-list">
+        <dt>Name</dt>
+        <dd><?= htmlspecialchars($notice->claimant_name) ?></dd>
+
+        <dt>Company</dt>
+        <dd><?= htmlspecialchars($notice->claimant_company ?? 'N/A') ?></dd>
+
+        <dt>Email</dt>
+        <dd><?= htmlspecialchars($notice->claimant_email) ?></dd>
+
+        <dt>Phone</dt>
+        <dd><?= htmlspecialchars($notice->claimant_phone ?? 'N/A') ?></dd>
+      </dl>
+    </div>
+
+    <div class="detail-section">
+      <h3>Copyright Information</h3>
+      <dl class="detail-list">
+        <dt>Work</dt>
+        <dd><?= nl2br(htmlspecialchars($notice->copyrighted_work)) ?></dd>
+
+        <dt>URLs</dt>
+        <dd>
+          <ul class="url-list">
+            <?php
+            $urls = is_array($notice->infringing_urls) ? $notice->infringing_urls : [];
+            foreach ($urls as $url):
+            ?>
+              <li><a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($url) ?></a></li>
+            <?php endforeach; ?>
+          </ul>
+        </dd>
+      </dl>
+    </div>
+
+    <div class="detail-section">
+      <h3>Legal Statement</h3>
+      <div class="statement-box">
+        <?= nl2br(htmlspecialchars($notice->statement)) ?>
+      </div>
+      <?php if ($notice->signature): ?>
+        <p><strong>Signature:</strong> <?= htmlspecialchars($notice->signature) ?></p>
+      <?php endif; ?>
+    </div>
+
+    <div class="detail-section">
+      <h3>Status &amp; Processing</h3>
+      <form id="statusForm" class="inline-form">
+        <label>Status:
+          <select name="status" onchange="updateStatus(<?= $notice->id ?>)">
+            <option value="pending" <?= $notice->status === 'pending' ? 'selected' : '' ?>>Pending</option>
+            <option value="processed" <?= $notice->status === 'processed' ? 'selected' : '' ?>>Processed</option>
+            <option value="rejected" <?= $notice->status === 'rejected' ? 'selected' : '' ?>>Rejected</option>
+          </select>
+        </label>
+      </form>
+      <p><strong>Received:</strong> <?= date('Y-m-d H:i:s', strtotime($notice->received_at)) ?></p>
+      <?php if ($notice->processed_at): ?>
+        <p><strong>Processed:</strong> <?= date('Y-m-d H:i:s', strtotime($notice->processed_at)) ?></p>
+      <?php endif; ?>
+      <?php if ($notice->notes): ?>
+        <p><strong>Notes:</strong></p>
+        <div class="notes-box"><?= nl2br(htmlspecialchars($notice->notes)) ?></div>
+      <?php endif; ?>
+    </div>
+
+    <?php if (!empty($takedowns)): ?>
+      <div class="content-section">
+        <h2>Takedowns (<?= count($takedowns) ?>)</h2>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Board</th>
+              <th>Post #</th>
+              <th>Reason</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($takedowns as $takedown): ?>
+              <tr>
+                <td>/<?= htmlspecialchars($takedown->board) ?>/</td>
+                <td><?= $takedown->post_no ?></td>
+                <td><?= htmlspecialchars($takedown->takedown_reason ?? 'N/A') ?></td>
+                <td><?= date('Y-m-d H:i', strtotime($takedown->takedown_at)) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+
+    <div class="content-section">
+      <h2>Process Notice</h2>
+      <form id="processForm" class="admin-form">
+        <div class="form-group">
+          <label>Takedown Entries</label>
+          <div id="takedownEntries">
+            <div class="takedown-entry">
+              <input type="text" name="takedowns[0][board]" placeholder="Board (e.g., b)" style="width: 100px;">
+              <input type="number" name="takedowns[0][post_no]" placeholder="Post #" style="width: 120px;">
+              <input type="text" name="takedowns[0][reason]" placeholder="Reason" style="flex: 1;">
+              <button type="button" class="button button-small btn-danger" onclick="this.parentElement.remove()">&#xd7;</button>
+            </div>
+          </div>
+          <button type="button" class="button button-small" onclick="addTakedownEntry()" style="margin-top:8px">+ Add Entry</button>
+        </div>
+        <div class="form-group">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3" placeholder="Internal notes..."><?= htmlspecialchars($notice->notes ?? '') ?></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="button button-primary">Process Notice</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<script src="/staff/js/admincore.js"></script>
+<script src="/staff/js/staff.js"></script>
+<script>
+document.getElementById('dark-theme-toggle')?.addEventListener('click', function() {
+  document.body.classList.toggle('dark-theme');
+  localStorage.setItem('dark-theme', document.body.classList.contains('dark-theme') ? '1' : '0');
+});
+if (localStorage.getItem('dark-theme') === '1') {
+  document.body.classList.add('dark-theme');
+}
+
+let takedownCount = 1;
+function addTakedownEntry() {
+  const container = document.getElementById('takedownEntries');
+  const div = document.createElement('div');
+  div.className = 'takedown-entry';
+  div.innerHTML = '<input type="text" name="takedowns[' + takedownCount + '][board]" placeholder="Board" style="width: 100px;">' +
+    '<input type="number" name="takedowns[' + takedownCount + '][post_no]" placeholder="Post #" style="width: 120px;">' +
+    '<input type="text" name="takedowns[' + takedownCount + '][reason]" placeholder="Reason" style="flex: 1;">' +
+    '<button type="button" class="button button-small btn-danger" onclick="this.parentElement.remove()">\u00d7</button>';
+  container.appendChild(div);
+  takedownCount++;
+}
+
+function updateStatus(id) {
+  const form = document.getElementById('statusForm');
+  const status = form.querySelector('select').value;
+  fetch('/staff/dmca/' + id + '/status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: status }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.success) {
+      alert('Error: ' + data.error);
+    }
+  });
+}
+
+document.getElementById('processForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const takedowns = [];
+  for (let i = 0; i < takedownCount; i++) {
+    const board = formData.get('takedowns[' + i + '][board]');
+    const postNo = formData.get('takedowns[' + i + '][post_no]');
+    if (board && postNo) {
+      takedowns.push({
+        board: board,
+        post_no: postNo,
+        reason: formData.get('takedowns[' + i + '][reason]') || '',
+      });
+    }
+  }
+  const data = {
+    status: 'processed',
+    notes: formData.get('notes'),
+    takedowns: takedowns,
+  };
+  fetch('/staff/dmca/<?= $notice->id ?>/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert('Error: ' + data.error);
+    }
+  });
+});
+</script>
 </body>
 </html>

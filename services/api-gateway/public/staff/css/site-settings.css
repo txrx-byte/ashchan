@@ -1,0 +1,459 @@
+/*
+ * Copyright 2026 txrx-byte
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* Site Settings page styles */
+
+/* Category navigation pills */
+.category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.category-pills a {
+  display: inline-block;
+  padding: 6px 14px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  color: #495057;
+  transition: all 0.2s;
+}
+
+.category-pills a:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  color: #212529;
+}
+
+.category-pills a.active {
+  background: #3498db;
+  border-color: #3498db;
+  color: #fff;
+}
+
+/* Settings category sections */
+.settings-category {
+  margin-bottom: 8px;
+}
+
+.settings-category h3 {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #7f8c8d;
+  padding: 12px 20px;
+  margin: 0;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  border-radius: 8px 8px 0 0;
+}
+
+/* Individual setting rows */
+.setting-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  transition: background 0.15s;
+}
+
+.setting-row:hover {
+  background: #f8f9fa;
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.setting-key {
+  flex: 0 0 260px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2c3e50;
+  word-break: break-all;
+  padding-top: 4px;
+}
+
+.setting-value {
+  flex: 0 0 240px;
+  min-width: 180px;
+}
+
+.setting-value input[type="text"],
+.setting-value input[type="number"],
+.setting-value select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  background: #fff;
+  color: #2c3e50;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  height: auto;
+}
+
+.setting-value input:focus,
+.setting-value select:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+  outline: none;
+}
+
+.setting-desc {
+  flex: 1;
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.5;
+  padding-top: 4px;
+}
+
+.setting-actions {
+  flex: 0 0 70px;
+  text-align: right;
+  padding-top: 4px;
+}
+
+.audit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #3498db;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.audit-link:hover {
+  background: rgba(52, 152, 219, 0.1);
+  text-decoration: none;
+}
+
+/* Changed indicator */
+.setting-value input.changed,
+.setting-value select.changed {
+  border-color: #f59e0b !important;
+  background: #fffbeb !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+/* Save bar */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding: 14px 20px;
+  border-top: 2px solid #3498db;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+}
+
+.save-bar .change-status {
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.save-bar .change-status.has-changes {
+  color: #d97706;
+}
+
+.save-bar .btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-bar .btn-save:hover {
+  background: linear-gradient(180deg, #2980b9 0%, #2471a3 100%);
+  box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+}
+
+.save-bar .btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Success alert */
+.alert-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.alert-success .alert-icon {
+  font-size: 16px;
+}
+
+/* Audit page styles */
+.current-value-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8f9fa;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e9ecef;
+}
+
+.current-value-card .label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.current-value-card code {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 13px;
+  padding: 4px 10px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #2c3e50;
+}
+
+.audit-key-badge {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 13px;
+  background: rgba(52, 152, 219, 0.1);
+  color: #2980b9;
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+
+/* Stat summary cards for settings overview */
+.settings-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.settings-stat-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.settings-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.settings-stat-card .stat-icon {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.settings-stat-card .stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #2c3e50;
+  line-height: 1;
+}
+
+.settings-stat-card .stat-label {
+  font-size: 11px;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* Responsive tweaks */
+@media (max-width: 1200px) {
+  .setting-row {
+    flex-wrap: wrap;
+  }
+  .setting-key {
+    flex: 0 0 100%;
+    margin-bottom: 4px;
+  }
+  .setting-value {
+    flex: 1;
+    min-width: 150px;
+  }
+  .setting-desc {
+    flex: 1 1 100%;
+    order: 4;
+    padding-top: 6px;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .category-pills {
+    gap: 6px;
+  }
+  .category-pills a {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+}
+
+/* Dark theme */
+body.dark-theme .settings-category h3 {
+  background: #333;
+  color: #95a5a6;
+  border-bottom-color: #444;
+}
+
+body.dark-theme .setting-row {
+  background: #2a2a2a;
+  border-bottom-color: #3a3a3a;
+}
+
+body.dark-theme .setting-row:hover {
+  background: #333;
+}
+
+body.dark-theme .setting-key {
+  color: #ecf0f1;
+}
+
+body.dark-theme .setting-desc {
+  color: #95a5a6;
+}
+
+body.dark-theme .setting-value input,
+body.dark-theme .setting-value select {
+  background: #333;
+  border-color: #555;
+  color: #ecf0f1;
+}
+
+body.dark-theme .setting-value input:focus,
+body.dark-theme .setting-value select:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.25);
+}
+
+body.dark-theme .setting-value input.changed,
+body.dark-theme .setting-value select.changed {
+  background: #3d3520 !important;
+  border-color: #f59e0b !important;
+}
+
+body.dark-theme .save-bar {
+  background: #2a2a2a;
+  border-top-color: #3498db;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-theme .category-pills a {
+  background: #333;
+  border-color: #555;
+  color: #bdc3c7;
+}
+
+body.dark-theme .category-pills a:hover {
+  background: #444;
+  color: #ecf0f1;
+}
+
+body.dark-theme .category-pills a.active {
+  background: #3498db;
+  border-color: #3498db;
+  color: #fff;
+}
+
+body.dark-theme .alert-success {
+  background: #1a3a2a;
+  color: #6ee7b7;
+}
+
+body.dark-theme .current-value-card {
+  background: #333;
+  border-color: #444;
+}
+
+body.dark-theme .current-value-card .label {
+  color: #95a5a6;
+}
+
+body.dark-theme .current-value-card code {
+  background: #2a2a2a;
+  border-color: #555;
+  color: #ecf0f1;
+}
+
+body.dark-theme .audit-key-badge {
+  background: rgba(52, 152, 219, 0.2);
+}
+
+body.dark-theme .settings-stat-card {
+  background: #2a2a2a;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme .settings-stat-card .stat-icon {
+  background: #333;
+}
+
+body.dark-theme .settings-stat-card .stat-value {
+  color: #ecf0f1;
+}

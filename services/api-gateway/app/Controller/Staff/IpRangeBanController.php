@@ -46,15 +46,29 @@ final class IpRangeBanController
             ->orderBy('created_at', 'desc')
             ->get();
         $rangeBans = \App\Helper\PgArrayParser::parseCollection($rangeBans, 'boards');
-        $html = $this->viewService->render('staff/iprangebans/index', ['rangeBans' => $rangeBans]);
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        $html = $this->viewService->render('staff/iprangebans/index', [
+            'rangeBans' => $rangeBans,
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
+        ]);
         return $this->response->html($html);
     }
 
     #[GetMapping(path: 'create')]
     public function create(): ResponseInterface
     {
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
         $html = $this->viewService->render('staff/iprangebans/create', [
             'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
         ]);
         return $this->response->html($html);
     }
@@ -105,9 +119,15 @@ final class IpRangeBanController
         }
         $rangeBan->boards = \App\Helper\PgArrayParser::parse($rangeBan->boards ?? null);
 
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
         $html = $this->viewService->render('staff/iprangebans/edit', [
             'rangeBan' => $rangeBan,
             'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
         ]);
         return $this->response->html($html);
     }

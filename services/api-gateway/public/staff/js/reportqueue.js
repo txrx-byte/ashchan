@@ -62,6 +62,7 @@ var RQ = {
       'clear': RQ.onClearClick,
       'delete': RQ.onDeleteClick,
       'ban-request': RQ.onBanRequestClick,
+      'submit-ban-request': RQ.onSubmitBanRequest,
       'show-ban-requests': RQ.onShowBanRequests
     };
     
@@ -377,17 +378,75 @@ var RQ = {
     window.location.href = '/staff/reports/ban-requests';
   },
   
+  onSubmitBanRequest: function(btn) {
+    var panel = $.id('panel-stack');
+    if (!panel) return;
+    
+    var reportId = panel.getAttribute('data-report-id');
+    var report = RQ.reportPool[reportId];
+    if (!report) {
+      alert('Report data not found. Please refresh and try again.');
+      return;
+    }
+    
+    var select = panel.querySelector('.ban-template-select');
+    var textarea = panel.querySelector('.ban-reason-text');
+    var templateId = select ? select.value : '';
+    var reason = textarea ? textarea.value.trim() : '';
+    
+    if (!templateId) {
+      alert('Please select a ban template.');
+      return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+    
+    var postData = report.post || {};
+    
+    ajaxJSON(RQ_CONFIG.apiBase + '/ban-requests', {
+      board: report.board,
+      post_no: report.no,
+      template_id: parseInt(templateId, 10),
+      reason: reason,
+      post_data: postData
+    }, function(data) {
+      if (data.status === 'success') {
+        RQ.hidePanel();
+        var el = document.querySelector('.report-card[data-id="' + reportId + '"]');
+        if (el) {
+          $.addClass(el, 'cleared');
+        }
+        // Auto-clear the report after submitting ban request
+        ajaxPost(RQ_CONFIG.apiBase + '/' + reportId + '/clear', {}, function() {});
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Submit Request';
+        alert(data.error || 'Failed to submit ban request');
+      }
+    }, function(xhr) {
+      btn.disabled = false;
+      btn.textContent = 'Submit Request';
+      var msg = 'Failed to submit ban request';
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch(e) {}
+      alert(msg);
+    });
+  },
+  
   getBanRequestForm: function(report) {
     var no = report ? (report.no || '') : '';
+    var board = report ? (report.board || '') : '';
     return '<div class="panel-content ban-request-form">' +
-      '<p>Creating ban request for post No. ' + no + '</p>' +
+      '<p>Creating ban request for <b>/' + escapeHTML(board) + '/</b> post No. ' + escapeHTML(String(no)) + '</p>' +
       '<select class="ban-template-select">' +
         '<option value="">Select template...</option>' +
         '<option value="1">Spam</option>' +
         '<option value="2">Harassment</option>' +
         '<option value="3">Illegal Content</option>' +
+        '<option value="4">Off-topic</option>' +
+        '<option value="5">NSFW on SFW Board</option>' +
       '</select>' +
-      '<textarea placeholder="Additional reason (optional)"></textarea>' +
+      '<textarea class="ban-reason-text" placeholder="Additional reason (optional)"></textarea>' +
       '<button class="button button-approve" data-cmd="submit-ban-request">Submit Request</button>' +
     '</div>';
   },

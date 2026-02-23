@@ -283,4 +283,54 @@ class StaffReportController extends AbstractController
             return $this->response->json(['error' => 'An internal error occurred'], 500);
         }
     }
+
+    /**
+     * POST /staff/reports/ban-requests - Create a new ban request from report queue
+     */
+    #[PostMapping(path: 'ban-requests')]
+    public function createBanRequest(RequestInterface $request): ResponseInterface
+    {
+        $staffInfo = $this->getStaffInfo();
+
+        $board = $request->input('board');
+        $postNo = $request->input('post_no');
+        $templateId = $request->input('template_id');
+        $reason = $request->input('reason');
+
+        if (!is_string($board) || $board === '') {
+            return $this->response->json(['error' => 'Board is required'], 400);
+        }
+        if (!is_numeric($postNo) || (int) $postNo === 0) {
+            return $this->response->json(['error' => 'Invalid post number'], 400);
+        }
+        if (!is_numeric($templateId) || (int) $templateId === 0) {
+            return $this->response->json(['error' => 'Please select a ban template'], 400);
+        }
+
+        $postData = $request->input('post_data', []);
+        if (!is_array($postData)) {
+            $postData = [];
+        }
+        /** @var array<string, mixed> $postData */
+
+        try {
+            $banRequest = $this->modService->createBanRequest(
+                $board,
+                (int) $postNo,
+                $staffInfo['username'],
+                (int) $templateId,
+                $postData,
+                is_string($reason) ? $reason : ''
+            );
+
+            return $this->response->json([
+                'status' => 'success',
+                'request' => $banRequest->toArray(),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return $this->response->json(['error' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return $this->response->json(['error' => 'Failed to create ban request'], 500);
+        }
+    }
 }

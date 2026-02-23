@@ -84,6 +84,7 @@ Router::get('/staff/reports/data', [\App\Controller\Staff\StaffReportController:
 Router::post('/staff/reports/{id:\d+}/clear', [\App\Controller\Staff\StaffReportController::class, 'clear']);
 Router::post('/staff/reports/{id:\d+}/delete', [\App\Controller\Staff\StaffReportController::class, 'delete']);
 Router::get('/staff/reports/ban-requests', [\App\Controller\Staff\StaffReportController::class, 'banRequests']);
+Router::post('/staff/reports/ban-requests', [\App\Controller\Staff\StaffReportController::class, 'createBanRequest']);
 Router::post('/staff/reports/ban-requests/{id:\d+}/approve', [\App\Controller\Staff\StaffReportController::class, 'approveBanRequest']);
 Router::post('/staff/reports/ban-requests/{id:\d+}/deny', [\App\Controller\Staff\StaffReportController::class, 'denyBanRequest']);
 

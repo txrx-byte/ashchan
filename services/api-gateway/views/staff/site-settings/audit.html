@@ -18,78 +18,145 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="never">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Setting Audit: <?= htmlspecialchars($key) ?> - Staff Panel</title>
     <link rel="stylesheet" href="/staff/css/admincore.css">
-    <link rel="stylesheet" href="/staff/css/bans.css">
+    <link rel="stylesheet" href="/staff/css/admin.css">
+    <link rel="stylesheet" href="/staff/css/site-settings.css">
+    <link rel="shortcut icon" href="/staff/favicon.ico" type="image/x-icon">
 </head>
-<body>
-    <div class="admin-layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h1>Staff Panel</h1>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="/staff/admin" class="nav-item">
-                    <span class="nav-icon">📊</span>
-                    <span>Overview</span>
-                </a>
-                <div class="nav-section">Admin</div>
-                <a href="/staff/site-settings" class="nav-item">
-                    <span class="nav-icon">⚙️</span>
-                    <span>Site Settings</span>
-                </a>
-                <div class="nav-section">Account</div>
-                <form method="POST" action="/staff/logout" class="nav-item" style="margin:0">
-                    <button type="submit" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0;display:flex;align-items:center;gap:8px;width:100%">
-                    <span class="nav-icon">🚪</span>
-                    <span>Logout</span>
-                    </button>
-                </form>
-            </nav>
-        </aside>
-        <main class="content">
-            <header class="content-header">
-                <h2>Audit History: <code><?= htmlspecialchars($key) ?></code></h2>
-                <a href="/staff/site-settings" class="btn btn-light">&larr; Back to Settings</a>
-            </header>
-
-            <div style="background: #f3f4f6; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
-                <strong>Current Value:</strong> <code><?= htmlspecialchars($currentValue) ?></code>
-            </div>
-
-            <?php if (empty($history)): ?>
-                <div class="empty-state">
-                    <p>No audit history found for this setting.</p>
-                </div>
-            <?php else: ?>
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Old Value</th>
-                                <th>New Value</th>
-                                <th>Changed By</th>
-                                <th>Reason</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($history as $entry): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($entry['changed_at']) ?></td>
-                                    <td><code><?= htmlspecialchars($entry['old_value'] ?? '(none)') ?></code></td>
-                                    <td><code><?= htmlspecialchars($entry['new_value']) ?></code></td>
-                                    <td><?= $entry['changed_by'] !== null ? 'Staff #' . (int)$entry['changed_by'] : 'System' ?></td>
-                                    <td><?= htmlspecialchars($entry['reason'] ?? '') ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-        </main>
+<body class="admin-panel">
+<div id="admin-container">
+  <!-- Navigation Sidebar -->
+  <nav id="admin-nav">
+    <div class="admin-logo">Ashchan Admin</div>
+    <div class="admin-user">
+      <span class="username"><?= htmlspecialchars($username) ?></span>
+      <span class="level">(<?= htmlspecialchars(ucfirst($level)) ?>)</span>
     </div>
-    <script src="/staff/js/admincore.js"></script>
+
+    <ul class="nav-section">
+      <li class="nav-header">Main</li>
+      <li><a href="/staff/admin">Overview</a></li>
+      <li><a href="/staff/dashboard">Dashboard</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Moderation</li>
+      <li><a href="/staff/reports">Reports Queue</a></li>
+      <li><a href="/staff/reports/ban-requests">Ban Requests</a></li>
+      <li><a href="/staff/bans">Bans</a></li>
+      <li><a href="/staff/ban-templates">Ban Templates</a></li>
+      <li><a href="/staff/report-categories">Report Categories</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Search &amp; Tools</li>
+      <li><a href="/staff/search">Search</a></li>
+      <li><a href="/staff/ip-lookup">IP Lookup</a></li>
+      <li><a href="/staff/check-md5">Check MD5</a></li>
+      <li><a href="/staff/check-filter">Check Filter</a></li>
+    </ul>
+
+    <?php if ($isManager): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Management</li>
+      <li><a href="/staff/boards">Board Configuration</a></li>
+      <li><a href="/staff/staff-roster">Staff Roster</a></li>
+      <li><a href="/staff/capcodes">Capcodes</a></li>
+      <li><a href="/staff/iprangebans">IP Range Bans</a></li>
+      <li><a href="/staff/autopurge">Autopurge</a></li>
+      <li><a href="/staff/dmca">DMCA Tool</a></li>
+    </ul>
+
+    <ul class="nav-section">
+      <li class="nav-header">Logs</li>
+      <li><a href="/staff/stafflog">Staff Action Log</a></li>
+      <li><a href="/staff/floodlog">Flood Log</a></li>
+      <li><a href="/staff/userdellog">User Deletion Log</a></li>
+    </ul>
+    <?php endif ?>
+
+    <?php if ($isAdmin): ?>
+    <ul class="nav-section">
+      <li class="nav-header">Admin</li>
+      <li><a href="/staff/blotter">Blotter</a></li>
+      <li><a href="/staff/site-messages">Site Messages</a></li>
+      <li><a href="/staff/site-settings" class="active">Site Settings</a></li>
+    </ul>
+    <?php endif ?>
+
+    <ul class="nav-section nav-footer">
+      <li><a href="/staff/changepass">Change Password</a></li>
+      <li><form method="POST" action="/staff/logout" style="display:inline"><button type="submit" class="logout" style="background:none;border:none;cursor:pointer;color:inherit;font:inherit;padding:0">Logout</button></form></li>
+    </ul>
+  </nav>
+
+  <!-- Main Content -->
+  <main id="admin-content">
+    <header class="content-header">
+      <h1>Audit History</h1>
+      <div class="header-actions">
+        <a href="/staff/site-settings" class="button button-light">&larr; Back to Settings</a>
+        <button id="dark-theme-toggle" class="button button-light">
+          <span class="icon">🌙</span> Dark Theme
+        </button>
+      </div>
+    </header>
+
+    <div class="current-value-card">
+      <span class="label">Setting:</span>
+      <span class="audit-key-badge"><?= htmlspecialchars($key) ?></span>
+      <span class="label" style="margin-left:20px">Current Value:</span>
+      <code><?= htmlspecialchars($currentValue) ?></code>
+    </div>
+
+    <div class="content-section">
+      <h2>Change History</h2>
+      <?php if (empty($history)): ?>
+        <div class="empty-state" style="padding:40px 20px">
+          <div class="empty-icon">📋</div>
+          <p style="color:#7f8c8d">No audit history found for this setting.</p>
+        </div>
+      <?php else: ?>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Old Value</th>
+              <th>New Value</th>
+              <th>Changed By</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($history as $entry): ?>
+              <tr>
+                <td><?= htmlspecialchars($entry['changed_at']) ?></td>
+                <td><code><?= htmlspecialchars($entry['old_value'] ?? '(none)') ?></code></td>
+                <td><code><?= htmlspecialchars($entry['new_value']) ?></code></td>
+                <td><?= $entry['changed_by'] !== null ? 'Staff #' . (int)$entry['changed_by'] : 'System' ?></td>
+                <td><?= htmlspecialchars($entry['reason'] ?? '') ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      <?php endif; ?>
+    </div>
+  </main>
+</div>
+
+<script src="/staff/js/admincore.js"></script>
+<script src="/staff/js/staff.js"></script>
+<script>
+document.getElementById('dark-theme-toggle')?.addEventListener('click', function() {
+  document.body.classList.toggle('dark-theme');
+  localStorage.setItem('dark-theme', document.body.classList.contains('dark-theme') ? '1' : '0');
+});
+if (localStorage.getItem('dark-theme') === '1') {
+  document.body.classList.add('dark-theme');
+}
+</script>
 </body>
 </html>

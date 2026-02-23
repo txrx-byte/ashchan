@@ -46,15 +46,29 @@ final class AutopurgeController
             ->orderBy('hit_count', 'desc')
             ->get();
         $rules = \App\Helper\PgArrayParser::parseCollection($rules, 'boards');
-        $html = $this->viewService->render('staff/autopurge/index', ['rules' => $rules]);
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        $html = $this->viewService->render('staff/autopurge/index', [
+            'rules' => $rules,
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
+        ]);
         return $this->response->html($html);
     }
 
     #[GetMapping(path: 'create')]
     public function create(): ResponseInterface
     {
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
         $html = $this->viewService->render('staff/autopurge/create', [
             'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
         ]);
         return $this->response->html($html);
     }
@@ -103,9 +117,15 @@ final class AutopurgeController
         }
         $rule->boards = \App\Helper\PgArrayParser::parse($rule->boards ?? null);
 
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
         $html = $this->viewService->render('staff/autopurge/edit', [
             'rule' => $rule,
             'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
         ]);
         return $this->response->html($html);
     }

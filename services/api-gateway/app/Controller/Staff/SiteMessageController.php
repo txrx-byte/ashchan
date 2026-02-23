@@ -46,15 +46,29 @@ final class SiteMessageController
             ->orderBy('created_at', 'desc')
             ->get();
         $messages = \App\Helper\PgArrayParser::parseCollection($messages, 'boards');
-        $html = $this->viewService->render('staff/site-messages/index', ['messages' => $messages]);
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        $html = $this->viewService->render('staff/site-messages/index', [
+            'messages' => $messages,
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
+        ]);
         return $this->response->html($html);
     }
 
     #[GetMapping(path: 'create')]
     public function create(): ResponseInterface
     {
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
         $html = $this->viewService->render('staff/site-messages/create', [
             'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
         ]);
         return $this->response->html($html);
     }
@@ -105,9 +119,15 @@ final class SiteMessageController
         }
         $message->boards = \App\Helper\PgArrayParser::parse($message->boards ?? null);
 
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
         $html = $this->viewService->render('staff/site-messages/edit', [
             'message' => $message,
             'boards' => ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vr', 'w', 'wg'],
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
         ]);
         return $this->response->html($html);
     }

@@ -45,14 +45,29 @@ final class DmcaController
             ->orderBy('received_at', 'desc')
             ->get();
         $notices = \App\Helper\PgArrayParser::parseCollection($notices, 'infringing_urls');
-        $html = $this->viewService->render('staff/dmca/index', ['notices' => $notices]);
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        $html = $this->viewService->render('staff/dmca/index', [
+            'notices' => $notices,
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
+        ]);
         return $this->response->html($html);
     }
 
     #[GetMapping(path: 'create')]
     public function create(): ResponseInterface
     {
-        $html = $this->viewService->render('staff/dmca/create');
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
+        $html = $this->viewService->render('staff/dmca/create', [
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
+        ]);
         return $this->response->html($html);
     }
 
@@ -120,9 +135,15 @@ final class DmcaController
             ->orderBy('takedown_at', 'desc')
             ->get();
 
+        $user = \Hyperf\Context\Context::get('staff_user');
+        $level = $user['access_level'] ?? '';
         $html = $this->viewService->render('staff/dmca/view', [
             'notice' => $notice,
             'takedowns' => $takedowns,
+            'username' => $user['username'] ?? 'Admin',
+            'level' => $level,
+            'isAdmin' => $level === 'admin',
+            'isManager' => in_array($level, ['manager', 'admin'], true),
         ]);
         return $this->response->html($html);
     }
