@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
 
-from .config import HarvesterConfig, DatabaseConfig, S3Config, FourChanConfig
+from .config import HarvesterConfig, DatabaseConfig, DiskConfig, S3Config, FourChanConfig
 from .harvester import Harvester
 
 console = Console()
@@ -52,16 +52,20 @@ def _print_stats(stats: dict) -> None:
 @click.option("--s3-access-key", envvar="S3_ACCESS_KEY", default="minioadmin", help="S3 access key")
 @click.option("--s3-secret-key", envvar="S3_SECRET_KEY", default="minioadmin", help="S3 secret key")
 @click.option("--s3-bucket", envvar="S3_BUCKET", default="ashchan", help="S3 bucket name")
+@click.option("--storage", type=click.Choice(["disk", "s3"]), default="disk", help="Storage driver (default: disk)")
+@click.option("--media-path", envvar="MEDIA_PATH", default="/workspaces/ashchan/data/media", help="Local disk media path (for --storage disk)")
+@click.option("--media-url-prefix", envvar="MEDIA_URL_PREFIX", default="http://minio:9000/ashchan", help="URL prefix for media_url in DB")
 @click.option("-v", "--verbose", is_flag=True, help="Enable debug logging")
 @click.pass_context
 def cli(ctx: click.Context, **kwargs: object) -> None:
     """4chan Harvester – Import 4chan data into Ashchan.
 
     Fetches threads, posts, and images from the 4chan API and stores
-    them in the Ashchan database and MinIO object storage.
+    them in the Ashchan database and MinIO object storage or local disk.
     """
     _setup_logging(bool(kwargs.pop("verbose")))
     ctx.ensure_object(dict)
+    ctx.obj["storage_driver"] = kwargs.pop("storage")
     ctx.obj["db_cfg"] = DatabaseConfig(
         host=kwargs["db_host"],  # type: ignore[arg-type]
         port=kwargs["db_port"],  # type: ignore[arg-type]
@@ -75,12 +79,18 @@ def cli(ctx: click.Context, **kwargs: object) -> None:
         secret_key=kwargs["s3_secret_key"],  # type: ignore[arg-type]
         bucket=kwargs["s3_bucket"],  # type: ignore[arg-type]
     )
+    ctx.obj["disk_cfg"] = DiskConfig(
+        base_path=kwargs["media_path"],  # type: ignore[arg-type]
+        url_prefix=kwargs["media_url_prefix"],  # type: ignore[arg-type]
+    )
 
 
 def _make_config(ctx: click.Context, *, images: bool = True, thumbs: bool = True, dry_run: bool = False) -> HarvesterConfig:
     return HarvesterConfig(
         db=ctx.obj["db_cfg"],
         s3=ctx.obj["s3_cfg"],
+        disk=ctx.obj["disk_cfg"],
+        storage_driver=ctx.obj["storage_driver"],
         download_images=images,
         generate_thumbnails=thumbs,
         dry_run=dry_run,

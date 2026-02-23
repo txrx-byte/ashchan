@@ -243,6 +243,7 @@
 
 /** STYLE SWITCHER **/
 .stylechanger {
+  float: right;
   margin-left: 5px;
   font-size: 10pt;
 }

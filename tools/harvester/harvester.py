@@ -11,7 +11,7 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from .api import FourChanAPI
 from .config import HarvesterConfig
 from .db import Database
-from .storage import StorageService
+from .storage import DiskStorageService, StorageService
 
 logger = logging.getLogger("harvester.core")
 
@@ -27,7 +27,17 @@ class Harvester:
         self.cfg = cfg or HarvesterConfig()
         self.api = FourChanAPI(self.cfg.fourchan)
         self.db = Database(self.cfg.db)
-        self.storage = StorageService(self.cfg.s3, thumb_max=self.cfg.thumbnail_max_size) if self.cfg.download_images else None
+        if self.cfg.download_images:
+            if self.cfg.storage_driver == "disk":
+                self.storage: StorageService | DiskStorageService | None = DiskStorageService(
+                    self.cfg.disk, thumb_max=self.cfg.thumbnail_max_size
+                )
+            else:
+                self.storage = StorageService(
+                    self.cfg.s3, thumb_max=self.cfg.thumbnail_max_size
+                )
+        else:
+            self.storage = None
         # Stats
         self.stats = {"threads": 0, "posts": 0, "images": 0, "skipped": 0, "errors": 0}
 
@@ -64,9 +74,14 @@ class Harvester:
         if existing:
             logger.debug("Image %s already stored (hash=%s)", filename, sha256[:12])
             self.stats["skipped"] += 1
+            url_prefix = (
+                self.cfg.disk.url_prefix
+                if self.cfg.storage_driver == "disk"
+                else f"{self.cfg.s3.endpoint}/{self.cfg.s3.bucket}"
+            )
             return {
-                "media_url": f"{self.cfg.s3.endpoint}/{self.cfg.s3.bucket}/{existing['storage_key']}",
-                "thumb_url": f"{self.cfg.s3.endpoint}/{self.cfg.s3.bucket}/{existing['thumb_key']}" if existing.get("thumb_key") else None,
+                "media_url": f"{url_prefix}/{existing['storage_key']}",
+                "thumb_url": f"{url_prefix}/{existing['thumb_key']}" if existing.get("thumb_key") else None,
                 "media_filename": filename + ext,
                 "media_size": fsize or existing.get("file_size"),
                 "media_dimensions": f"{w}x{h}" if w and h else None,
@@ -74,7 +89,7 @@ class Harvester:
                 "media_id": str(existing["id"]),
             }
 
-        # Upload to S3
+        # Upload to storage (S3 or disk)
         upload_info = self.storage.upload(
             image_data, ext, generate_thumb=self.cfg.generate_thumbnails
         )

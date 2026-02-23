@@ -59,11 +59,28 @@ class FourChanConfig:
     timeout: float = 30.0
 
 
+@dataclass(frozen=True)
+class DiskConfig:
+    """Local disk storage configuration."""
+    base_path: str = "/workspaces/ashchan/data/media"
+    # URL prefix written to media_url in DB (must match what the gateway rewrites)
+    url_prefix: str = "http://minio:9000/ashchan"
+
+    @classmethod
+    def from_env(cls) -> DiskConfig:
+        return cls(
+            base_path=os.getenv("MEDIA_PATH", "/workspaces/ashchan/data/media"),
+            url_prefix=os.getenv("MEDIA_URL_PREFIX", "http://minio:9000/ashchan"),
+        )
+
+
 @dataclass
 class HarvesterConfig:
     db: DatabaseConfig = field(default_factory=DatabaseConfig.from_env)
     s3: S3Config = field(default_factory=S3Config.from_env)
+    disk: DiskConfig = field(default_factory=DiskConfig.from_env)
     fourchan: FourChanConfig = field(default_factory=FourChanConfig)
+    storage_driver: str = "disk"  # "disk" or "s3"
     download_images: bool = True
     generate_thumbnails: bool = True
     thumbnail_max_size: int = 250

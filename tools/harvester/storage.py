@@ -1,17 +1,20 @@
-"""S3/MinIO storage layer – upload images and thumbnails."""
+"""Storage layer – upload images and thumbnails to S3/MinIO or local disk."""
 
 from __future__ import annotations
 
 import hashlib
 import io
 import logging
+import os
+import shutil
 from datetime import datetime, timezone
+from pathlib import Path
 
 import boto3
 from botocore.config import Config as BotoConfig
 from PIL import Image
 
-from .config import S3Config
+from .config import DiskConfig, S3Config
 
 logger = logging.getLogger("harvester.storage")
 
@@ -176,6 +179,122 @@ class StorageService:
         """Check if a file with this hash already exists in the bucket (any date prefix)."""
         # We rely on the database dedup instead of scanning S3
         return False
+
+    def close(self) -> None:
+        pass
+
+
+class DiskStorageService:
+    """Save images and thumbnails to local disk, mirroring the S3 key layout."""
+
+    def __init__(self, cfg: DiskConfig | None = None, thumb_max: int = 250) -> None:
+        self.cfg = cfg or DiskConfig.from_env()
+        self.thumb_max = thumb_max
+        self._base = Path(self.cfg.base_path)
+        self._base.mkdir(parents=True, exist_ok=True)
+        logger.info("Disk storage: %s", self._base)
+
+    # ── helpers (reuse StorageService static methods) ────────────
+
+    @staticmethod
+    def sha256(data: bytes) -> str:
+        return hashlib.sha256(data).hexdigest()
+
+    @staticmethod
+    def _storage_key(sha: str, ext: str) -> str:
+        now = datetime.now(timezone.utc)
+        return f"{now:%Y/%m/%d}/{sha}{ext}"
+
+    @staticmethod
+    def _thumb_key(sha: str, ext: str) -> str:
+        now = datetime.now(timezone.utc)
+        return f"{now:%Y/%m/%d}/{sha}_thumb{ext}"
+
+    def _guess_mime(self, ext: str) -> str:
+        return MIME_MAP.get(ext.lower(), "application/octet-stream")
+
+    # ── thumbnail generation ────────────────────────────────────
+
+    def make_thumbnail(self, data: bytes, ext: str) -> tuple[bytes, int, int] | None:
+        if ext.lower() in (".webm", ".pdf", ".svg"):
+            return None
+        try:
+            img = Image.open(io.BytesIO(data))
+            if img.width <= self.thumb_max and img.height <= self.thumb_max:
+                return None
+            img.thumbnail((self.thumb_max, self.thumb_max), Image.Resampling.LANCZOS)
+            buf = io.BytesIO()
+            fmt = "JPEG" if ext.lower() in (".jpg", ".jpeg") else "PNG"
+            img.save(buf, format=fmt)
+            return buf.getvalue(), img.width, img.height
+        except Exception as exc:
+            logger.warning("Thumbnail generation failed: %s", exc)
+            return None
+
+    @staticmethod
+    def get_dimensions(data: bytes) -> tuple[int, int] | None:
+        try:
+            img = Image.open(io.BytesIO(data))
+            return img.width, img.height
+        except Exception:
+            return None
+
+    # ── upload to disk ──────────────────────────────────────────
+
+    def upload(
+        self,
+        data: bytes,
+        ext: str,
+        *,
+        generate_thumb: bool = True,
+    ) -> dict:
+        """Write original image (and optional thumbnail) to local disk.
+
+        Returns the same dict shape as StorageService.upload() for compatibility.
+        """
+        sha = self.sha256(data)
+        mime = self._guess_mime(ext)
+        storage_key = self._storage_key(sha, ext)
+        thumb_key: str | None = None
+        thumb_url: str | None = None
+        tn_w: int | None = None
+        tn_h: int | None = None
+
+        # Write original
+        dest = self._base / storage_key
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        media_url = f"{self.cfg.url_prefix}/{storage_key}"
+
+        dims = self.get_dimensions(data)
+        w = dims[0] if dims else None
+        h = dims[1] if dims else None
+
+        # Thumbnail
+        if generate_thumb:
+            thumb_result = self.make_thumbnail(data, ext)
+            if thumb_result:
+                thumb_data, tn_w, tn_h = thumb_result
+                thumb_ext = ".jpg" if ext.lower() in (".jpg", ".jpeg") else ".png"
+                thumb_key = self._thumb_key(sha, thumb_ext)
+                tdest = self._base / thumb_key
+                tdest.parent.mkdir(parents=True, exist_ok=True)
+                tdest.write_bytes(thumb_data)
+                thumb_url = f"{self.cfg.url_prefix}/{thumb_key}"
+
+        return {
+            "hash_sha256": sha,
+            "mime_type": mime,
+            "file_size": len(data),
+            "width": w,
+            "height": h,
+            "storage_key": storage_key,
+            "thumb_key": thumb_key,
+            "media_url": media_url,
+            "thumb_url": thumb_url,
+            "tn_w": tn_w,
+            "tn_h": tn_h,
+        }
 
     def close(self) -> None:
         pass
