@@ -29,11 +29,11 @@
 // ---- Icon Data URIs (theme-matched close/expand/collapse) ----
 var ICON = {
   // 14x14 "X" close button
-  close: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAAQklEQVQoz2NgoBAw0sSmf///z4Csif3////sDBgA+38GhOb/DGjM/xkIsJkBmyYGrE7Coh+HJozmYDUHu1OxmkMpAACISx3pHKle8AAAAABJRU5ErkJggg==',
+  close: '/static/img/buttons/cross.png',
   // 15x15 minus (expanded category)
-  collapse: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAMElEQVQoz2P4////fwYKASM2wf8MDAxEaWLAJfjv3z8GojQx4BL89+8fA1GaKAYAstgTD5lMvYIAAAAASUVORK5CYII=',
+  collapse: '/static/img/buttons/post_expand_minus.png',
   // 15x15 plus (collapsed category)
-  expand: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAPUlEQVQoz2P4////fwYKASNRmv79+8dArGYGBuI1M+DT/J8BpyYGfJr//fvHQJRmBnya//37x0CUZooBACvyGOkKh0FwAAAAAElFTkSuQmCC'
+  expand: '/static/img/buttons/post_expand_plus.png'
 };
 
 // ---- Utility ----
