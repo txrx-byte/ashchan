@@ -80,6 +80,13 @@ final class ContentFormatter
             $html
         ) ?? $html;
 
+        // Auto-link bare URLs (must run after quote-link and cross-board patterns)
+        $html = preg_replace(
+            '/(https?:\/\/[^\s<>\[\]"\']+)/i',
+            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
+            $html
+        ) ?? $html;
+
         // Line breaks
         $html = nl2br($html);
 

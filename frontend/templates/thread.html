@@ -20,7 +20,7 @@
 
 <!-- Post Form (Thread Reply) -->
 <div id="postForm">
-  <form id="mpostform" name="post" action="/api/v1/boards/{{ board_slug }}/threads/{{ thread_id }}/posts" method="post" enctype="multipart/form-data">
+  <form id="mpostform" name="post" action="/{{ board_slug }}/thread/{{ thread_id }}/posts" method="post" enctype="multipart/form-data">
     <table class="postForm replyMode">
       <tbody>
         <tr data-type="Name">

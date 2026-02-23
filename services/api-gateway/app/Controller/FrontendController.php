@@ -623,11 +623,22 @@ final class FrontendController
         $result = $this->proxyClient->forward('boards', 'POST', "/api/v1/boards/{$slug}/threads", $headers, (string) (json_encode($input) ?: '{}'));
 
         if ($result['status'] >= 400) {
+            $wantsJson = str_contains($request->getHeaderLine('Accept'), 'application/json');
+            if ($wantsJson) {
+                $errBody = json_decode((string) $result['body'], true);
+                $errMsg = is_array($errBody) ? ($errBody['error'] ?? (string) $result['body']) : (string) $result['body'];
+                return $this->response->json(['error' => $errMsg])->withStatus($result['status']);
+            }
             return $this->html('<h1>Post Error</h1><p>' . htmlspecialchars((string) $result['body']) . '</p>', $result['status']);
         }
 
         $data = json_decode((string) $result['body'], true);
         $threadId = $data['thread_id'] ?? null;
+
+        $wantsJson = str_contains($request->getHeaderLine('Accept'), 'application/json');
+        if ($wantsJson) {
+            return $this->response->json($data ?? ['ok' => true])->withStatus(201);
+        }
 
         if ($threadId) {
             /** @var ResponseInterface */
@@ -686,11 +697,23 @@ final class FrontendController
         $result = $this->proxyClient->forward('boards', 'POST', "/api/v1/boards/{$slug}/threads/{$id}/posts", $headers, (string) (json_encode($input) ?: '{}'));
 
         if ($result['status'] >= 400) {
+            $wantsJson = str_contains($request->getHeaderLine('Accept'), 'application/json');
+            if ($wantsJson) {
+                $errBody = json_decode((string) $result['body'], true);
+                $errMsg = is_array($errBody) ? ($errBody['error'] ?? (string) $result['body']) : (string) $result['body'];
+                return $this->response->json(['error' => $errMsg])->withStatus($result['status']);
+            }
             return $this->html('<h1>Post Error</h1><p>' . htmlspecialchars((string) $result['body']) . '</p>', $result['status']);
         }
 
         $data = json_decode((string) $result['body'], true);
         $postId = $data['post_id'] ?? null;
+
+        // XHR callers (Quick Reply) get JSON back
+        $wantsJson = str_contains($request->getHeaderLine('Accept'), 'application/json');
+        if ($wantsJson) {
+            return $this->response->json($data ?? ['ok' => true])->withStatus(201);
+        }
 
         if ($postId) {
             /** @var ResponseInterface */
