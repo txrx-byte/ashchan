@@ -675,11 +675,33 @@ var TopPageNav = {
 // ============================================================
 var EmbedYouTube = {
   re: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/gi,
+  urlRe: /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11}[^\s<]*)/gi,
   init: function() {
     if (!Config.embedYouTube) return;
     var msgs=$.qsa('.postMessage'); for(var i=0;i<msgs.length;i++) EmbedYouTube.exec(msgs[i]);
   },
   exec: function(msg) {
+    // First pass: linkify bare YouTube URLs in text nodes
+    var walker=document.createTreeWalker(msg, NodeFilter.SHOW_TEXT, null, false);
+    var textNodes=[];
+    while(walker.nextNode()) textNodes.push(walker.currentNode);
+    for(var j=0;j<textNodes.length;j++){
+      var tn=textNodes[j]; if(!tn.parentNode||tn.parentNode.tagName==='A') continue;
+      EmbedYouTube.urlRe.lastIndex=0;
+      if(!EmbedYouTube.urlRe.test(tn.nodeValue)) continue;
+      var frag=document.createDocumentFragment(), txt=tn.nodeValue, last=0;
+      EmbedYouTube.urlRe.lastIndex=0;
+      var um;
+      while((um=EmbedYouTube.urlRe.exec(txt))!==null){
+        if(um.index>last) frag.appendChild(document.createTextNode(txt.slice(last,um.index)));
+        var a=$.el('a'); a.href=um[0]; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent=um[0];
+        frag.appendChild(a);
+        last=EmbedYouTube.urlRe.lastIndex;
+      }
+      if(last<txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+      tn.parentNode.replaceChild(frag,tn);
+    }
+    // Second pass: add embed toggles to all YouTube <a> tags
     var links=$.qsa('a',msg);
     for(var i=0;i<links.length;i++) {
       var href=links[i].href||''; EmbedYouTube.re.lastIndex=0;
