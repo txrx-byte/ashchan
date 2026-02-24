@@ -28,7 +28,7 @@ use Psr\Log\LoggerInterface;
  * Failures are logged but never propagate — the database write is the
  * source of truth and missed events can be replayed via backfill.
  */
-final class EventPublisher
+final class EventPublisher implements EventPublisherInterface
 {
     private string $stream;
     private int $maxlen;

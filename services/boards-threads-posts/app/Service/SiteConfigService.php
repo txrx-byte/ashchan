@@ -31,7 +31,7 @@ use Psr\Log\LoggerInterface;
  * Reads from the shared `site_settings` table with Redis caching.
  * All site-configurable settings are managed by admins via the gateway's admin panel.
  */
-final class SiteConfigService
+final class SiteConfigService implements SiteConfigServiceInterface
 {
     private const CACHE_KEY = 'site_config:all';
     private const CACHE_TTL = 60;

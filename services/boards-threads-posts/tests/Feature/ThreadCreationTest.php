@@ -25,7 +25,8 @@ use App\Model\Board;
 use App\Service\BoardService;
 use App\Service\ContentFormatter;
 use App\Service\PiiEncryptionServiceInterface;
-use Ashchan\EventBus\EventPublisher;
+use App\Service\SiteConfigServiceInterface;
+use Ashchan\EventBus\EventPublisherInterface;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
 use PHPUnit\Framework\TestCase;
@@ -41,6 +42,7 @@ final class ThreadCreationTest extends TestCase
     private Mockery\MockInterface $mockContentFormatter;
     private PiiEncryptionServiceInterface $stubPiiEncryption;
     private Mockery\MockInterface $mockEventPublisher;
+    private Mockery\MockInterface $mockSiteConfig;
     private Mockery\MockInterface $mockBoard;
     private Mockery\MockInterface $dbMock;
 
@@ -91,11 +93,20 @@ final class ThreadCreationTest extends TestCase
         };
 
         // Mock EventPublisher — fire-and-forget, just assert it's called
-        $this->mockEventPublisher = Mockery::mock(EventPublisher::class);
+        $this->mockEventPublisher = Mockery::mock(EventPublisherInterface::class);
         $this->mockEventPublisher->shouldReceive('publish')->andReturn('mock-stream-id');
 
+        // Mock SiteConfigService — return sensible defaults
+        $this->mockSiteConfig = Mockery::mock(SiteConfigServiceInterface::class);
+        $this->mockSiteConfig->shouldReceive('getInt')->andReturnUsing(function (string $key, int $default = 0): int {
+            return $default;
+        });
+        $this->mockSiteConfig->shouldReceive('get')->andReturnUsing(function (string $key, string $default = ''): string {
+            return $default;
+        });
+
         // Instantiate the service
-        $this->boardService = new BoardService($this->mockContentFormatter, $this->mockRedis, $this->stubPiiEncryption, $this->mockEventPublisher);
+        $this->boardService = new BoardService($this->mockContentFormatter, $this->mockRedis, $this->stubPiiEncryption, $this->mockEventPublisher, $this->mockSiteConfig);
 
         // Prepare for static mocks of Db
         $this->dbMock = Mockery::mock('alias:Hyperf\DbConnection\Db');

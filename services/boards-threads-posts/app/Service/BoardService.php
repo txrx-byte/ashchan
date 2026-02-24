@@ -25,7 +25,7 @@ use App\Model\OpenPostBody;
 use App\Model\Post;
 use App\Model\Thread;
 use Ashchan\EventBus\CloudEvent;
-use Ashchan\EventBus\EventPublisher;
+use Ashchan\EventBus\EventPublisherInterface;
 use Ashchan\EventBus\EventTypes;
 use Hyperf\DbConnection\Db;
 use Hyperf\Redis\Redis;
@@ -48,8 +48,8 @@ final class BoardService
         private ContentFormatter $formatter,
         private Redis $redis,
         private PiiEncryptionServiceInterface $piiEncryption,
-        private EventPublisher $eventPublisher,
-        SiteConfigService $config,
+        private EventPublisherInterface $eventPublisher,
+        SiteConfigServiceInterface $config,
     ) {
         $this->blotterLimit          = $config->getInt('blotter_display_limit', 5);
         $this->archiveLimit          = $config->getInt('archive_thread_limit', 3000);

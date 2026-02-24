@@ -28,7 +28,7 @@ use App\Model\Report;
 use App\Model\ReportCategory;
 use App\Model\ReportClearLog;
 use Ashchan\EventBus\CloudEvent;
-use Ashchan\EventBus\EventPublisher;
+use Ashchan\EventBus\EventPublisherInterface;
 use Ashchan\EventBus\EventTypes;
 use Psr\Log\LoggerInterface;
 
@@ -43,7 +43,7 @@ final class ModerationService
 
     private PiiEncryptionService $piiEncryption;
 
-    private EventPublisher $eventPublisher;
+    private EventPublisherInterface $eventPublisher;
 
     private int $globalThreshold;
     private int $highlightThreshold;
@@ -56,7 +56,7 @@ final class ModerationService
     public function __construct(
         LoggerInterface $logger,
         PiiEncryptionService $piiEncryption,
-        EventPublisher $eventPublisher,
+        EventPublisherInterface $eventPublisher,
         SiteConfigService $config,
     ) {
         $this->logger = $logger;

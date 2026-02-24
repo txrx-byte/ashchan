@@ -22,7 +22,7 @@ namespace App\Service;
 
 use App\Model\MediaObject;
 use Ashchan\EventBus\CloudEvent;
-use Ashchan\EventBus\EventPublisher;
+use Ashchan\EventBus\EventPublisherInterface;
 use Ashchan\EventBus\EventTypes;
 
 /**
@@ -39,7 +39,7 @@ final class MediaService
     private string $storageBucket;
     private string $storageEndpoint;
     private int $maxFileSize;
-    private EventPublisher $eventPublisher;
+    private EventPublisherInterface $eventPublisher;
 
     /** @var string[] */
     private array $allowedMimes;
@@ -52,7 +52,7 @@ final class MediaService
     private string $storageSecretKey;
 
     public function __construct(
-        EventPublisher $eventPublisher,
+        EventPublisherInterface $eventPublisher,
         SiteConfigService $config,
     ) {
         $this->storageBucket        = $config->get('object_storage_bucket', 'ashchan');
