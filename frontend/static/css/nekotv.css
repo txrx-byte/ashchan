@@ -1,0 +1,270 @@
+/*
+ * Copyright 2026 txrx-byte
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * nekotv.css — NekotV shared video player styles.
+ * Port of meguca's less/base.less NekotV sections.
+ */
+
+/* ── Watch Panel ── */
+
+#watch-panel {
+    margin-left: auto;
+    z-index: 300;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    position: relative;
+    box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.5);
+    flex-direction: column;
+    overflow-y: hidden;
+    background-color: inherit;
+}
+
+.hide-watch-panel {
+    opacity: 0 !important;
+}
+
+/* ── Watch Video ── */
+
+#watch-video > * {
+    width: 45vw;
+    aspect-ratio: 16 / 9;
+    height: unset;
+    display: block;
+    border-radius: 10px;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+/* Allow interaction for Twitch embeds and iframes */
+#watch-video > iframe[title="Twitch"],
+#watch-video > .iframe-player {
+    pointer-events: all;
+    cursor: default;
+}
+
+#watch-player {
+    cursor: not-allowed;
+    user-select: none;
+}
+
+/* ── Player Controls ── */
+
+.player-controls {
+    display: none;
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    z-index: 310;
+}
+
+#watch-panel:hover .player-controls {
+    display: block;
+}
+
+.player-controls button {
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin-left: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.player-controls button:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+/* ── Playlist ── */
+
+#watch-playlist {
+    display: none;
+    overflow-y: auto;
+    width: 45vw;
+}
+
+#watch-panel:hover > #watch-playlist {
+    display: block;
+}
+
+#watch-playlist ul {
+    list-style-type: none;
+    padding-left: 1em;
+    margin: 0;
+}
+
+#watch-playlist li::before {
+    content: "-";
+    margin-right: 0.5em;
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+    color: rgba(121, 124, 125, 0.9);
+}
+
+#watch-playlist li.selected::before {
+    content: ">";
+    color: red;
+}
+
+.watch-playlist-entry {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 2px 0;
+}
+
+.watch-video-title {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 10px;
+}
+
+.watch-video-time {
+    flex-shrink: 0;
+    float: right;
+    padding-left: 10px;
+    padding-right: 16px;
+}
+
+.watch-video-time span:not(.infinite) {
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+}
+
+.watch-video-term {
+    float: left;
+    padding-right: 10px;
+    font-style: italic;
+    color: rgba(188, 178, 178, 0.93);
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+}
+
+/* ── Banner Icon ── */
+
+#banner-nekotv {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+/* ── Theater Mode ── */
+
+.nekotv-theater {
+    display: flex;
+    overflow: hidden;
+    height: 100vh;
+}
+
+.nekotv-theater #watch-panel {
+    flex-grow: 1;
+    height: 100%;
+    max-height: none;
+    max-width: none;
+    overflow: auto;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    background-color: transparent;
+    justify-content: center;
+}
+
+.nekotv-theater #watch-playlist {
+    flex-grow: 1;
+    display: block;
+    width: 100%;
+    overflow-y: auto;
+}
+
+.nekotv-theater #watch-playlist-button {
+    display: none;
+}
+
+.nekotv-theater #right-content {
+    width: 300px;
+    min-width: 300px;
+    height: 100%;
+    overflow-y: scroll;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.nekotv-theater #watch-video > * {
+    width: 100%;
+    border-radius: 0;
+    margin: auto;
+}
+
+/* Theater mode — thread elements */
+.nekotv-theater article:not(.deleted) {
+    min-width: 0;
+}
+
+.nekotv-theater article.media:not(.deleted) {
+    min-width: 250px;
+}
+
+.nekotv-theater figure {
+    padding: 0;
+}
+
+.nekotv-theater img.expanded {
+    margin: 0;
+}
+
+.nekotv-theater blockquote {
+    margin: 0.5em 0 0.5em 0.5em;
+}
+
+.nekotv-theater #thread-post-counters,
+.nekotv-theater #sync-counter,
+.nekotv-theater .image-banner {
+    display: none;
+}
+
+/* ── Responsive ── */
+
+@media screen and (max-width: 700px) {
+    #watch-video > *,
+    #watch-playlist {
+        width: 90vw;
+    }
+
+    #watch-panel {
+        margin: 10px auto 0 auto;
+    }
+
+    #watch-theater-button {
+        display: none;
+    }
+
+    .nekotv-theater {
+        flex-direction: column;
+    }
+
+    .nekotv-theater #watch-playlist {
+        display: none;
+    }
+
+    .nekotv-theater #right-content {
+        flex-grow: 1;
+        width: 100%;
+    }
+}

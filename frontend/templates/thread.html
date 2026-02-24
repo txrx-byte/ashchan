@@ -25,6 +25,17 @@
   <script src="/static/js/livepost/post-view.js" defer></script>
   <script src="/static/js/livepost/sync.js" defer></script>
   <script src="/static/js/livepost/index.js" defer></script>
+
+  <!-- NekotV shared video player -->
+  <link rel="stylesheet" href="/static/css/nekotv.css">
+  <script src="/static/js/nekotv/protocol.js" defer></script>
+  <script src="/static/js/nekotv/videolist.js" defer></script>
+  <script src="/static/js/nekotv/players.js" defer></script>
+  <script src="/static/js/nekotv/player.js" defer></script>
+  <script src="/static/js/nekotv/playlist.js" defer></script>
+  <script src="/static/js/nekotv/theater.js" defer></script>
+  <script src="/static/js/nekotv/handlers.js" defer></script>
+  <script src="/static/js/nekotv/index.js" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -86,6 +97,24 @@
 </div>
 <div id="postFormError"></div>
 
+<!-- NekotV Watch Panel -->
+<span id="nekotv-anchor"></span>
+<div id="watch-panel" style="display:none" class="hide-watch-panel">
+  <div id="watch-player">
+    <div id="watch-video"></div>
+  </div>
+  <div id="watch-playlist">
+    <span id="watch-playlist-status"></span>
+    <ul id="watch-playlist-entries"></ul>
+  </div>
+  <div class="player-controls">
+    <button type="button" id="watch-theater-button" title="Theater Mode">&#x1F5BC;</button>
+    <button type="button" id="watch-playlist-button" title="Keep playlist open">&#x1F4CB;</button>
+    <button type="button" id="watch-mute-button" title="Mute">&#x1F50A;</button>
+    <button type="button" id="watch-close-button" title="Close">&times;</button>
+  </div>
+</div>
+
 <hr>
 
 <!-- Thread Controls -->
@@ -95,6 +124,7 @@
     [<a href="/{{ board_slug }}/catalog">Catalog</a>]
     [<a href="#bottom">Bottom</a>]
     [<a href="#" class="watchThread">Watch Thread</a>]
+    [<a href="#" id="banner-nekotv" title="NekotV: Enabled">&#x1F4FA;</a>]
   </span>
 </div>
 

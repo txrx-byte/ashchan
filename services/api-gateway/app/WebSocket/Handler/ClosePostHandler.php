@@ -20,6 +20,8 @@ declare(strict_types=1);
 namespace App\WebSocket\Handler;
 
 use App\Feed\ThreadFeedManager;
+use App\NekotV\CommandParser;
+use App\NekotV\NekotVFeedManager;
 use App\Service\ProxyClient;
 use App\WebSocket\BinaryProtocol;
 use App\WebSocket\ClientConnection;
@@ -46,6 +48,7 @@ final class ClosePostHandler
         private readonly ProxyClient $proxyClient,
         private readonly WsServer $server,
         private readonly LoggerInterface $logger,
+        private readonly ?NekotVFeedManager $nekotVFeedManager = null,
     ) {
     }
 
@@ -116,6 +119,9 @@ final class ClosePostHandler
             $feed->queueTextMessage($countMsg);
         }
 
+        // Parse and dispatch NekotV media commands from the post body
+        $this->dispatchNekotVCommands($threadId, $openPost->body ?? '');
+
         $this->logger->info('Post closed', [
             'fd'      => $fd,
             'post_id' => $postId,
@@ -173,10 +179,40 @@ final class ClosePostHandler
             $feed->removeOpenBody($postId);
         }
 
+        // Parse and dispatch NekotV media commands from the post body
+        $this->dispatchNekotVCommands($threadId, $openPost->body ?? '');
+
         $this->logger->info('Post force-closed on disconnect', [
             'post_id' => $postId,
             'thread'  => $threadId,
         ]);
+    }
+
+    /**
+     * Parse NekotV commands from post body and dispatch them.
+     */
+    private function dispatchNekotVCommands(int $threadId, string $body): void
+    {
+        if ($this->nekotVFeedManager === null || $body === '') {
+            return;
+        }
+
+        $commands = CommandParser::parse($body);
+        if ($commands === []) {
+            return;
+        }
+
+        foreach ($commands as $command) {
+            try {
+                $this->nekotVFeedManager->handleMediaCommand($threadId, $command);
+            } catch (\Throwable $e) {
+                $this->logger->warning('NekotV command dispatch failed', [
+                    'thread'  => $threadId,
+                    'command' => $command->type->name,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

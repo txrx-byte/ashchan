@@ -210,6 +210,10 @@ Router::post('/api/v1/captcha/verify', [App\Controller\ModerationController::cla
 // ALTCHA proof-of-work captcha
 Router::get('/api/v1/altcha/challenge', [App\Controller\AltchaController::class, 'challenge']);
 
+// NekotV (staff playlist lock)
+Router::post('/api/v1/nekotv/{threadId:\d+}/lock', [App\Controller\Staff\NekotVController::class, 'setPlaylistLock']);
+Router::get('/api/v1/nekotv/{threadId:\d+}/lock', [App\Controller\Staff\NekotVController::class, 'getPlaylistLock']);
+
 // ============== Frontend Routes ==============
 
 // Report popup (must be before board catch-all)

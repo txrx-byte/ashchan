@@ -21,6 +21,7 @@ namespace App\WebSocket;
 
 use App\Feed\FeedGarbageCollector;
 use App\Feed\ThreadFeedManager;
+use App\NekotV\NekotVFeedManager;
 use App\Service\ProxyClient;
 use App\WebSocket\Handler\AppendHandler;
 use App\WebSocket\Handler\BackspaceHandler;
@@ -79,6 +80,9 @@ final class WebSocketController
 
     /** Worker-local FeedGarbageCollector (started alongside feed manager). */
     private ?FeedGarbageCollector $garbageCollector = null;
+
+    /** Worker-local NekotVFeedManager (created per-worker, manages NekotV feeds). */
+    private ?NekotVFeedManager $nekotVFeedManager = null;
 
     /** Cached WsServer reference (set on first onMessage/onClose call). */
     private ?WsServer $serverRef = null;
@@ -256,6 +260,9 @@ final class WebSocketController
                 $this->closePostHandler->forceClose($conn);
             }
             $this->feedManager->unsubscribe($fd, $conn->threadId);
+
+            // Unsubscribe from NekotV feed
+            $this->nekotVFeedManager?->unsubscribe($fd, $conn->threadId);
         }
 
         // Decrement IP connection count (worker-local)
@@ -328,6 +335,13 @@ final class WebSocketController
             return;
         }
 
+        // Route NekotV pipe messages to NekotV feed manager
+        if ($msg->type === PipeMessage::TYPE_NEKOTV_BROADCAST) {
+            $nekotVFeed = $this->nekotVFeedManager?->getFeed($msg->threadId);
+            $nekotVFeed?->broadcastLocal($msg->data);
+            return;
+        }
+
         // Look up the feed for this thread on the current worker.
         // If no clients on this worker watch the thread, the feed won't exist — skip.
         $feed = $this->feedManager?->getFeed($msg->threadId);
@@ -364,6 +378,7 @@ final class WebSocketController
             'spam_tracked_ips'          => $this->spamScorer?->getTrackedIpCount() ?? 0,
             'worker_memory_bytes'       => memory_get_usage(true),
             'worker_memory_peak_bytes'  => memory_get_peak_usage(true),
+            ...($this->nekotVFeedManager?->getMetrics() ?? []),
         ];
     }
 
@@ -412,6 +427,9 @@ final class WebSocketController
         $this->workerId = $server->worker_id;
         $this->feedManager = new ThreadFeedManager($server, $this->logger, $this->workerId, $this->proxyClient);
 
+        // Initialize NekotV feed manager (worker-local)
+        $this->nekotVFeedManager = new NekotVFeedManager($server, $this->logger, $this->workerId);
+
         // Start the spam scorer (worker-local, timer-based cleanup)
         $this->spamScorer = new SpamScorer();
         $this->spamScorer->start();
@@ -438,7 +456,7 @@ final class WebSocketController
         $this->syncHandler = new SynchroniseHandler($fm, $server, $this->logger);
 
         $insertPostHandler = new InsertPostHandler($fm, $this->proxyClient, $server, $this->logger, $this->spamScorer);
-        $this->closePostHandler = new ClosePostHandler($fm, $this->proxyClient, $server, $this->logger);
+        $this->closePostHandler = new ClosePostHandler($fm, $this->proxyClient, $server, $this->logger, $this->nekotVFeedManager);
         $reclaimHandler = new ReclaimHandler($fm, $this->proxyClient, $server, $this->logger);
         $appendHandler = new AppendHandler($fm, $server, $this->logger, $this->spamScorer);
         $backspaceHandler = new BackspaceHandler($fm, $server, $this->logger);
@@ -455,6 +473,7 @@ final class WebSocketController
             $spliceHandler,
             $server,
             $this->logger,
+            $this->nekotVFeedManager,
         );
     }
 }

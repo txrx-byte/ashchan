@@ -20,6 +20,8 @@ declare(strict_types=1);
 namespace App\WebSocket;
 
 use App\Feed\ThreadFeedManager;
+use App\NekotV\NekotVFeed;
+use App\NekotV\NekotVFeedManager;
 use App\WebSocket\Handler\AppendHandler;
 use App\WebSocket\Handler\BackspaceHandler;
 use App\WebSocket\Handler\ClosePostHandler;
@@ -45,6 +47,7 @@ use Swoole\WebSocket\Server as WsServer;
  * - Binary type 0x02 (Append): character streaming
  * - Binary type 0x03 (Backspace): delete last character
  * - Binary type 0x04 (Splice): arbitrary text replacement
+ * - Binary type 0x10 (NekotV): subscribe/unsubscribe to NekotV feed
  *
  * @see docs/LIVEPOSTING.md §4.2, §5.2
  */
@@ -69,6 +72,7 @@ final class MessageHandler
         private readonly SpliceHandler $spliceHandler,
         private readonly WsServer $server,
         private readonly LoggerInterface $logger,
+        private readonly ?NekotVFeedManager $nekotVFeedManager = null,
     ) {
     }
 
@@ -159,6 +163,11 @@ final class MessageHandler
                 // Strip the type byte (last byte) and pass the splice payload
                 $spliceData = substr($data, 0, -1);
                 $this->spliceHandler->handle($fd, $spliceData, $conn);
+                break;
+
+            case NekotVFeed::MESSAGE_TYPE:
+                // NekotV subscribe/unsubscribe: [action_byte][0x10]
+                $this->handleNekotV($fd, $data, $conn);
                 break;
 
             default:
@@ -265,6 +274,40 @@ final class MessageHandler
         if ($this->server->isEstablished($fd)) {
             $errorMsg = BinaryProtocol::encodeTextMessage(0, ['error' => $message]);
             $this->server->push($fd, $errorMsg, WEBSOCKET_OPCODE_TEXT);
+        }
+    }
+
+    /**
+     * Handle NekotV binary message: subscribe (0x01) or unsubscribe (0x00).
+     *
+     * Wire format: [action_byte][0x10]
+     * - action_byte 0x01 = subscribe to NekotV for current thread
+     * - action_byte 0x00 = unsubscribe from NekotV
+     */
+    private function handleNekotV(int $fd, string $data, ClientConnection $conn): void
+    {
+        if ($this->nekotVFeedManager === null || !$this->nekotVFeedManager->isEnabled()) {
+            return;
+        }
+
+        if (!$conn->isSynced() || $conn->threadId === null) {
+            $this->sendError($fd, 'Must be synced to a thread before subscribing to NekotV');
+            return;
+        }
+
+        // At least 2 bytes: [action][type]
+        if (strlen($data) < 2) {
+            return;
+        }
+
+        $action = ord($data[0]);
+
+        if ($action === 1) {
+            // Subscribe
+            $this->nekotVFeedManager->subscribe($fd, $conn, $conn->threadId);
+        } elseif ($action === 0) {
+            // Unsubscribe
+            $this->nekotVFeedManager->unsubscribe($fd, $conn->threadId);
         }
     }
 }

@@ -43,6 +43,9 @@ final class PipeMessage
     /** Text queued: enqueue into the 100ms message buffer for batched delivery. */
     public const TYPE_TEXT_QUEUE = 'text_queue';
 
+    /** NekotV binary broadcast: immediate push to all NekotV subscribers. */
+    public const TYPE_NEKOTV_BROADCAST = 'nekotv_broadcast';
+
     public function __construct(
         /** IPC message type. */
         public readonly string $type,
