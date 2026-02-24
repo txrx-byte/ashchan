@@ -9,7 +9,7 @@ SHELL  := /bin/bash
 ROOT   := $(shell pwd)
 SERVICES := api-gateway auth-accounts boards-threads-posts media-uploads search-indexing moderation-anti-spam
 SHORT    := gateway auth boards media search moderation
-PHP    := php
+PHP    := /usr/bin/php8.2
 
 # Service port mapping (matches config/autoload/server.php defaults)
 PORT_gateway    := 9501

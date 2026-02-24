@@ -47,13 +47,27 @@ final class ProxyClient
 
     public function __construct(ConfigInterface $config)
     {
-        $this->services = [
-            'auth'       => (string) ($config->get('services.auth.url') ?: env('AUTH_SERVICE_URL', 'https://localhost:8444')),
-            'boards'     => (string) ($config->get('services.boards.url') ?: env('BOARDS_SERVICE_URL', 'https://localhost:8445')),
-            'media'      => (string) ($config->get('services.media.url') ?: env('MEDIA_SERVICE_URL', 'https://localhost:8446')),
-            'search'     => (string) ($config->get('services.search.url') ?: env('SEARCH_SERVICE_URL', 'https://localhost:8447')),
-            'moderation' => (string) ($config->get('services.moderation.url') ?: env('MODERATION_SERVICE_URL', 'https://localhost:8448')),
-        ];
+        $mtlsEnabled = filter_var(env('MTLS_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
+
+        if ($mtlsEnabled) {
+            // mTLS: use HTTPS service URLs (dedicated mTLS ports)
+            $this->services = [
+                'auth'       => (string) ($config->get('services.auth.url') ?: env('AUTH_SERVICE_URL', 'https://localhost:8444')),
+                'boards'     => (string) ($config->get('services.boards.url') ?: env('BOARDS_SERVICE_URL', 'https://localhost:8445')),
+                'media'      => (string) ($config->get('services.media.url') ?: env('MEDIA_SERVICE_URL', 'https://localhost:8446')),
+                'search'     => (string) ($config->get('services.search.url') ?: env('SEARCH_SERVICE_URL', 'https://localhost:8447')),
+                'moderation' => (string) ($config->get('services.moderation.url') ?: env('MODERATION_SERVICE_URL', 'https://localhost:8448')),
+            ];
+        } else {
+            // Plain HTTP: use standard HTTP service ports (development / no-TLS)
+            $this->services = [
+                'auth'       => (string) ($config->get('services.auth.url') ?: env('AUTH_SERVICE_URL', 'http://localhost:9502')),
+                'boards'     => (string) ($config->get('services.boards.url') ?: env('BOARDS_SERVICE_URL', 'http://localhost:9503')),
+                'media'      => (string) ($config->get('services.media.url') ?: env('MEDIA_SERVICE_URL', 'http://localhost:9504')),
+                'search'     => (string) ($config->get('services.search.url') ?: env('SEARCH_SERVICE_URL', 'http://localhost:9505')),
+                'moderation' => (string) ($config->get('services.moderation.url') ?: env('MODERATION_SERVICE_URL', 'http://localhost:9506')),
+            ];
+        }
 
         $this->clientCert = (string) env('MTLS_CLIENT_CERT_FILE', '/etc/mtls/gateway/gateway.crt');
         $this->clientKey  = (string) env('MTLS_CLIENT_KEY_FILE', '/etc/mtls/gateway/gateway.key');

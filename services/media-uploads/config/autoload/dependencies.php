@@ -27,7 +27,7 @@ use App\Database\PostgresConnector;
 
 return [
     'db.connector.pgsql' => PostgresConnector::class,
-    \Ashchan\EventBus\EventPublisher::class => function (Psr\Container\ContainerInterface $container) {
+    \Ashchan\EventBus\EventPublisherInterface::class => function (Psr\Container\ContainerInterface $container) {
         $redis = $container->get(\Hyperf\Redis\RedisFactory::class)->get('events');
         $logger = $container->get(Psr\Log\LoggerInterface::class);
         $stream = (string) \Hyperf\Support\env('EVENTS_STREAM_NAME', 'ashchan:events');

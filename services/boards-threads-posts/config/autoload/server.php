@@ -22,36 +22,41 @@ use Hyperf\Server\Event;
 
 use function Hyperf\Support\env;
 
-return [
-    'mode' => SWOOLE_PROCESS,
-    'servers' => [
-        [
-            'name' => 'http',
-            'type' => Hyperf\Server\Server::SERVER_HTTP,
-            'host' => '0.0.0.0',
-            'port' => (int) env('PORT', 9503),
-            'sock_type' => SWOOLE_SOCK_TCP,
-            'callbacks' => [
-                Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
-            ],
-        ],
-        [
-            'name' => 'mtls',
-            'type' => Hyperf\Server\Server::SERVER_HTTP,
-            'host' => '0.0.0.0',
-            'port' => (int) env('MTLS_PORT', 8443),
-            'sock_type' => SWOOLE_SOCK_TCP | SWOOLE_SSL,
-            'callbacks' => [
-                Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
-            ],
-            'settings' => [
-                'ssl_cert_file' => env('MTLS_CERT_FILE'),
-                'ssl_key_file' => env('MTLS_KEY_FILE'),
-                'ssl_verify_peer' => (bool) env('MTLS_VERIFY_PEER', false),
-                'ssl_client_cert_file' => env('MTLS_CA_FILE'),
-            ],
+$servers = [
+    [
+        'name' => 'http',
+        'type' => Hyperf\Server\Server::SERVER_HTTP,
+        'host' => '0.0.0.0',
+        'port' => (int) env('PORT', 9503),
+        'sock_type' => SWOOLE_SOCK_TCP,
+        'callbacks' => [
+            Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
         ],
     ],
+];
+
+if (filter_var(env('MTLS_ENABLED', false), FILTER_VALIDATE_BOOLEAN)) {
+    $servers[] = [
+        'name' => 'mtls',
+        'type' => Hyperf\Server\Server::SERVER_HTTP,
+        'host' => '0.0.0.0',
+        'port' => (int) env('MTLS_PORT', 8443),
+        'sock_type' => SWOOLE_SOCK_TCP | SWOOLE_SSL,
+        'callbacks' => [
+            Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
+        ],
+        'settings' => [
+            'ssl_cert_file' => env('MTLS_CERT_FILE'),
+            'ssl_key_file' => env('MTLS_KEY_FILE'),
+            'ssl_verify_peer' => (bool) env('MTLS_VERIFY_PEER', false),
+            'ssl_client_cert_file' => env('MTLS_CA_FILE'),
+        ],
+    ];
+}
+
+return [
+    'mode' => SWOOLE_PROCESS,
+    'servers' => $servers,
     'settings' => [
         'enable_coroutine' => true,
         'hook_flags' => SWOOLE_HOOK_ALL,

@@ -31,7 +31,8 @@ use App\Database\PostgresConnector;
 return [
     'db.connector.pgsql' => PostgresConnector::class,
     \App\Service\PiiEncryptionServiceInterface::class => \App\Service\PiiEncryptionService::class,
-    \Ashchan\EventBus\EventPublisher::class => function (Psr\Container\ContainerInterface $container) {
+    \App\Service\SiteConfigServiceInterface::class => \App\Service\SiteConfigService::class,
+    \Ashchan\EventBus\EventPublisherInterface::class => function (Psr\Container\ContainerInterface $container) {
         $redis = $container->get(\Hyperf\Redis\RedisFactory::class)->get('events');
         $logger = $container->get(Psr\Log\LoggerInterface::class);
         $stream = (string) \Hyperf\Support\env('EVENTS_STREAM_NAME', 'ashchan:events');

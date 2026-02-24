@@ -28,41 +28,48 @@ return [
     'callbacks' => [
         Event::ON_PIPE_MESSAGE => [App\WebSocket\WebSocketController::class, 'onPipeMessage'],
     ],
-    'servers' => [
-        [
-            'name' => 'http',
-            // SERVER_WEBSOCKET: Swoole handles both HTTP and WebSocket on the same port.
-            // Regular HTTP requests still route through Hyperf's onRequest handler.
-            // WebSocket upgrades to /api/socket are handled by WebSocketController.
-            // @see docs/LIVEPOSTING.md §5.1
-            'type' => Hyperf\Server\Server::SERVER_WEBSOCKET,
-            'host' => '0.0.0.0',
-            'port' => (int) (getenv('PORT') ?: 9501),
-            'sock_type' => SWOOLE_SOCK_TCP,
-            'callbacks' => [
-                Event::ON_REQUEST    => [Hyperf\HttpServer\Server::class, 'onRequest'],
-                Event::ON_HAND_SHAKE => [App\WebSocket\WebSocketController::class, 'onHandShake'],
-                Event::ON_MESSAGE    => [App\WebSocket\WebSocketController::class, 'onMessage'],
-                Event::ON_CLOSE      => [App\WebSocket\WebSocketController::class, 'onClose'],
+    'servers' => (function () {
+        $servers = [
+            [
+                'name' => 'http',
+                // SERVER_WEBSOCKET: Swoole handles both HTTP and WebSocket on the same port.
+                // Regular HTTP requests still route through Hyperf's onRequest handler.
+                // WebSocket upgrades to /api/socket are handled by WebSocketController.
+                // @see docs/LIVEPOSTING.md §5.1
+                'type' => Hyperf\Server\Server::SERVER_WEBSOCKET,
+                'host' => '0.0.0.0',
+                'port' => (int) (getenv('PORT') ?: 9501),
+                'sock_type' => SWOOLE_SOCK_TCP,
+                'callbacks' => [
+                    Event::ON_REQUEST    => [Hyperf\HttpServer\Server::class, 'onRequest'],
+                    Event::ON_HAND_SHAKE => [App\WebSocket\WebSocketController::class, 'onHandShake'],
+                    Event::ON_MESSAGE    => [App\WebSocket\WebSocketController::class, 'onMessage'],
+                    Event::ON_CLOSE      => [App\WebSocket\WebSocketController::class, 'onClose'],
+                ],
             ],
-        ],
-        [
-            'name' => 'mtls',
-            'type' => Hyperf\Server\Server::SERVER_HTTP,
-            'host' => '0.0.0.0',
-            'port' => (int) (getenv('MTLS_PORT') ?: 8443),
-            'sock_type' => SWOOLE_SOCK_TCP | SWOOLE_SSL,
-            'callbacks' => [
-                Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
-            ],
-            'settings' => [
-                'ssl_cert_file' => getenv('MTLS_CERT_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/services/gateway/gateway.crt',
-                'ssl_key_file' => getenv('MTLS_KEY_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/services/gateway/gateway.key',
-                'ssl_verify_peer' => filter_var(getenv('MTLS_VERIFY_PEER') ?: 'true', FILTER_VALIDATE_BOOLEAN),
-                'ssl_client_cert_file' => getenv('MTLS_CA_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/ca/ca.crt',
-            ],
-        ],
-    ],
+        ];
+
+        if (filter_var(getenv('MTLS_ENABLED'), FILTER_VALIDATE_BOOLEAN)) {
+            $servers[] = [
+                'name' => 'mtls',
+                'type' => Hyperf\Server\Server::SERVER_HTTP,
+                'host' => '0.0.0.0',
+                'port' => (int) (getenv('MTLS_PORT') ?: 8443),
+                'sock_type' => SWOOLE_SOCK_TCP | SWOOLE_SSL,
+                'callbacks' => [
+                    Event::ON_REQUEST => [Hyperf\HttpServer\Server::class, 'onRequest'],
+                ],
+                'settings' => [
+                    'ssl_cert_file' => getenv('MTLS_CERT_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/services/gateway/gateway.crt',
+                    'ssl_key_file' => getenv('MTLS_KEY_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/services/gateway/gateway.key',
+                    'ssl_verify_peer' => filter_var(getenv('MTLS_VERIFY_PEER') ?: 'true', FILTER_VALIDATE_BOOLEAN),
+                    'ssl_client_cert_file' => getenv('MTLS_CA_FILE') ?: (defined('BASE_PATH') ? dirname(BASE_PATH, 2) : __DIR__ . '/../../../..') . '/certs/ca/ca.crt',
+                ],
+            ];
+        }
+
+        return $servers;
+    })(),
     'settings' => [
         'enable_coroutine' => true,
         'hook_flags' => SWOOLE_HOOK_ALL,
