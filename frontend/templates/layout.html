@@ -15,7 +15,7 @@
   limitations under the License.
 -->
 
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,6 +23,10 @@
   <link rel="stylesheet" href="/static/css/common.css">
   <link rel="stylesheet" href="/static/css/livepost.css">
   <link rel="stylesheet" id="themeStylesheet" href="/static/css/yotsuba-b.css">
+  <script src="/static/js/lang/en.js" defer></script>
+  <script src="/static/js/lang/zh.js" defer></script>
+  <script src="/static/js/lang/ja.js" defer></script>
+  <script src="/static/js/i18n.js" defer></script>
   <script src="/static/js/core.js" defer></script>
   <script src="/static/js/altcha.min.js" defer></script>
   <script src="/static/js/extension.js" defer></script>
@@ -44,9 +48,10 @@
       ]
     </span>
     <span class="pageJump">
-      [<a href="#" id="settingsBtn">Settings</a>]
-      [<a href="/search/">Search</a>]
-      [<a href="/">Home</a>]
+      [<a href="#" id="settingsBtn" data-i18n="nav.settings">Settings</a>]
+      [<a href="/search/" data-i18n="nav.search">Search</a>]
+      [<a href="/" data-i18n="nav.home">Home</a>]
+      <span class="lang-selector"></span>
     </span>
   </div>
 
@@ -79,7 +84,7 @@
       ]
     </span>
     <span class="stylechanger">
-      Style:
+      <span data-i18n="style.label">Style:</span>
       <select data-cmd="style">
         <option value="Yotsuba">Yotsuba</option>
         <option value="Yotsuba B" selected>Yotsuba B</option>
@@ -94,8 +99,8 @@
   <!-- Blotter -->
   {% if blotter is defined and blotter %}
   <div id="blotter">
-    <s class="blotter-online" id="showBlotter">Show blotter</s>
-    <s class="blotter-online" id="hideBlotter" style="display:none">Hide blotter</s>
+    <s class="blotter-online" id="showBlotter" data-i18n="blotter.show">Show blotter</s>
+    <s class="blotter-online" id="hideBlotter" style="display:none" data-i18n="blotter.hide">Hide blotter</s>
     <table id="blotter-msgs" style="display:none">
       <tbody>
       {% for entry in blotter %}
@@ -107,7 +112,7 @@
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="2"><a href="/blotter">All news</a></td>
+          <td colspan="2"><a href="/blotter" data-i18n="blotter.allNews">All news</a></td>
         </tr>
       </tfoot>
     </table>
@@ -118,14 +123,14 @@
   <!-- Footer -->
   <div id="absbot" class="absBotText">
     <span class="absBotLinks">
-      [<a href="/rules">Rules</a>]
-      [<a href="/legal/terms">Terms</a>]
-      [<a href="/legal/privacy">Privacy</a>]
-      [<a href="/legal/cookies">Cookies</a>]
-      [<a href="/legal/contact">Contact</a>]
+      [<a href="/rules" data-i18n="nav.rules">Rules</a>]
+      [<a href="/legal/terms" data-i18n="nav.terms">Terms</a>]
+      [<a href="/legal/privacy" data-i18n="nav.privacy">Privacy</a>]
+      [<a href="/legal/cookies" data-i18n="nav.cookies">Cookies</a>]
+      [<a href="/legal/contact" data-i18n="nav.contact">Contact</a>]
     </span>
     <br>
-    <small>All content copyright their respective owners. ashchan &copy; {{ current_year }}</small>
+    <small><span data-i18n="footer.allContent">All content copyright their respective owners.</span> ashchan &copy; {{ current_year }}</small>
   </div>
 
 </body>

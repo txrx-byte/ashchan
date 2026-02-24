@@ -20,9 +20,9 @@
 
 <div class="board-controls">
   <span id="ctrl-top">
-    [<a href="/{{ board_slug }}/">Return</a>]
-    [<a href="/{{ board_slug }}/catalog">Catalog</a>]
-    [<a href="#bottom">Bottom</a>]
+    [<a href="/{{ board_slug }}/" data-i18n="nav.return">Return</a>]
+    [<a href="/{{ board_slug }}/catalog" data-i18n="nav.catalog">Catalog</a>]
+    [<a href="#bottom" data-i18n="nav.bottom">Bottom</a>]
   </span>
 </div>
 
@@ -30,7 +30,7 @@
 
 <!-- Archive Controls -->
 <div id="archive-controls" style="text-align:center;margin:10px 0;">
-  <input type="text" id="archive-search-input" placeholder="Search archived threads..." autocomplete="off" style="width:300px;padding:4px;">
+  <input type="text" id="archive-search-input" data-i18n-placeholder="archive.search" placeholder="Search archived threads..." autocomplete="off" style="width:300px;padding:4px;">
 </div>
 
 <hr>
@@ -39,8 +39,8 @@
 <table class="archive-list" id="arc-list" style="margin:0 auto;border-collapse:collapse;">
   <thead>
     <tr>
-      <th style="padding:3px 10px;">No.</th>
-      <th style="padding:3px 10px;">Excerpt</th>
+      <th style="padding:3px 10px;" data-i18n="archive.colNo">No.</th>
+      <th style="padding:3px 10px;" data-i18n="archive.colExcerpt">Excerpt</th>
     </tr>
   </thead>
   <tbody>
@@ -54,15 +54,15 @@
 </table>
 
 {% if not archived_threads %}
-<div style="text-align:center;padding:30px;color:#666;">No archived threads.</div>
+<div style="text-align:center;padding:30px;color:#666;" data-i18n="archive.empty">No archived threads.</div>
 {% endif %}
 
 <hr>
 
 <div class="board-controls">
   <span>
-    [<a href="/{{ board_slug }}/">Return</a>]
-    [<a href="#top">Top</a>]
+    [<a href="/{{ board_slug }}/" data-i18n="nav.return">Return</a>]
+    [<a href="#top" data-i18n="nav.top">Top</a>]
   </span>
 </div>
 

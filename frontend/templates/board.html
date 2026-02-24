@@ -21,13 +21,13 @@
 <!-- COPPA / Age Gate (shown first visit) -->
 <noscript>
   <div class="noscriptWarning" style="text-align:center;padding:20px;background:#fca;margin:10px;">
-    JavaScript is required for full functionality. Basic browsing works without it.
+    <span data-i18n="noscript.warning">JavaScript is required for full functionality. Basic browsing works without it.</span>
   </div>
 </noscript>
 
 <!-- Post Form Toggle -->
 <div id="togglePostFormLink" class="center">
-  [<a href="#" id="togglePostForm">Start a New Thread</a>]
+  [<a href="#" id="togglePostForm" data-i18n="form.newThread">Start a New Thread</a>]
 </div>
 
 <!-- Post Form -->
@@ -36,33 +36,33 @@
     <table class="postForm">
       <tbody>
         <tr data-type="Name">
-          <td class="label">Name</td>
-          <td><input name="name" type="text" placeholder="Anonymous" autocomplete="off" maxlength="75"></td>
+          <td class="label" data-i18n="form.name">Name</td>
+          <td><input name="name" type="text" data-i18n-placeholder="form.placeholder.name" placeholder="Anonymous" autocomplete="off" maxlength="75"></td>
         </tr>
         <tr data-type="Options">
-          <td class="label">Options</td>
-          <td><input name="email" type="text" placeholder="sage" autocomplete="off" maxlength="75"></td>
+          <td class="label" data-i18n="form.options">Options</td>
+          <td><input name="email" type="text" data-i18n-placeholder="form.placeholder.options" placeholder="sage" autocomplete="off" maxlength="75"></td>
         </tr>
         <tr data-type="Subject">
-          <td class="label">Subject</td>
+          <td class="label" data-i18n="form.subject">Subject</td>
           <td>
             <input name="sub" type="text" autocomplete="off" maxlength="100">
-            <input type="submit" value="Post">
+            <input type="submit" data-i18n-value="form.submit" value="Post">
           </td>
         </tr>
         <tr data-type="Comment">
-          <td class="label">Comment</td>
+          <td class="label" data-i18n="form.comment">Comment</td>
           <td><textarea name="com" cols="48" rows="4" maxlength="2000" wrap="soft"></textarea></td>
         </tr>
         <tr data-type="File">
-          <td class="label">File</td>
+          <td class="label" data-i18n="form.file">File</td>
           <td>
             <input name="upfile" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
-            <label><input type="checkbox" name="spoiler"> Spoiler?</label>
+            <label><input type="checkbox" name="spoiler"> <span data-i18n="form.spoiler">Spoiler?</span></label>
           </td>
         </tr>
         <tr id="captchaRow" data-type="Verification">
-          <td class="label">Verification</td>
+          <td class="label" data-i18n="form.verification">Verification</td>
           <td>
             <div id="t-root">
               <altcha-widget
@@ -78,11 +78,11 @@
         <tr data-type="Rules">
           <td colspan="2" class="rules">
             <ul>
-              <li>Supported file types: JPEG, PNG, GIF, WebP (max 4MB)</li>
-              <li>Images larger than 250x250 will be thumbnailed.</li>
-              <li>Read the <a href="/rules">Rules</a> before posting.</li>
+              <li data-i18n="form.rules.filetypes">Supported file types: JPEG, PNG, GIF, WebP (max 4MB)</li>
+              <li data-i18n="form.rules.thumbnail">Images larger than 250x250 will be thumbnailed.</li>
+              <li data-i18n-html="form.rules.readRules">Read the <a href="/rules">Rules</a> before posting.</li>
             </ul>
-            <p class="privacy-notice" style="font-size: 11px; color: #888; margin: 4px 0 0 0;">
+            <p class="privacy-notice" style="font-size: 11px; color: #888; margin: 4px 0 0 0;" data-i18n-html="form.privacy">
               By posting, you agree to our <a href="/legal/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
               Your IP is encrypted and auto-deleted after 30 days.
               Spam may be reported to <a href="https://www.stopforumspam.com" target="_blank" rel="noopener noreferrer">SFS</a>.
@@ -117,10 +117,10 @@
 
 <!-- Sorting Controls -->
 <div class="sortControls" style="text-align:right;margin:0 5px 5px 0;font-size:10pt;">
-  [<a href="/{{ board_slug }}/catalog">Catalog</a>]
-  [<a href="/{{ board_slug }}/archive">Archive</a>]
+  [<a href="/{{ board_slug }}/catalog" data-i18n="nav.catalog">Catalog</a>]
+  [<a href="/{{ board_slug }}/archive" data-i18n="nav.archive">Archive</a>]
   <span id="ctrl-top">
-    [<a href="#bottom">Bottom</a>]
+    [<a href="#bottom" data-i18n="nav.bottom">Bottom</a>]
   </span>
 </div>
 
@@ -151,11 +151,11 @@
           </span>
           <span class="dateTime" data-utc="{{ thread.op.created_at }}">{{ thread.op.formatted_time }}</span>
           <span class="postNum desktop">
-            <a href="/{{ board_slug }}/thread/{{ thread.id }}#p{{ thread.op.id }}" title="Link to this post">No.</a>
-            <a href="/{{ board_slug }}/thread/{{ thread.id }}#q{{ thread.op.id }}" title="Reply to this post">{{ thread.op.id }}</a>
+            <a href="/{{ board_slug }}/thread/{{ thread.id }}#p{{ thread.op.id }}" data-i18n-title="post.linkPost" title="Link to this post">No.</a>
+            <a href="/{{ board_slug }}/thread/{{ thread.id }}#q{{ thread.op.id }}" data-i18n-title="post.replyPost" title="Reply to this post">{{ thread.op.id }}</a>
           </span>
-          <span class="postMenuBtn" title="Post menu">▶</span>
-          [<a href="/{{ board_slug }}/thread/{{ thread.id }}" class="replylink">Reply</a>]
+          <span class="postMenuBtn" data-i18n-title="post.postMenu" title="Post menu">▶</span>
+          [<a href="/{{ board_slug }}/thread/{{ thread.id }}" class="replylink" data-i18n="board.reply">Reply</a>]
         </div>
 
         {% if thread.op.media_url %}
@@ -206,10 +206,10 @@
           </span>
           <span class="dateTime" data-utc="{{ reply.created_at }}">{{ reply.formatted_time }}</span>
           <span class="postNum desktop">
-            <a href="/{{ board_slug }}/thread/{{ thread.id }}#p{{ reply.id }}" title="Link to this post">No.</a>
-            <a href="/{{ board_slug }}/thread/{{ thread.id }}#q{{ reply.id }}" title="Reply to this post">{{ reply.id }}</a>
+            <a href="/{{ board_slug }}/thread/{{ thread.id }}#p{{ reply.id }}" data-i18n-title="post.linkPost" title="Link to this post">No.</a>
+            <a href="/{{ board_slug }}/thread/{{ thread.id }}#q{{ reply.id }}" data-i18n-title="post.replyPost" title="Reply to this post">{{ reply.id }}</a>
           </span>
-          <span class="postMenuBtn" title="Post menu">▶</span>
+          <span class="postMenuBtn" data-i18n-title="post.postMenu" title="Post menu">▶</span>
         </div>
 
         {% if reply.media_url %}
@@ -239,12 +239,12 @@
   <!-- Delete / Report Controls (bottom) -->
   <div class="deleteform-controls" id="ctrl-bottom">
     <span class="deleteBtn">
-      Delete Post
-      [<label><input type="checkbox" name="onlyimgdel"> File Only</label>]
-      Password <input type="password" name="pwd" id="delPassword" maxlength="8" size="8">
-      <input type="submit" value="Delete">
+      <span data-i18n="action.deletePost">Delete Post</span>
+      [<label><input type="checkbox" name="onlyimgdel"> <span data-i18n="action.fileOnly">File Only</span></label>]
+      <span data-i18n="action.password">Password</span> <input type="password" name="pwd" id="delPassword" maxlength="8" size="8">
+      <input type="submit" data-i18n-value="action.delete" value="Delete">
     </span>
-    [<input type="button" value="Report" onclick="alert('Select a post first')">]
+    [<input type="button" data-i18n-value="action.report" value="Report" onclick="alert('Select a post first')">]
   </div>
 </form>
 
@@ -254,7 +254,7 @@
 <div class="pagelist desktop" id="pagelist">
   <div class="pages">
     {% if page_num > 1 %}
-      <a href="/{{ board_slug }}/{{ page_num - 1 }}" class="prev">&lt;&lt; Previous</a>
+      <a href="/{{ board_slug }}/{{ page_num - 1 }}" class="prev" data-i18n="pagination.prev">&lt;&lt; Previous</a>
     {% endif %}
     {% for p in range(1, total_pages + 1) %}
       {% if p == page_num %}
@@ -264,7 +264,7 @@
       {% endif %}
     {% endfor %}
     {% if page_num < total_pages %}
-      <a href="/{{ board_slug }}/{{ page_num + 1 }}" class="next">Next &gt;&gt;</a>
+      <a href="/{{ board_slug }}/{{ page_num + 1 }}" class="next" data-i18n="pagination.next">Next &gt;&gt;</a>
     {% endif %}
   </div>
 </div>

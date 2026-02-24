@@ -46,26 +46,26 @@
     <table class="postForm replyMode">
       <tbody>
         <tr data-type="Name">
-          <td class="label">Name</td>
-          <td><input name="name" type="text" placeholder="Anonymous" autocomplete="off" maxlength="75"></td>
+          <td class="label" data-i18n="form.name">Name</td>
+          <td><input name="name" type="text" data-i18n-placeholder="form.placeholder.name" placeholder="Anonymous" autocomplete="off" maxlength="75"></td>
         </tr>
         <tr data-type="Options">
-          <td class="label">Options</td>
-          <td><input name="email" type="text" placeholder="sage" autocomplete="off" maxlength="75"></td>
+          <td class="label" data-i18n="form.options">Options</td>
+          <td><input name="email" type="text" data-i18n-placeholder="form.placeholder.options" placeholder="sage" autocomplete="off" maxlength="75"></td>
         </tr>
         <tr data-type="Comment">
-          <td class="label">Comment</td>
+          <td class="label" data-i18n="form.comment">Comment</td>
           <td><textarea name="com" cols="48" rows="4" maxlength="2000" wrap="soft"></textarea></td>
         </tr>
         <tr data-type="File">
-          <td class="label">File</td>
+          <td class="label" data-i18n="form.file">File</td>
           <td>
             <input name="upfile" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
-            <label><input type="checkbox" name="spoiler"> Spoiler?</label>
+            <label><input type="checkbox" name="spoiler"> <span data-i18n="form.spoiler">Spoiler?</span></label>
           </td>
         </tr>
         <tr id="captchaRow" data-type="Verification">
-          <td class="label">Verification</td>
+          <td class="label" data-i18n="form.verification">Verification</td>
           <td>
             <div id="t-root">
               <altcha-widget
@@ -80,11 +80,11 @@
         </tr>
         <tr>
           <td></td>
-          <td><input type="submit" value="Post"></td>
+          <td><input type="submit" data-i18n-value="form.submit" value="Post"></td>
         </tr>
         <tr>
           <td colspan="2">
-            <p class="privacy-notice" style="font-size: 11px; color: #888; margin: 4px 0 0 0;">
+            <p class="privacy-notice" style="font-size: 11px; color: #888; margin: 4px 0 0 0;" data-i18n-html="form.privacy">
               By posting, you agree to our <a href="/legal/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
               Your IP is encrypted and auto-deleted after 30 days.
               Spam may be reported to <a href="https://www.stopforumspam.com" target="_blank" rel="noopener noreferrer">SFS</a>.
@@ -108,10 +108,10 @@
     <ul id="watch-playlist-entries"></ul>
   </div>
   <div class="player-controls">
-    <button type="button" id="watch-theater-button" title="Theater Mode">&#x1F5BC;</button>
-    <button type="button" id="watch-playlist-button" title="Keep playlist open">&#x1F4CB;</button>
-    <button type="button" id="watch-mute-button" title="Mute">&#x1F50A;</button>
-    <button type="button" id="watch-close-button" title="Close">&times;</button>
+    <button type="button" id="watch-theater-button" data-i18n-title="nekotv.theaterMode" title="Theater Mode">&#x1F5BC;</button>
+    <button type="button" id="watch-playlist-button" data-i18n-title="nekotv.playlist" title="Keep playlist open">&#x1F4CB;</button>
+    <button type="button" id="watch-mute-button" data-i18n-title="nekotv.mute" title="Mute">&#x1F50A;</button>
+    <button type="button" id="watch-close-button" data-i18n-title="nekotv.close" title="Close">&times;</button>
   </div>
 </div>
 
@@ -120,11 +120,11 @@
 <!-- Thread Controls -->
 <div class="thread-controls">
   <span id="ctrl-top">
-    [<a href="/{{ board_slug }}/">Return</a>]
-    [<a href="/{{ board_slug }}/catalog">Catalog</a>]
-    [<a href="#bottom">Bottom</a>]
-    [<a href="#" class="watchThread">Watch Thread</a>]
-    [<a href="#" id="banner-nekotv" title="NekotV: Enabled">&#x1F4FA;</a>]
+    [<a href="/{{ board_slug }}/" data-i18n="nav.return">Return</a>]
+    [<a href="/{{ board_slug }}/catalog" data-i18n="nav.catalog">Catalog</a>]
+    [<a href="#bottom" data-i18n="nav.bottom">Bottom</a>]
+    [<a href="#" class="watchThread" data-i18n="thread.watchThread">Watch Thread</a>]
+    [<a href="#" id="banner-nekotv" data-i18n-title="nekotv.enabled" title="NekotV: Enabled">&#x1F4FA;</a>]
   </span>
 </div>
 
@@ -165,10 +165,10 @@
           </span>
           <span class="dateTime" data-utc="{{ op.created_at }}">{{ op.formatted_time }}</span>
           <span class="postNum desktop">
-            <a href="#p{{ op.id }}" title="Link to this post">No.</a>
-            <a href="#q{{ op.id }}" title="Reply to this post">{{ op.id }}</a>
+            <a href="#p{{ op.id }}" data-i18n-title="post.linkPost" title="Link to this post">No.</a>
+            <a href="#q{{ op.id }}" data-i18n-title="post.replyPost" title="Reply to this post">{{ op.id }}</a>
           </span>
-          <span class="postMenuBtn" title="Post menu">▶</span>
+          <span class="postMenuBtn" data-i18n-title="post.postMenu" title="Post menu">▶</span>
           {% if op.backlinks %}
           <span class="backlink">
             {% for bl in op.backlinks %}
@@ -229,10 +229,10 @@
           </span>
           <span class="dateTime" data-utc="{{ reply.created_at }}">{{ reply.formatted_time }}</span>
           <span class="postNum desktop">
-            <a href="#p{{ reply.id }}" title="Link to this post">No.</a>
-            <a href="#q{{ reply.id }}" title="Reply to this post">{{ reply.id }}</a>
+            <a href="#p{{ reply.id }}" data-i18n-title="post.linkPost" title="Link to this post">No.</a>
+            <a href="#q{{ reply.id }}" data-i18n-title="post.replyPost" title="Reply to this post">{{ reply.id }}</a>
           </span>
-          <span class="postMenuBtn" title="Post menu">▶</span>
+          <span class="postMenuBtn" data-i18n-title="post.postMenu" title="Post menu">▶</span>
           {% if reply.backlinks %}
           <span class="backlink">
             {% for bl in reply.backlinks %}
@@ -267,12 +267,12 @@
   <!-- Delete / Report Controls -->
   <div class="deleteform-controls" id="ctrl-bottom">
     <span class="deleteBtn">
-      Delete Post
-      [<label><input type="checkbox" name="onlyimgdel"> File Only</label>]
-      Password <input type="password" name="pwd" id="delPassword" maxlength="8" size="8">
-      <input type="submit" value="Delete">
+      <span data-i18n="action.deletePost">Delete Post</span>
+      [<label><input type="checkbox" name="onlyimgdel"> <span data-i18n="action.fileOnly">File Only</span></label>]
+      <span data-i18n="action.password">Password</span> <input type="password" name="pwd" id="delPassword" maxlength="8" size="8">
+      <input type="submit" data-i18n-value="action.delete" value="Delete">
     </span>
-    [<input type="button" value="Report" onclick="alert('Select a post first')">]
+    [<input type="button" data-i18n-value="action.report" value="Report" onclick="alert('Select a post first')">]
   </div>
 </form>
 
@@ -282,16 +282,16 @@
 <div class="thread-stats">
   <span class="ts-replies">{{ replies|length }} replies</span>
   <span class="ts-images">{{ image_count }} images</span>
-  {% if thread_locked %}<span class="ts-locked">[Locked]</span>{% endif %}
-  {% if thread_sticky %}<span class="ts-sticky">[Sticky]</span>{% endif %}
+  {% if thread_locked %}<span class="ts-locked" data-i18n="thread.locked">[Locked]</span>{% endif %}
+  {% if thread_sticky %}<span class="ts-sticky" data-i18n="thread.sticky">[Sticky]</span>{% endif %}
 </div>
 
 <div id="autoUpdateCtrl" class="auto-update-ctrl">
   <label>
-    <input type="checkbox" checked> Auto
+    <input type="checkbox" checked> <span data-i18n="thread.auto">Auto</span>
   </label>
   <span id="autoUpdateStatus"></span>
-  [<a href="#" id="updateNow">Update</a>]
+  [<a href="#" id="updateNow" data-i18n="thread.update">Update</a>]
 </div>
 
 <hr>
@@ -299,9 +299,9 @@
 <!-- Bottom Controls -->
 <div class="thread-controls">
   <span>
-    [<a href="/{{ board_slug }}/">Return</a>]
-    [<a href="/{{ board_slug }}/catalog">Catalog</a>]
-    [<a href="#top">Top</a>]
+    [<a href="/{{ board_slug }}/" data-i18n="nav.return">Return</a>]
+    [<a href="/{{ board_slug }}/catalog" data-i18n="nav.catalog">Catalog</a>]
+    [<a href="#top" data-i18n="nav.top">Top</a>]
   </span>
 </div>
 

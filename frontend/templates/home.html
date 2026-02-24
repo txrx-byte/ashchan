@@ -15,13 +15,17 @@
   limitations under the License.
 -->
 
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ashchan</title>
   <link rel="stylesheet" href="/static/css/common.css">
   <link rel="stylesheet" id="themeStylesheet" href="/static/css/yotsuba-b.css">
+  <script src="/static/js/lang/en.js" defer></script>
+  <script src="/static/js/lang/zh.js" defer></script>
+  <script src="/static/js/lang/ja.js" defer></script>
+  <script src="/static/js/i18n.js" defer></script>
   <script src="/static/js/core.js" defer></script>
   <style>
     .home-banner { text-align: center; margin: 30px 0 20px; }
@@ -49,14 +53,15 @@
       ]
     </span>
     <span class="pageJump">
-      [<a href="#" id="settingsBtn">Settings</a>]
-      [<a href="/search/">Search</a>]
+      [<a href="#" id="settingsBtn" data-i18n="nav.settings">Settings</a>]
+      [<a href="/search/" data-i18n="nav.search">Search</a>]
+      <span class="lang-selector"></span>
     </span>
   </div>
 
   <div class="home-banner">
-    <h1>ashchan</h1>
-    <p>A simple imageboard</p>
+    <h1 data-i18n="home.title">ashchan</h1>
+    <p data-i18n="home.subtitle">A simple imageboard</p>
   </div>
 
   <div class="board-list-container">
@@ -76,23 +81,23 @@
   </div>
 
   <div class="home-stats">
-    <strong>Total posts:</strong> {{ total_posts | default('0') }} |
-    <strong>Active threads:</strong> {{ active_threads | default('0') }} |
-    <strong>Active users:</strong> {{ active_users | default('0') }}
+    <strong data-i18n="home.stats.posts">Total posts:</strong> {{ total_posts | default('0') }} |
+    <strong data-i18n="home.stats.threads">Active threads:</strong> {{ active_threads | default('0') }} |
+    <strong data-i18n="home.stats.users">Active users:</strong> {{ active_users | default('0') }}
   </div>
 
   <div class="home-footer">
-    <a href="/rules">Rules</a> |
-    <a href="/legal/terms">Terms</a> |
-    <a href="/legal/privacy">Privacy</a> |
-    <a href="/legal/cookies">Cookies</a> |
-    <a href="/legal/contact">Contact</a>
+    <a href="/rules" data-i18n="nav.rules">Rules</a> |
+    <a href="/legal/terms" data-i18n="nav.terms">Terms</a> |
+    <a href="/legal/privacy" data-i18n="nav.privacy">Privacy</a> |
+    <a href="/legal/cookies" data-i18n="nav.cookies">Cookies</a> |
+    <a href="/legal/contact" data-i18n="nav.contact">Contact</a>
     <br>
     ashchan &copy; {{ current_year }}
   </div>
 
   <div class="stylechanger" style="text-align:right; margin:10px 5px;">
-    Style:
+    <span data-i18n="style.label">Style:</span>
     <select id="styleSelector">
       <option value="Yotsuba">Yotsuba</option>
       <option value="Yotsuba B" selected>Yotsuba B</option>
