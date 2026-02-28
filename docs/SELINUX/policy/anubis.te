@@ -1,0 +1,216 @@
+# ═══════════════════════════════════════════════════════════════
+# Anubis Proof-of-Work Firewall SELinux Policy Module
+# 
+# Author: Ashchan Security Architecture Team
+# Version: 1.0.0
+# Date: 28 February 2026
+# 
+# This policy provides mandatory access control for Anubis,
+# an AI firewall that challenges suspicious requests with
+# proof-of-work computations before allowing them through.
+# 
+# Anubis sits between nginx and Varnish in the request chain.
+# 
+# Security Model:
+#   - Binds to port 8080 for challenge endpoint
+#   - Connects to Redis for challenge state storage
+#   - Connects to downstream (Varnish) for legitimate requests
+#   - Process management for worker pools
+# ═══════════════════════════════════════════════════════════════
+
+policy_module(anubis, 1.0.0)
+
+# ── Required Policy Modules ───────────────────────────────────
+require {
+    type unreserved_port_t, http_port_t, https_port_t, redis_port_t;
+    type node_t, self, syslogd_t, devlog_t;
+    type systemd_systemd_unit_t, tmp_t, etc_t, proc_t, fs_t;
+    type cert_t;
+    
+    class tcp_socket { create connect bind listen accept getattr setopt read write };
+    class udp_socket { create connect bind getattr };
+    class unix_stream_socket { create connect getattr };
+    class process { signal sigchld signull getattr setrlimit };
+    class process2 { noatsecure };
+    class file { read write create unlink getattr setattr open execute append lock ioctl };
+    class dir { read write create add_name remove_name search getattr open };
+    class capability { net_bind_service setuid setgid };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Type Declarations
+# ═══════════════════════════════════════════════════════════════
+
+# ── Domain Type ───────────────────────────────────────────────
+type anubis_t, domain;
+
+# ── File Types ────────────────────────────────────────────────
+type anubis_exec_t, file_type, sysadmfile;
+type anubis_config_t, file_type;
+type anubis_config_secret_t, file_type;
+type anubis_runtime_t, file_type;
+type anubis_log_t, file_type;
+type anubis_var_run_t, file_type;
+
+# ── Port Types ────────────────────────────────────────────────
+type anubis_port_t, port_type;
+type anubis_metrics_port_t, port_type;
+
+# ═══════════════════════════════════════════════════════════════
+# Boolean Declarations
+# ═══════════════════════════════════════════════════════════════
+
+gen_bool(anubis_external_network, s0)
+gen_bool(anubis_connect_redis, s0)
+gen_bool(anubis_syslog, s0)
+gen_bool(anubis_bind_privileged_ports, s0)
+
+# ═══════════════════════════════════════════════════════════════
+# Domain Transitions
+# ═══════════════════════════════════════════════════════════════
+
+# Transition from init via systemd
+init_daemon_domain(anubis_t, anubis_exec_t)
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Configuration
+# ═══════════════════════════════════════════════════════════════
+
+# Read configuration files
+allow anubis_t anubis_config_t:file { read getattr open };
+allow anubis_t anubis_config_t:dir { read search getattr };
+
+# Read secret configuration (API keys, etc.)
+allow anubis_t anubis_config_secret_t:file { read getattr open };
+
+# Read /etc for system configuration
+allow anubis_t etc_t:file { read getattr open };
+allow anubis_t etc_t:dir { read search getattr };
+
+# Read certificates for TLS (if enabled)
+allow anubis_t cert_t:file { read getattr open };
+allow anubis_t cert_t:dir { read search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Runtime
+# ═══════════════════════════════════════════════════════════════
+
+# Runtime directory for state, sockets
+allow anubis_t anubis_runtime_t:file { create read write unlink getattr setattr open lock };
+allow anubis_t anubis_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+# PID files
+allow anubis_t anubis_var_run_t:file { create read write unlink getattr setattr open };
+allow anubis_t anubis_var_run_t:dir { read write add_name remove_name search getattr };
+
+# Temporary files
+allow anubis_t tmp_t:file { create read write unlink getattr setattr open };
+allow anubis_t tmp_t:dir { read write add_name remove_name search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Logs
+# ═══════════════════════════════════════════════════════════════
+
+# Log file access
+allow anubis_t anubis_log_t:file { create append write getattr open lock };
+allow anubis_t anubis_log_t:dir { read write add_name search getattr };
+
+# System logging
+if (anubis_syslog) {
+    allow anubis_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow anubis_t devlog_t:file { write append getattr open };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Port Binding
+# ═══════════════════════════════════════════════════════════════
+
+# Bind to challenge endpoint port (8080)
+corenet_tcp_bind_generic_node(anubis_t, anubis_port_t)
+
+# Bind to metrics port (9091)
+corenet_tcp_bind_generic_node(anubis_t, anubis_metrics_port_t)
+
+# Allow binding to privileged ports if needed (8080 is unprivileged)
+if (anubis_bind_privileged_ports) {
+    allow anubis_t self:capability { net_bind_service };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Socket Operations
+# ═══════════════════════════════════════════════════════════════
+
+# TCP socket operations for HTTP server
+allow anubis_t self:tcp_socket { create connect bind listen accept getattr setopt read write };
+
+# UDP socket operations for DNS
+allow anubis_t self:udp_socket { create connect bind getattr };
+
+# Unix stream sockets for local communication
+allow anubis_t self:unix_stream_socket { create connect getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Connectivity
+# ═══════════════════════════════════════════════════════════════
+
+# External network access (for downloading rules, updates)
+if (anubis_external_network) {
+    corenet_tcp_sendrecv_generic_if(anubis_t)
+    corenet_enable_dns(anubis_t)
+    corenet_tcp_connect_https_port(anubis_t)
+}
+
+# Redis connectivity for challenge state storage
+if (anubis_connect_redis) {
+    corenet_tcp_connect_redis_port(anubis_t)
+}
+
+# Connect to Varnish (downstream cache)
+corenet_tcp_connect_generic_port(anubis_t)
+
+# Connect to HTTP port (nginx upstream)
+corenet_tcp_connect_http_port(anubis_t)
+
+# ═══════════════════════════════════════════════════════════════
+# Process Control
+# ═══════════════════════════════════════════════════════════════
+
+# Allow process signaling for worker management
+allow anubis_t self:process { signal sigchld signull getattr setrlimit };
+allow anubis_t self:process2 { noatsecure };
+
+# Allow execution of binary
+allow anubis_t anubis_exec_t:file { execute execute_no_trans getattr open read };
+
+# ═══════════════════════════════════════════════════════════════
+# Systemd Integration
+# ═══════════════════════════════════════════════════════════════
+
+# Allow systemd to manage the service
+systemd_dbus_chat_systemd(anubis_t)
+
+# Allow reading systemd unit files
+allow anubis_t systemd_systemd_unit_t:file { read getattr open };
+
+# ═══════════════════════════════════════════════════════════════
+# Filesystem Access
+# ═══════════════════════════════════════════════════════════════
+
+# Allow reading /proc for process information
+allow anubis_t proc_t:file { read getattr open };
+allow anubis_t proc_t:dir { read search getattr };
+
+# Allow filesystem operations
+allow anubis_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+
+# ═══════════════════════════════════════════════════════════════
+# Capabilities
+# ═══════════════════════════════════════════════════════════════
+
+# Allow setuid/setgid for dropping privileges after binding
+# (Anubis may start as root to bind port 8080, then drop privileges)
+allow anubis_t self:capability { setuid setgid };
+
+# ═══════════════════════════════════════════════════════════════
+# End of Policy Module
+# ═══════════════════════════════════════════════════════════════

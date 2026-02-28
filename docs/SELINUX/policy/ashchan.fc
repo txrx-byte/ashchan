@@ -1,0 +1,164 @@
+# ═══════════════════════════════════════════════════════════════
+# Ashchan SELinux Policy Module
+# File Context Definitions
+# 
+# Author: Ashchan Security Architecture Team
+# Version: 1.0.0
+# Date: 28 February 2026
+# 
+# This file defines the file context mappings for the Ashchan
+# microservices imageboard platform.
+# 
+# Usage:
+#   sudo semodule -i ashchan.pp
+#   sudo restorecon -Rv /opt/ashchan
+# ═══════════════════════════════════════════════════════════════
+
+# ──────────────────────────────────────────────────────────────
+# APPLICATION ROOT
+# ──────────────────────────────────────────────────────────────
+
+# Base application directory
+/opt/ashchan(/.*)?                          gen_context(system_u:object_r:ashchan_app_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# SERVICE DIRECTORIES
+# ──────────────────────────────────────────────────────────────
+
+# API Gateway service
+/opt/ashchan/services/api-gateway(/.*)?     gen_context(system_u:object_r:ashchan_gateway_app_t,s0)
+
+# Auth/Accounts service
+/opt/ashchan/services/auth-accounts(/.*)?   gen_context(system_u:object_r:ashchan_auth_app_t,s0)
+
+# Boards/Threads/Posts service
+/opt/ashchan/services/boards-threads-posts(/.*)?  gen_context(system_u:object_r:ashchan_boards_app_t,s0)
+
+# Media/Uploads service
+/opt/ashchan/services/media-uploads(/.*)?   gen_context(system_u:object_r:ashchan_media_app_t,s0)
+
+# Search/Indexing service
+/opt/ashchan/services/search-indexing(/.*)? gen_context(system_u:object_r:ashchan_search_app_t,s0)
+
+# Moderation/Anti-Spam service
+/opt/ashchan/services/moderation-anti-spam(/.*)?  gen_context(system_u:object_r:ashchan_moderation_app_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# RUNTIME DIRECTORIES
+# ──────────────────────────────────────────────────────────────
+
+# Main runtime directory (PID files, sockets, temp data)
+/opt/ashchan/runtime(/.*)?                  gen_context(system_u:object_r:ashchan_runtime_t,s0)
+
+# Log files
+/opt/ashchan/runtime/logs(/.*)?             gen_context(system_u:object_r:ashchan_log_t,s0)
+
+# PID files
+/opt/ashchan/runtime/pid(/.*)?              gen_context(system_u:object_r:ashchan_var_run_t,s0)
+
+# Alternative runtime location (per Makefile)
+/tmp/ashchan(/.*)?                          gen_context(system_u:object_r:ashchan_runtime_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# CERTIFICATE STORAGE
+# ──────────────────────────────────────────────────────────────
+
+# Main certificates directory
+/opt/ashchan/certs(/.*)?                    gen_context(system_u:object_r:ashchan_certs_t,s0)
+
+# Root CA certificates (read-only for services)
+/opt/ashchan/certs/ca(/.*)?                 gen_context(system_u:object_r:ashchan_ca_certs_t,s0)
+
+# CRITICAL: Root CA private key (most restrictive)
+/opt/ashchan/certs/ca/ca\.key               --      gen_context(system_u:object_r:ashchan_ca_key_t,s0)
+
+# Service certificates
+/opt/ashchan/certs/services(/.*)?           gen_context(system_u:object_r:ashchan_service_certs_t,s0)
+
+# CRITICAL: Service private keys (each service can only read its own)
+# Pattern matches: gateway.key, auth.key, boards.key, etc.
+/opt/ashchan/certs/services/[^/]+/[^/]+\.key    --      gen_context(system_u:object_r:ashchan_service_key_t,s0)
+
+# Service certificates (public certs, less restrictive)
+/opt/ashchan/certs/services/[^/]+/[^/]+\.crt      --      gen_context(system_u:object_r:ashchan_service_certs_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# CONFIGURATION FILES
+# ──────────────────────────────────────────────────────────────
+
+# Main config directory
+/opt/ashchan/config(/.*)?                   gen_context(system_u:object_r:ashchan_config_t,s0)
+
+# CRITICAL: Environment files (contain database passwords, API keys)
+# Each service has its own .env file
+/opt/ashchan/services/api-gateway/\.env     --      gen_context(system_u:object_r:ashchan_config_secret_t,s0)
+/opt/ashchan/services/auth-accounts/\.env   --      gen_context(system_u:object_r:ashchan_config_secret_t,s0)
+/opt/ashchan/services/boards-threads-posts/\.env    --      gen_context(system_u:object_r:ashchan_config_secret_t,s0)
+/opt/ashchan/services/media-uploads/\.env   --      gen_context(system_u:object_r:ashchan_config_secret_t,s0)
+/opt/ashchan/services/search-indexing/\.env --      gen_context(system_u:object_r:ashchan_config_secret_t,s0)
+/opt/ashchan/services/moderation-anti-spam/\.env    --      gen_context(system_u:object_r:ashchan_config_secret_t,s0)
+
+# Generic pattern for any .env in services (fallback)
+/opt/ashchan/services/[^/]+/\.env           --      gen_context(system_u:object_r:ashchan_config_secret_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# DATABASE MIGRATIONS
+# ──────────────────────────────────────────────────────────────
+
+# Database schema and migration files
+/opt/ashchan/db(/.*)?                       gen_context(system_u:object_r:ashchan_db_schema_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# COMPOSER DEPENDENCIES
+# ──────────────────────────────────────────────────────────────
+
+# Vendor directories for each service
+/opt/ashchan/services/api-gateway/vendor(/.*)?      gen_context(system_u:object_r:ashchan_lib_t,s0)
+/opt/ashchan/services/auth-accounts/vendor(/.*)?    gen_context(system_u:object_r:ashchan_lib_t,s0)
+/opt/ashchan/services/boards-threads-posts/vendor(/.*)? gen_context(system_u:object_r:ashchan_lib_t,s0)
+/opt/ashchan/services/media-uploads/vendor(/.*)?    gen_context(system_u:object_r:ashchan_lib_t,s0)
+/opt/ashchan/services/search-indexing/vendor(/.*)?  gen_context(system_u:object_r:ashchan_lib_t,s0)
+/opt/ashchan/services/moderation-anti-spam/vendor(/.*)? gen_context(system_u:object_r:ashchan_lib_t,s0)
+
+# Generic pattern for vendor directories
+/opt/ashchan/services/[^/]+/vendor(/.*)?    gen_context(system_u:object_r:ashchan_lib_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# BUILD ARTIFACTS (Static Binaries)
+# ──────────────────────────────────────────────────────────────
+
+# Static PHP build directory
+/opt/ashchan/build/static-php(/.*)?         gen_context(system_u:object_r:ashchan_app_t,s0)
+
+# Static binary executables
+/opt/ashchan/build/static-php/dist(/.*)?    gen_context(system_u:object_r:ashchan_exec_t,s0)
+
+# Individual static binaries
+/opt/ashchan/build/static-php/dist/ashchan-gateway    --      gen_context(system_u:object_r:ashchan_exec_t,s0)
+/opt/ashchan/build/static-php/dist/ashchan-auth       --      gen_context(system_u:object_r:ashchan_exec_t,s0)
+/opt/ashchan/build/static-php/dist/ashchan-boards     --      gen_context(system_u:object_r:ashchan_exec_t,s0)
+/opt/ashchan/build/static-php/dist/ashchan-media      --      gen_context(system_u:object_r:ashchan_exec_t,s0)
+/opt/ashchan/build/static-php/dist/ashchan-search     --      gen_context(system_u:object_r:ashchan_exec_t,s0)
+/opt/ashchan/build/static-php/dist/ashchan-moderation --      gen_context(system_u:object_r:ashchan_exec_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# PHP EXECUTABLES
+# ──────────────────────────────────────────────────────────────
+
+# PHP-CLI executable (system-wide or custom)
+/usr/bin/php.*                              gen_context(system_u:object_r:ashchan_php_exec_t,s0)
+/usr/bin/php[0-9].*                         gen_context(system_u:object_r:ashchan_php_exec_t,s0)
+
+# Alternative PHP locations
+/usr/local/bin/php.*                        gen_context(system_u:object_r:ashchan_php_exec_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# SERVICE SCRIPTS
+# ──────────────────────────────────────────────────────────────
+
+# Hyperf bootstrap scripts
+/opt/ashchan/services/[^/]+/bin/hyperf\.php     --      gen_context(system_u:object_r:ashchan_exec_t,s0)
+
+# ──────────────────────────────────────────────────────────────
+# End of File Context Definitions
+# ═══════════════════════════════════════════════════════════════

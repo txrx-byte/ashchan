@@ -1,0 +1,655 @@
+# ═══════════════════════════════════════════════════════════════
+# Ashchan SELinux Policy Module
+# Type Enforcement Rules
+# 
+# Author: Ashchan Security Architecture Team
+# Version: 1.0.0
+# Date: 28 February 2026
+# 
+# This policy provides mandatory access control for the Ashchan
+# microservices imageboard platform running on PHP/Hyperf/Swoole.
+# 
+# Policy Module: ashchan
+# Version: 1.0.0
+# ═══════════════════════════════════════════════════════════════
+
+policy_module(ashchan, 1.0.0)
+
+# ── Required Policy Modules ───────────────────────────────────
+require {
+    type unreserved_port_t, http_port_t, https_port_t, postgresql_port_t;
+    type redis_port_t, node_t, self, syslogd_t;
+    type systemd_systemd_unit_t, tmp_t, cert_t, etc_t;
+    type fs_t, proc_t, devlog_t, logrotate_var_run_t;
+    
+    class tcp_socket { create connect bind listen accept getattr setopt read write };
+    class udp_socket { create connect bind getattr setopt read write };
+    class unix_stream_socket { create connect accept listen getattr };
+    class unix_dgram_socket { create connect getattr };
+    class process { signal sigchld signull getattr setrlimit };
+    class process2 { noatsecure };
+    class file { read write create unlink getattr setattr open execute execute_no_trans append lock ioctl };
+    class dir { read write create add_name remove_name search getattr open lock ioctl };
+    class lnk_file { read write create unlink getattr setattr };
+    class sock_file { read write create unlink getattr setattr };
+    class fifo_file { read write getattr open };
+    class capability { net_bind_service setuid setgid dac_override dac_read_search };
+    class capability2 { audit_write };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Type Declarations
+# ═══════════════════════════════════════════════════════════════
+
+# ── Service Domain Types ──────────────────────────────────────
+# Each service runs in its own domain for isolation
+type ashchan_gateway_t, domain;
+type ashchan_auth_t, domain;
+type ashchan_boards_t, domain;
+type ashchan_media_t, domain;
+type ashchan_search_t, domain;
+type ashchan_moderation_t, domain;
+
+# ── Application File Types ────────────────────────────────────
+type ashchan_app_t, file_type, sysadmfile;
+type ashchan_gateway_app_t, file_type, sysadmfile;
+type ashchan_auth_app_t, file_type, sysadmfile;
+type ashchan_boards_app_t, file_type, sysadmfile;
+type ashchan_media_app_t, file_type, sysadmfile;
+type ashchan_search_app_t, file_type, sysadmfile;
+type ashchan_moderation_app_t, file_type, sysadmfile;
+
+# ── Runtime File Types ────────────────────────────────────────
+type ashchan_runtime_t, file_type;
+type ashchan_log_t, file_type;
+type ashchan_var_run_t, file_type;
+
+# ── Certificate Types ─────────────────────────────────────────
+type ashchan_certs_t, file_type;
+type ashchan_ca_certs_t, file_type;
+type ashchan_ca_key_t, file_type;
+type ashchan_service_certs_t, file_type;
+type ashchan_service_key_t, file_type;
+
+# ── Configuration Types ───────────────────────────────────────
+type ashchan_config_t, file_type;
+type ashchan_config_secret_t, file_type;
+
+# ── Library Types ─────────────────────────────────────────────
+type ashchan_lib_t, file_type, sysadmfile;
+
+# ── Executable Types ──────────────────────────────────────────
+type ashchan_exec_t, file_type, sysadmfile;
+type ashchan_php_exec_t, file_type, sysadmfile;
+
+# ── Database Schema Type ──────────────────────────────────────
+type ashchan_db_schema_t, file_type;
+
+# ── Port Types ────────────────────────────────────────────────
+type ashchan_port_t, port_type;
+type ashchan_mtls_port_t, port_type;
+
+# ═══════════════════════════════════════════════════════════════
+# Boolean Declarations
+# ═══════════════════════════════════════════════════════════════
+
+gen_bool(ashchan_external_network, s0)
+gen_bool(ashchan_connect_postgresql, s0)
+gen_bool(ashchan_connect_redis, s0)
+gen_bool(ashchan_connect_minio, s0)
+gen_bool(ashchan_use_pcntl, s0)
+gen_bool(ashchan_create_sockets, s0)
+gen_bool(ashchan_use_tmp, s0)
+gen_bool(ashchan_access_certs, s0)
+gen_bool(ashchan_syslog, s0)
+gen_bool(ashchan_bind_privileged_ports, s0)
+
+# ═══════════════════════════════════════════════════════════════
+# Domain Transitions
+# ═══════════════════════════════════════════════════════════════
+
+# Transition from init to service domains via systemd
+init_daemon_domain(ashchan_gateway_t, ashchan_exec_t)
+init_daemon_domain(ashchan_auth_t, ashchan_exec_t)
+init_daemon_domain(ashchan_boards_t, ashchan_exec_t)
+init_daemon_domain(ashchan_media_t, ashchan_exec_t)
+init_daemon_domain(ashchan_search_t, ashchan_exec_t)
+init_daemon_domain(ashchan_moderation_t, ashchan_exec_t)
+
+# PHP-CLI execution transitions
+domain_auto_transition(ashchan_gateway_t, ashchan_php_exec_t, ashchan_gateway_t)
+domain_auto_transition(ashchan_auth_t, ashchan_php_exec_t, ashchan_auth_t)
+domain_auto_transition(ashchan_boards_t, ashchan_php_exec_t, ashchan_boards_t)
+domain_auto_transition(ashchan_media_t, ashchan_php_exec_t, ashchan_media_t)
+domain_auto_transition(ashchan_search_t, ashchan_php_exec_t, ashchan_search_t)
+domain_auto_transition(ashchan_moderation_t, ashchan_php_exec_t, ashchan_moderation_t)
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Application Code
+# ═══════════════════════════════════════════════════════════════
+
+# ── All Ashchan domains can read application root ─────────────
+allow ashchan_gateway_t ashchan_app_t:file { read getattr open };
+allow ashchan_gateway_t ashchan_app_t:dir { read search getattr };
+
+allow ashchan_auth_t ashchan_app_t:file { read getattr open };
+allow ashchan_auth_t ashchan_app_t:dir { read search getattr };
+
+allow ashchan_boards_t ashchan_app_t:file { read getattr open };
+allow ashchan_boards_t ashchan_app_t:dir { read search getattr };
+
+allow ashchan_media_t ashchan_app_t:file { read getattr open };
+allow ashchan_media_t ashchan_app_t:dir { read search getattr };
+
+allow ashchan_search_t ashchan_app_t:file { read getattr open };
+allow ashchan_search_t ashchan_app_t:dir { read search getattr };
+
+allow ashchan_moderation_t ashchan_app_t:file { read getattr open };
+allow ashchan_moderation_t ashchan_app_t:dir { read search getattr };
+
+# ── Service-specific application access ───────────────────────
+allow ashchan_gateway_t ashchan_gateway_app_t:file { read getattr open execute execute_no_trans };
+allow ashchan_gateway_t ashchan_gateway_app_t:dir { read search getattr };
+
+allow ashchan_auth_t ashchan_auth_app_t:file { read getattr open execute execute_no_trans };
+allow ashchan_auth_t ashchan_auth_app_t:dir { read search getattr };
+
+allow ashchan_boards_t ashchan_boards_app_t:file { read getattr open execute execute_no_trans };
+allow ashchan_boards_t ashchan_boards_app_t:dir { read search getattr };
+
+allow ashchan_media_t ashchan_media_app_t:file { read getattr open execute execute_no_trans };
+allow ashchan_media_t ashchan_media_app_t:dir { read search getattr };
+
+allow ashchan_search_t ashchan_search_app_t:file { read getattr open execute execute_no_trans };
+allow ashchan_search_t ashchan_search_app_t:dir { read search getattr };
+
+allow ashchan_moderation_t ashchan_moderation_app_t:file { read getattr open execute execute_no_trans };
+allow ashchan_moderation_t ashchan_moderation_app_t:dir { read search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Runtime and Logs
+# ═══════════════════════════════════════════════════════════════
+
+# ── Runtime directory access (read/write) ─────────────────────
+allow ashchan_gateway_t ashchan_runtime_t:file { create read write unlink getattr setattr open lock };
+allow ashchan_gateway_t ashchan_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+allow ashchan_auth_t ashchan_runtime_t:file { create read write unlink getattr setattr open lock };
+allow ashchan_auth_t ashchan_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+allow ashchan_boards_t ashchan_runtime_t:file { create read write unlink getattr setattr open lock };
+allow ashchan_boards_t ashchan_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+allow ashchan_media_t ashchan_runtime_t:file { create read write unlink getattr setattr open lock };
+allow ashchan_media_t ashchan_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+allow ashchan_search_t ashchan_runtime_t:file { create read write unlink getattr setattr open lock };
+allow ashchan_search_t ashchan_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+allow ashchan_moderation_t ashchan_runtime_t:file { create read write unlink getattr setattr open lock };
+allow ashchan_moderation_t ashchan_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+# ── PID file access ───────────────────────────────────────────
+allow ashchan_gateway_t ashchan_var_run_t:file { create read write unlink getattr setattr open };
+allow ashchan_gateway_t ashchan_var_run_t:dir { read write add_name remove_name search getattr };
+
+allow ashchan_auth_t ashchan_var_run_t:file { create read write unlink getattr setattr open };
+allow ashchan_auth_t ashchan_var_run_t:dir { read write add_name remove_name search getattr };
+
+allow ashchan_boards_t ashchan_var_run_t:file { create read write unlink getattr setattr open };
+allow ashchan_boards_t ashchan_var_run_t:dir { read write add_name remove_name search getattr };
+
+allow ashchan_media_t ashchan_var_run_t:file { create read write unlink getattr setattr open };
+allow ashchan_media_t ashchan_var_run_t:dir { read write add_name remove_name search getattr };
+
+allow ashchan_search_t ashchan_var_run_t:file { create read write unlink getattr setattr open };
+allow ashchan_search_t ashchan_var_run_t:dir { read write add_name remove_name search getattr };
+
+allow ashchan_moderation_t ashchan_var_run_t:file { create read write unlink getattr setattr open };
+allow ashchan_moderation_t ashchan_var_run_t:dir { read write add_name remove_name search getattr };
+
+# ── Log file access ───────────────────────────────────────────
+allow ashchan_gateway_t ashchan_log_t:file { create append write getattr open lock };
+allow ashchan_gateway_t ashchan_log_t:dir { read write add_name search getattr };
+
+allow ashchan_auth_t ashchan_log_t:file { create append write getattr open lock };
+allow ashchan_auth_t ashchan_log_t:dir { read write add_name search getattr };
+
+allow ashchan_boards_t ashchan_log_t:file { create append write getattr open lock };
+allow ashchan_boards_t ashchan_log_t:dir { read write add_name search getattr };
+
+allow ashchan_media_t ashchan_log_t:file { create append write getattr open lock };
+allow ashchan_media_t ashchan_log_t:dir { read write add_name search getattr };
+
+allow ashchan_search_t ashchan_log_t:file { create append write getattr open lock };
+allow ashchan_search_t ashchan_log_t:dir { read write add_name search getattr };
+
+allow ashchan_moderation_t ashchan_log_t:file { create append write getattr open lock };
+allow ashchan_moderation_t ashchan_log_t:dir { read write add_name search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Libraries and Configuration
+# ═══════════════════════════════════════════════════════════════
+
+# ── Library access (Composer dependencies) ────────────────────
+allow ashchan_gateway_t ashchan_lib_t:file { read getattr open execute execute_no_trans };
+allow ashchan_gateway_t ashchan_lib_t:dir { read search getattr };
+
+allow ashchan_auth_t ashchan_lib_t:file { read getattr open execute execute_no_trans };
+allow ashchan_auth_t ashchan_lib_t:dir { read search getattr };
+
+allow ashchan_boards_t ashchan_lib_t:file { read getattr open execute execute_no_trans };
+allow ashchan_boards_t ashchan_lib_t:dir { read search getattr };
+
+allow ashchan_media_t ashchan_lib_t:file { read getattr open execute execute_no_trans };
+allow ashchan_media_t ashchan_lib_t:dir { read search getattr };
+
+allow ashchan_search_t ashchan_lib_t:file { read getattr open execute execute_no_trans };
+allow ashchan_search_t ashchan_lib_t:dir { read search getattr };
+
+allow ashchan_moderation_t ashchan_lib_t:file { read getattr open execute execute_no_trans };
+allow ashchan_moderation_t ashchan_lib_t:dir { read search getattr };
+
+# ── Configuration file access ─────────────────────────────────
+allow ashchan_gateway_t ashchan_config_t:file { read getattr open };
+allow ashchan_gateway_t ashchan_config_t:dir { read search getattr };
+
+allow ashchan_auth_t ashchan_config_t:file { read getattr open };
+allow ashchan_auth_t ashchan_config_t:dir { read search getattr };
+
+allow ashchan_boards_t ashchan_config_t:file { read getattr open };
+allow ashchan_boards_t ashchan_config_t:dir { read search getattr };
+
+allow ashchan_media_t ashchan_config_t:file { read getattr open };
+allow ashchan_media_t ashchan_config_t:dir { read search getattr };
+
+allow ashchan_search_t ashchan_config_t:file { read getattr open };
+allow ashchan_search_t ashchan_config_t:dir { read search getattr };
+
+allow ashchan_moderation_t ashchan_config_t:file { read getattr open };
+allow ashchan_moderation_t ashchan_config_t:dir { read search getattr };
+
+# ── Secret configuration access (.env files) ──────────────────
+# Each service can only read its own .env file
+allow ashchan_gateway_t ashchan_config_secret_t:file { read getattr open };
+allow ashchan_auth_t ashchan_config_secret_t:file { read getattr open };
+allow ashchan_boards_t ashchan_config_secret_t:file { read getattr open };
+allow ashchan_media_t ashchan_config_secret_t:file { read getattr open };
+allow ashchan_search_t ashchan_config_secret_t:file { read getattr open };
+allow ashchan_moderation_t ashchan_config_secret_t:file { read getattr open };
+
+# ── Database Schema Access ────────────────────────────────────
+allow ashchan_gateway_t ashchan_db_schema_t:file { read getattr open };
+allow ashchan_gateway_t ashchan_db_schema_t:dir { read search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - mTLS Certificates
+# ═══════════════════════════════════════════════════════════════
+
+if (ashchan_access_certs) {
+    # Read CA certificate (all services)
+    allow ashchan_gateway_t ashchan_ca_certs_t:file { read getattr open };
+    allow ashchan_gateway_t ashchan_ca_certs_t:dir { read search getattr };
+    
+    allow ashchan_auth_t ashchan_ca_certs_t:file { read getattr open };
+    allow ashchan_auth_t ashchan_ca_certs_t:dir { read search getattr };
+    
+    allow ashchan_boards_t ashchan_ca_certs_t:file { read getattr open };
+    allow ashchan_boards_t ashchan_ca_certs_t:dir { read search getattr };
+    
+    allow ashchan_media_t ashchan_ca_certs_t:file { read getattr open };
+    allow ashchan_media_t ashchan_ca_certs_t:dir { read search getattr };
+    
+    allow ashchan_search_t ashchan_ca_certs_t:file { read getattr open };
+    allow ashchan_search_t ashchan_ca_certs_t:dir { read search getattr };
+    
+    allow ashchan_moderation_t ashchan_ca_certs_t:file { read getattr open };
+    allow ashchan_moderation_t ashchan_ca_certs_t:dir { read search getattr };
+    
+    # Read service certificates
+    allow ashchan_gateway_t ashchan_service_certs_t:file { read getattr open };
+    allow ashchan_gateway_t ashchan_service_certs_t:dir { read search getattr };
+    
+    allow ashchan_auth_t ashchan_service_certs_t:file { read getattr open };
+    allow ashchan_auth_t ashchan_service_certs_t:dir { read search getattr };
+    
+    allow ashchan_boards_t ashchan_service_certs_t:file { read getattr open };
+    allow ashchan_boards_t ashchan_service_certs_t:dir { read search getattr };
+    
+    allow ashchan_media_t ashchan_service_certs_t:file { read getattr open };
+    allow ashchan_media_t ashchan_service_certs_t:dir { read search getattr };
+    
+    allow ashchan_search_t ashchan_service_certs_t:file { read getattr open };
+    allow ashchan_search_t ashchan_service_certs_t:dir { read search getattr };
+    
+    allow ashchan_moderation_t ashchan_service_certs_t:file { read getattr open };
+    allow ashchan_moderation_t ashchan_service_certs_t:dir { read search getattr };
+    
+    # Read own private key (each service reads its own)
+    # Note: Path-based enforcement is handled by file context rules
+    allow ashchan_gateway_t ashchan_service_key_t:file { read getattr open };
+    allow ashchan_auth_t ashchan_service_key_t:file { read getattr open };
+    allow ashchan_boards_t ashchan_service_key_t:file { read getattr open };
+    allow ashchan_media_t ashchan_service_key_t:file { read getattr open };
+    allow ashchan_search_t ashchan_service_key_t:file { read getattr open };
+    allow ashchan_moderation_t ashchan_service_key_t:file { read getattr open };
+    
+    # Read general certs directory
+    allow ashchan_gateway_t ashchan_certs_t:file { read getattr open };
+    allow ashchan_gateway_t ashchan_certs_t:dir { read search getattr };
+    
+    allow ashchan_auth_t ashchan_certs_t:file { read getattr open };
+    allow ashchan_auth_t ashchan_certs_t:dir { read search getattr };
+    
+    allow ashchan_boards_t ashchan_certs_t:file { read getattr open };
+    allow ashchan_boards_t ashchan_certs_t:dir { read search getattr };
+    
+    allow ashchan_media_t ashchan_certs_t:file { read getattr open };
+    allow ashchan_media_t ashchan_certs_t:dir { read search getattr };
+    
+    allow ashchan_search_t ashchan_certs_t:file { read getattr open };
+    allow ashchan_search_t ashchan_certs_t:dir { read search getattr };
+    
+    allow ashchan_moderation_t ashchan_certs_t:file { read getattr open };
+    allow ashchan_moderation_t ashchan_certs_t:dir { read search getattr };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Port Binding
+# ═══════════════════════════════════════════════════════════════
+
+# ── Allow services to bind to their designated ports ──────────
+corenet_tcp_bind_generic_node(ashchan_gateway_t, ashchan_port_t)
+corenet_tcp_bind_generic_node(ashchan_auth_t, ashchan_port_t)
+corenet_tcp_bind_generic_node(ashchan_boards_t, ashchan_port_t)
+corenet_tcp_bind_generic_node(ashchan_media_t, ashchan_port_t)
+corenet_tcp_bind_generic_node(ashchan_search_t, ashchan_port_t)
+corenet_tcp_bind_generic_node(ashchan_moderation_t, ashchan_port_t)
+
+# ── Allow services to bind to mTLS ports ──────────────────────
+corenet_tcp_bind_generic_node(ashchan_gateway_t, ashchan_mtls_port_t)
+corenet_tcp_bind_generic_node(ashchan_auth_t, ashchan_mtls_port_t)
+corenet_tcp_bind_generic_node(ashchan_boards_t, ashchan_mtls_port_t)
+corenet_tcp_bind_generic_node(ashchan_media_t, ashchan_mtls_port_t)
+corenet_tcp_bind_generic_node(ashchan_search_t, ashchan_mtls_port_t)
+corenet_tcp_bind_generic_node(ashchan_moderation_t, ashchan_mtls_port_t)
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Socket Creation
+# ═══════════════════════════════════════════════════════════════
+
+if (ashchan_create_sockets) {
+    # TCP socket operations
+    allow ashchan_gateway_t self:tcp_socket { create connect bind listen accept getattr setopt read write };
+    allow ashchan_auth_t self:tcp_socket { create connect bind listen accept getattr setopt read write };
+    allow ashchan_boards_t self:tcp_socket { create connect bind listen accept getattr setopt read write };
+    allow ashchan_media_t self:tcp_socket { create connect bind listen accept getattr setopt read write };
+    allow ashchan_search_t self:tcp_socket { create connect bind listen accept getattr setopt read write };
+    allow ashchan_moderation_t self:tcp_socket { create connect bind listen accept getattr setopt read write };
+    
+    # UDP socket operations (for DNS)
+    allow ashchan_gateway_t self:udp_socket { create connect bind getattr setopt read write };
+    allow ashchan_auth_t self:udp_socket { create connect bind getattr setopt read write };
+    allow ashchan_boards_t self:udp_socket { create connect bind getattr setopt read write };
+    allow ashchan_media_t self:udp_socket { create connect bind getattr setopt read write };
+    allow ashchan_search_t self:udp_socket { create connect bind getattr setopt read write };
+    allow ashchan_moderation_t self:udp_socket { create connect bind getattr setopt read write };
+    
+    # Unix stream sockets (for local communication)
+    allow ashchan_gateway_t self:unix_stream_socket { create connect accept listen getattr };
+    allow ashchan_auth_t self:unix_stream_socket { create connect accept listen getattr };
+    allow ashchan_boards_t self:unix_stream_socket { create connect accept listen getattr };
+    allow ashchan_media_t self:unix_stream_socket { create connect accept listen getattr };
+    allow ashchan_search_t self:unix_stream_socket { create connect accept listen getattr };
+    allow ashchan_moderation_t self:unix_stream_socket { create connect accept listen getattr };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - External Connectivity
+# ═══════════════════════════════════════════════════════════════
+
+if (ashchan_external_network) {
+    # Allow outbound connections (Cloudflare Tunnel, external APIs)
+    corenet_tcp_sendrecv_generic_if(ashchan_gateway_t)
+    corenet_tcp_sendrecv_generic_if(ashchan_auth_t)
+    corenet_tcp_sendrecv_generic_if(ashchan_boards_t)
+    corenet_tcp_sendrecv_generic_if(ashchan_media_t)
+    corenet_tcp_sendrecv_generic_if(ashchan_search_t)
+    corenet_tcp_sendrecv_generic_if(ashchan_moderation_t)
+    
+    # Enable DNS resolution
+    corenet_enable_dns(ashchan_gateway_t)
+    corenet_enable_dns(ashchan_auth_t)
+    corenet_enable_dns(ashchan_boards_t)
+    corenet_enable_dns(ashchan_media_t)
+    corenet_enable_dns(ashchan_search_t)
+    corenet_enable_dns(ashchan_moderation_t)
+    
+    # Allow connection to any port for outbound (needed for HTTPS to external APIs)
+    corenet_tcp_connect_generic_port(ashchan_gateway_t)
+    corenet_tcp_connect_generic_port(ashchan_media_t)
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Database Connectivity
+# ═══════════════════════════════════════════════════════════════
+
+if (ashchan_connect_postgresql) {
+    corenet_tcp_connect_postgresql_port(ashchan_gateway_t)
+    corenet_tcp_connect_postgresql_port(ashchan_auth_t)
+    corenet_tcp_connect_postgresql_port(ashchan_boards_t)
+    corenet_tcp_connect_postgresql_port(ashchan_media_t)
+    corenet_tcp_connect_postgresql_port(ashchan_search_t)
+    corenet_tcp_connect_postgresql_port(ashchan_moderation_t)
+}
+
+if (ashchan_connect_redis) {
+    corenet_tcp_connect_redis_port(ashchan_gateway_t)
+    corenet_tcp_connect_redis_port(ashchan_auth_t)
+    corenet_tcp_connect_redis_port(ashchan_boards_t)
+    corenet_tcp_connect_redis_port(ashchan_media_t)
+    corenet_tcp_connect_redis_port(ashchan_search_t)
+    corenet_tcp_connect_redis_port(ashchan_moderation_t)
+}
+
+if (ashchan_connect_minio) {
+    # Media service needs full S3 access
+    corenet_tcp_connect_generic_port(ashchan_media_t)
+    
+    # Other services may need read-only access
+    corenet_tcp_connect_generic_port(ashchan_gateway_t)
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Inter-service Communication
+# ═══════════════════════════════════════════════════════════════
+
+# Gateway can connect to all backend services
+corenet_tcp_connect_generic_port(ashchan_gateway_t)
+
+# Backend services can communicate for event bus and coordination
+corenet_tcp_connect_generic_port(ashchan_auth_t)
+corenet_tcp_connect_generic_port(ashchan_boards_t)
+corenet_tcp_connect_generic_port(ashchan_media_t)
+corenet_tcp_connect_generic_port(ashchan_search_t)
+corenet_tcp_connect_generic_port(ashchan_moderation_t)
+
+# ═══════════════════════════════════════════════════════════════
+# Process Control (Swoole/pcntl)
+# ═══════════════════════════════════════════════════════════════
+
+if (ashchan_use_pcntl) {
+    # Allow process signaling for Swoole worker management
+    allow ashchan_gateway_t self:process { signal sigchld signull getattr setrlimit };
+    allow ashchan_gateway_t self:process2 { noatsecure };
+    
+    allow ashchan_auth_t self:process { signal sigchld signull getattr setrlimit };
+    allow ashchan_auth_t self:process2 { noatsecure };
+    
+    allow ashchan_boards_t self:process { signal sigchld signull getattr setrlimit };
+    allow ashchan_boards_t self:process2 { noatsecure };
+    
+    allow ashchan_media_t self:process { signal sigchld signull getattr setrlimit };
+    allow ashchan_media_t self:process2 { noatsecure };
+    
+    allow ashchan_search_t self:process { signal sigchld signull getattr setrlimit };
+    allow ashchan_search_t self:process2 { noatsecure };
+    
+    allow ashchan_moderation_t self:process { signal sigchld signull getattr setrlimit };
+    allow ashchan_moderation_t self:process2 { noatsecure };
+    
+    # Allow execution of PHP scripts and static binaries
+    allow ashchan_gateway_t ashchan_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_auth_t ashchan_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_boards_t ashchan_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_media_t ashchan_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_search_t ashchan_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_moderation_t ashchan_exec_t:file { execute execute_no_trans getattr open read };
+    
+    allow ashchan_gateway_t ashchan_php_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_auth_t ashchan_php_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_boards_t ashchan_php_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_media_t ashchan_php_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_search_t ashchan_php_exec_t:file { execute execute_no_trans getattr open read };
+    allow ashchan_moderation_t ashchan_php_exec_t:file { execute execute_no_trans getattr open read };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Temporary File Access
+# ═══════════════════════════════════════════════════════════════
+
+if (ashchan_use_tmp) {
+    allow ashchan_gateway_t tmp_t:file { create read write unlink getattr setattr open lock };
+    allow ashchan_gateway_t tmp_t:dir { read write add_name remove_name search getattr open };
+    
+    allow ashchan_auth_t tmp_t:file { create read write unlink getattr setattr open lock };
+    allow ashchan_auth_t tmp_t:dir { read write add_name remove_name search getattr open };
+    
+    allow ashchan_boards_t tmp_t:file { create read write unlink getattr setattr open lock };
+    allow ashchan_boards_t tmp_t:dir { read write add_name remove_name search getattr open };
+    
+    allow ashchan_media_t tmp_t:file { create read write unlink getattr setattr open lock };
+    allow ashchan_media_t tmp_t:dir { read write add_name remove_name search getattr open };
+    
+    allow ashchan_search_t tmp_t:file { create read write unlink getattr setattr open lock };
+    allow ashchan_search_t tmp_t:dir { read write add_name remove_name search getattr open };
+    
+    allow ashchan_moderation_t tmp_t:file { create read write unlink getattr setattr open lock };
+    allow ashchan_moderation_t tmp_t:dir { read write add_name remove_name search getattr open };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# System Logging
+# ═══════════════════════════════════════════════════════════════
+
+if (ashchan_syslog) {
+    allow ashchan_gateway_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow ashchan_gateway_t devlog_t:file { write append getattr open };
+    
+    allow ashchan_auth_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow ashchan_auth_t devlog_t:file { write append getattr open };
+    
+    allow ashchan_boards_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow ashchan_boards_t devlog_t:file { write append getattr open };
+    
+    allow ashchan_media_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow ashchan_media_t devlog_t:file { write append getattr open };
+    
+    allow ashchan_search_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow ashchan_search_t devlog_t:file { write append getattr open };
+    
+    allow ashchan_moderation_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow ashchan_moderation_t devlog_t:file { write append getattr open };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Systemd Integration
+# ═══════════════════════════════════════════════════════════════
+
+# Allow systemd to start/stop services
+systemd_dbus_chat_systemd(ashchan_gateway_t)
+systemd_dbus_chat_systemd(ashchan_auth_t)
+systemd_dbus_chat_systemd(ashchan_boards_t)
+systemd_dbus_chat_systemd(ashchan_media_t)
+systemd_dbus_chat_systemd(ashchan_search_t)
+systemd_dbus_chat_systemd(ashchan_moderation_t)
+
+# Allow reading systemd unit files
+allow ashchan_gateway_t systemd_systemd_unit_t:file { read getattr open };
+allow ashchan_auth_t systemd_systemd_unit_t:file { read getattr open };
+allow ashchan_boards_t systemd_systemd_unit_t:file { read getattr open };
+allow ashchan_media_t systemd_systemd_unit_t:file { read getattr open };
+allow ashchan_search_t systemd_systemd_unit_t:file { read getattr open };
+allow ashchan_moderation_t systemd_systemd_unit_t:file { read getattr open };
+
+# ═══════════════════════════════════════════════════════════════
+# Filesystem Access
+# ═══════════════════════════════════════════════════════════════
+
+# Allow reading /proc for process information
+allow ashchan_gateway_t proc_t:file { read getattr open };
+allow ashchan_gateway_t proc_t:dir { read search getattr };
+
+allow ashchan_auth_t proc_t:file { read getattr open };
+allow ashchan_auth_t proc_t:dir { read search getattr };
+
+allow ashchan_boards_t proc_t:file { read getattr open };
+allow ashchan_boards_t proc_t:dir { read search getattr };
+
+allow ashchan_media_t proc_t:file { read getattr open };
+allow ashchan_media_t proc_t:dir { read search getattr };
+
+allow ashchan_search_t proc_t:file { read getattr open };
+allow ashchan_search_t proc_t:dir { read search getattr };
+
+allow ashchan_moderation_t proc_t:file { read getattr open };
+allow ashchan_moderation_t proc_t:dir { read search getattr };
+
+# Allow reading /etc for system configuration
+allow ashchan_gateway_t etc_t:file { read getattr open };
+allow ashchan_gateway_t etc_t:dir { read search getattr };
+
+allow ashchan_auth_t etc_t:file { read getattr open };
+allow ashchan_auth_t etc_t:dir { read search getattr };
+
+allow ashchan_boards_t etc_t:file { read getattr open };
+allow ashchan_boards_t etc_t:dir { read search getattr };
+
+allow ashchan_media_t etc_t:file { read getattr open };
+allow ashchan_media_t etc_t:dir { read search getattr };
+
+allow ashchan_search_t etc_t:file { read getattr open };
+allow ashchan_search_t etc_t:dir { read search getattr };
+
+allow ashchan_moderation_t etc_t:file { read getattr open };
+allow ashchan_moderation_t etc_t:dir { read search getattr };
+
+# Allow filesystem operations
+allow ashchan_gateway_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+allow ashchan_auth_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+allow ashchan_boards_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+allow ashchan_media_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+allow ashchan_search_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+allow ashchan_moderation_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+
+# ═══════════════════════════════════════════════════════════════
+# Capabilities (Privileges)
+# ═══════════════════════════════════════════════════════════════
+
+# Allow binding to privileged ports if needed (typically not used)
+if (ashchan_bind_privileged_ports) {
+    allow ashchan_gateway_t self:capability { net_bind_service };
+    allow ashchan_auth_t self:capability { net_bind_service };
+    allow ashchan_boards_t self:capability { net_bind_service };
+    allow ashchan_media_t self:capability { net_bind_service };
+    allow ashchan_search_t self:capability { net_bind_service };
+    allow ashchan_moderation_t self:capability { net_bind_service };
+}
+
+# Allow setuid/setgid for PHP-FPM style operation (if needed)
+# Typically not needed for Swoole
+# allow ashchan_gateway_t self:capability { setuid setgid };
+
+# ═══════════════════════════════════════════════════════════════
+# End of Policy Module
+# ═══════════════════════════════════════════════════════════════

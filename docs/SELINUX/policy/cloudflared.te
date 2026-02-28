@@ -1,0 +1,179 @@
+# ═══════════════════════════════════════════════════════════════
+# Cloudflare Tunnel SELinux Policy Module
+# 
+# Author: Ashchan Security Architecture Team
+# Version: 1.0.0
+# Date: 28 February 2026
+# 
+# This policy provides mandatory access control for cloudflared,
+# the Cloudflare Tunnel daemon that provides outbound-only
+# encrypted connectivity to Cloudflare's edge network.
+# 
+# Security Model:
+#   - Outbound connections ONLY (no inbound listening)
+#   - Access to tunnel configuration and credentials
+#   - Runtime state management
+# ═══════════════════════════════════════════════════════════════
+
+policy_module(cloudflared, 1.0.0)
+
+# ── Required Policy Modules ───────────────────────────────────
+require {
+    type unreserved_port_t, http_port_t, https_port_t;
+    type node_t, self, syslogd_t, devlog_t;
+    type systemd_systemd_unit_t, tmp_t, etc_t, proc_t, fs_t;
+    
+    class tcp_socket { create connect bind getattr setopt read write };
+    class udp_socket { create connect bind getattr };
+    class unix_stream_socket { create connect getattr };
+    class process { signal sigchld signull getattr setrlimit };
+    class process2 { noatsecure };
+    class file { read write create unlink getattr setattr open execute append lock };
+    class dir { read write create add_name remove_name search getattr open };
+    class capability { net_bind_service };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Type Declarations
+# ═══════════════════════════════════════════════════════════════
+
+# ── Domain Type ───────────────────────────────────────────────
+type cloudflared_t, domain;
+
+# ── File Types ────────────────────────────────────────────────
+type cloudflared_exec_t, file_type, sysadmfile;
+type cloudflared_config_t, file_type;
+type cloudflared_config_secret_t, file_type;
+type cloudflared_runtime_t, file_type;
+type cloudflared_log_t, file_type;
+type cloudflared_var_run_t, file_type;
+
+# ── Port Type ─────────────────────────────────────────────────
+type cloudflared_metrics_port_t, port_type;
+
+# ═══════════════════════════════════════════════════════════════
+# Boolean Declarations
+# ═══════════════════════════════════════════════════════════════
+
+gen_bool(cloudflared_external_network, s0)
+gen_bool(cloudflared_syslog, s0)
+
+# ═══════════════════════════════════════════════════════════════
+# Domain Transitions
+# ═══════════════════════════════════════════════════════════════
+
+# Transition from init via systemd
+init_daemon_domain(cloudflared_t, cloudflared_exec_t)
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Configuration
+# ═══════════════════════════════════════════════════════════════
+
+# Read configuration directory
+allow cloudflared_t cloudflared_config_t:file { read getattr open };
+allow cloudflared_t cloudflared_config_t:dir { read search getattr };
+
+# Read tunnel credentials (CRITICAL - secret file)
+allow cloudflared_t cloudflared_config_secret_t:file { read getattr open };
+
+# Read /etc for system configuration
+allow cloudflared_t etc_t:file { read getattr open };
+allow cloudflared_t etc_t:dir { read search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Runtime
+# ═══════════════════════════════════════════════════════════════
+
+# Runtime directory for state, PID files
+allow cloudflared_t cloudflared_runtime_t:file { create read write unlink getattr setattr open lock };
+allow cloudflared_t cloudflared_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+# PID files
+allow cloudflared_t cloudflared_var_run_t:file { create read write unlink getattr setattr open };
+allow cloudflared_t cloudflared_var_run_t:dir { read write add_name remove_name search getattr };
+
+# Temporary files
+allow cloudflared_t tmp_t:file { create read write unlink getattr setattr open };
+allow cloudflared_t tmp_t:dir { read write add_name remove_name search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Logs
+# ═══════════════════════════════════════════════════════════════
+
+# Log file access
+allow cloudflared_t cloudflared_log_t:file { create append write getattr open lock };
+allow cloudflared_t cloudflared_log_t:dir { read write add_name search getattr };
+
+# System logging
+if (cloudflared_syslog) {
+    allow cloudflared_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow cloudflared_t devlog_t:file { write append getattr open };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules
+# ═══════════════════════════════════════════════════════════════
+
+# ── CRITICAL: Outbound connections ONLY ───────────────────────
+# cloudflared creates an OUTBOUND tunnel to Cloudflare edge.
+# It does NOT listen for inbound connections (except metrics).
+
+if (cloudflared_external_network) {
+    # Create TCP sockets for outbound connections
+    allow cloudflared_t self:tcp_socket { create connect getattr setopt read write };
+    
+    # Create UDP sockets for DNS
+    allow cloudflared_t self:udp_socket { create connect bind getattr };
+    
+    # Allow outbound to any port (Cloudflare edge uses various ports)
+    corenet_tcp_sendrecv_all_if(cloudflared_t)
+    corenet_tcp_connect_all_ports(cloudflared_t)
+    
+    # Enable DNS resolution
+    corenet_enable_dns(cloudflared_t)
+    
+    # Connect to HTTPS ports for Cloudflare API
+    corenet_tcp_connect_https_port(cloudflared_t)
+    
+    # Connect to HTTP port for local nginx integration
+    corenet_tcp_connect_http_port(cloudflared_t)
+}
+
+# ── Metrics port (optional, local monitoring) ─────────────────
+corenet_tcp_bind_generic_node(cloudflared_t, cloudflared_metrics_port_t)
+
+# ═══════════════════════════════════════════════════════════════
+# Process Control
+# ═══════════════════════════════════════════════════════════════
+
+# Allow process signaling for worker management
+allow cloudflared_t self:process { signal sigchld signull getattr setrlimit };
+allow cloudflared_t self:process2 { noatsecure };
+
+# Allow execution of binary
+allow cloudflared_t cloudflared_exec_t:file { execute execute_no_trans getattr open read };
+
+# ═══════════════════════════════════════════════════════════════
+# Systemd Integration
+# ═══════════════════════════════════════════════════════════════
+
+# Allow systemd to manage the service
+systemd_dbus_chat_systemd(cloudflared_t)
+
+# Allow reading systemd unit files
+allow cloudflared_t systemd_systemd_unit_t:file { read getattr open };
+
+# ═══════════════════════════════════════════════════════════════
+# Filesystem Access
+# ═══════════════════════════════════════════════════════════════
+
+# Allow reading /proc for process information
+allow cloudflared_t proc_t:file { read getattr open };
+allow cloudflared_t proc_t:dir { read search getattr };
+
+# Allow filesystem operations
+allow cloudflared_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+
+# ═══════════════════════════════════════════════════════════════
+# End of Policy Module
+# ═══════════════════════════════════════════════════════════════

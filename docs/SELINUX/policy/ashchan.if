@@ -1,0 +1,353 @@
+# ═══════════════════════════════════════════════════════════════
+# Ashchan SELinux Policy Module
+# Interface Definitions
+# 
+# Author: Ashchan Security Architecture Team
+# Version: 1.0.0
+# Date: 28 February 2026
+# 
+# This file defines reusable interfaces (macros) for the Ashchan
+# SELinux policy. Interfaces allow other policies to interact
+# with Ashchan services in a controlled manner.
+# ═══════════════════════════════════════════════════════════════
+
+policy_module(ashchan, 1.0.0)
+
+require {
+    type ashchan_gateway_t, ashchan_auth_t, ashchan_boards_t;
+    type ashchan_media_t, ashchan_search_t, ashchan_moderation_t;
+    type ashchan_app_t, ashchan_runtime_t, ashchan_log_t;
+    type ashchan_certs_t, ashchan_config_t;
+    type ashchan_port_t, ashchan_mtls_port_t;
+    class tcp_socket { create connect getattr };
+    class file { read getattr open };
+    class dir { read search getattr };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_read_app_content
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to read Ashchan application content.
+#
+# Parameters:
+#   $1 - Domain type to grant access
+#
+# Usage:
+#   ashchan_read_app_content(httpd_t)
+#
+interface(`ashchan_read_app_content', `
+    gen_require(`
+        type ashchan_app_t;
+        class file { read getattr open };
+        class dir { read search getattr };
+    ')
+
+    allow $1 ashchan_app_t:file { read getattr open };
+    allow $1 ashchan_app_t:dir { read search getattr };
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_read_lib_content
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to read Ashchan library content (Composer deps).
+#
+# Parameters:
+#   $1 - Domain type to grant access
+#
+# Usage:
+#   ashchan_read_lib_content(httpd_t)
+#
+interface(`ashchan_read_lib_content', `
+    gen_require(`
+        type ashchan_lib_t;
+        class file { read getattr open execute };
+        class dir { read search getattr };
+    ')
+
+    allow $1 ashchan_lib_t:file { read getattr open execute };
+    allow $1 ashchan_lib_t:dir { read search getattr };
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_read_config
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to read Ashchan configuration files.
+# Does NOT grant access to secret configuration (.env files).
+#
+# Parameters:
+#   $1 - Domain type to grant access
+#
+# Usage:
+#   ashchan_read_config(httpd_t)
+#
+interface(`ashchan_read_config', `
+    gen_require(`
+        type ashchan_config_t;
+        class file { read getattr open };
+        class dir { read search getattr };
+    ')
+
+    allow $1 ashchan_config_t:file { read getattr open };
+    allow $1 ashchan_config_t:dir { read search getattr };
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_read_certs
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to read Ashchan certificate files.
+# Does NOT grant access to private keys.
+#
+# Parameters:
+#   $1 - Domain type to grant access
+#
+# Usage:
+#   ashchan_read_certs(httpd_t)
+#
+interface(`ashchan_read_certs', `
+    gen_require(`
+        type ashchan_certs_t, ashchan_ca_certs_t, ashchan_service_certs_t;
+        class file { read getattr open };
+        class dir { read search getattr };
+    ')
+
+    allow $1 ashchan_certs_t:file { read getattr open };
+    allow $1 ashchan_certs_t:dir { read search getattr };
+    
+    allow $1 ashchan_ca_certs_t:file { read getattr open };
+    allow $1 ashchan_ca_certs_t:dir { read search getattr };
+    
+    allow $1 ashchan_service_certs_t:file { read getattr open };
+    allow $1 ashchan_service_certs_t:dir { read search getattr };
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_connect_to_services
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to connect to Ashchan service ports.
+#
+# Parameters:
+#   $1 - Domain type to grant access
+#
+# Usage:
+#   ashchan_connect_to_services(httpd_t)
+#
+interface(`ashchan_connect_to_services', `
+    gen_require(`
+        type ashchan_port_t, ashchan_mtls_port_t;
+        class tcp_socket { connect getattr };
+    ')
+
+    # Allow connection to HTTP ports
+    corenet_tcp_connect_generic_port($1)
+    
+    # Allow connection to mTLS ports (requires client certificate)
+    corenet_tcp_connect_generic_port($1)
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_manage_runtime
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to manage Ashchan runtime files.
+# Use with caution - typically only for administration tools.
+#
+# Parameters:
+#   $1 - Domain type to grant access
+#
+# Usage:
+#   ashchan_manage_runtime(logrotate_t)
+#
+interface(`ashchan_manage_runtime', `
+    gen_require(`
+        type ashchan_runtime_t, ashchan_var_run_t;
+        class file { read write getattr setattr open lock };
+        class dir { read write add_name remove_name search getattr };
+    ')
+
+    allow $1 ashchan_runtime_t:file { read write getattr setattr open lock };
+    allow $1 ashchan_runtime_t:dir { read write add_name remove_name search getattr };
+    
+    allow $1 ashchan_var_run_t:file { read write getattr setattr open };
+    allow $1 ashchan_var_run_t:dir { read write add_name remove_name search getattr };
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_manage_logs
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to manage Ashchan log files.
+# Use with caution - typically only for logrotate, admin tools.
+#
+# Parameters:
+#   $1 - Domain type to grant access
+#
+# Usage:
+#   ashchan_manage_logs(logrotate_t)
+#
+interface(`ashchan_manage_logs', `
+    gen_require(`
+        type ashchan_log_t;
+        class file { read write getattr setattr open lock append };
+        class dir { read write add_name remove_name search getattr };
+    ')
+
+    allow $1 ashchan_log_t:file { read write getattr setattr open lock append };
+    allow $1 ashchan_log_t:dir { read write add_name remove_name search getattr };
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_domtrans_to_services
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow domain transition to Ashchan service domains.
+# Use for administration and management tools.
+#
+# Parameters:
+#   $1 - Domain type requesting transition
+#
+# Usage:
+#   ashchan_domtrans_to_services(systemctl_t)
+#
+interface(`ashchan_domtrans_to_services', `
+    gen_require(`
+        type ashchan_gateway_t, ashchan_auth_t, ashchan_boards_t;
+        type ashchan_media_t, ashchan_search_t, ashchan_moderation_t;
+        type ashchan_exec_t;
+        class file { execute execute_no_trans getattr open read };
+    ')
+
+    # Allow transition to all service domains
+    domtrans_pattern($1, ashchan_exec_t, ashchan_gateway_t)
+    domtrans_pattern($1, ashchan_exec_t, ashchan_auth_t)
+    domtrans_pattern($1, ashchan_exec_t, ashchan_boards_t)
+    domtrans_pattern($1, ashchan_exec_t, ashchan_media_t)
+    domtrans_pattern($1, ashchan_exec_t, ashchan_search_t)
+    domtrans_pattern($1, ashchan_exec_t, ashchan_moderation_t)
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_signal_services
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to send signals to Ashchan service processes.
+# Use for process management (systemd, supervisord, etc.).
+#
+# Parameters:
+#   $1 - Domain type to grant signaling access
+#
+# Usage:
+#   ashchan_signal_services(systemd_t)
+#
+interface(`ashchan_signal_services', `
+    gen_require(`
+        type ashchan_gateway_t, ashchan_auth_t, ashchan_boards_t;
+        type ashchan_media_t, ashchan_search_t, ashchan_moderation_t;
+        class process { signal sigchld signull getattr };
+    ')
+
+    allow $1 ashchan_gateway_t:process { signal sigchld signull getattr };
+    allow $1 ashchan_auth_t:process { signal sigchld signull getattr };
+    allow $1 ashchan_boards_t:process { signal sigchld signull getattr };
+    allow $1 ashchan_media_t:process { signal sigchld signull getattr };
+    allow $1 ashchan_search_t:process { signal sigchld signull getattr };
+    allow $1 ashchan_moderation_t:process { signal sigchld signull getattr };
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Interface: ashchan_list_services
+# ═══════════════════════════════════════════════════════════════
+#
+# Allow a domain to list and stat Ashchan service directories.
+# Use for monitoring and administration.
+#
+# Parameters:
+#   $1 - Domain type to grant access
+#
+# Usage:
+#   ashchan_list_services(nagios_t)
+#
+interface(`ashchan_list_services', `
+    gen_require(`
+        type ashchan_gateway_app_t, ashchan_auth_app_t, ashchan_boards_app_t;
+        type ashchan_media_app_t, ashchan_search_app_t, ashchan_moderation_app_t;
+        class dir { read search getattr };
+        class file { getattr read open };
+    ')
+
+    allow $1 ashchan_gateway_app_t:dir { read search getattr };
+    allow $1 ashchan_gateway_app_t:file { getattr read open };
+    
+    allow $1 ashchan_auth_app_t:dir { read search getattr };
+    allow $1 ashchan_auth_app_t:file { getattr read open };
+    
+    allow $1 ashchan_boards_app_t:dir { read search getattr };
+    allow $1 ashchan_boards_app_t:file { getattr read open };
+    
+    allow $1 ashchan_media_app_t:dir { read search getattr };
+    allow $1 ashchan_media_app_t:file { getattr read open };
+    
+    allow $1 ashchan_search_app_t:dir { read search getattr };
+    allow $1 ashchan_search_app_t:file { getattr read open };
+    
+    allow $1 ashchan_moderation_app_t:dir { read search getattr };
+    allow $1 ashchan_moderation_app_t:file { getattr read open };
+')
+
+# ═══════════════════════════════════════════════════════════════
+# Template: ashchan_service_domain
+# ═══════════════════════════════════════════════════════════════
+#
+# Template for creating additional Ashchan service domains.
+# Use this when adding new microservices to the platform.
+#
+# Parameters:
+#   $1 - Service name (e.g., "notifications")
+#   $2 - Domain type (e.g., "ashchan_notifications_t")
+#
+# Usage:
+#   ashchan_service_domain(notifications, ashchan_notifications_t)
+#
+template(`ashchan_service_domain', `
+    gen_require(`
+        type $2;
+    ')
+
+    # Declare domain type
+    type $2, domain;
+    
+    # Allow basic process operations
+    allow $2 self:process { signal sigchld signull getattr };
+    allow $2 self:tcp_socket { create connect bind listen accept };
+    
+    # Allow reading application code
+    allow $2 ashchan_app_t:file { read getattr open };
+    allow $2 ashchan_app_t:dir { read search getattr };
+    
+    # Allow reading libraries
+    allow $2 ashchan_lib_t:file { read getattr open execute };
+    allow $2 ashchan_lib_t:dir { read search getattr };
+    
+    # Allow reading configuration
+    allow $2 ashchan_config_t:file { read getattr open };
+    allow $2 ashchan_config_t:dir { read search getattr };
+    
+    # Allow runtime access
+    allow $2 ashchan_runtime_t:file { create read write unlink getattr open };
+    allow $2 ashchan_runtime_t:dir { read write add_name remove_name search getattr };
+    
+    # Allow log access
+    allow $2 ashchan_log_t:file { create append write getattr open };
+    allow $2 ashchan_log_t:dir { read write add_name search getattr };
+    
+    # Allow systemd integration
+    systemd_dbus_chat_systemd($2)
+')
+
+# ═══════════════════════════════════════════════════════════════
+# End of Interface Definitions
+# ═══════════════════════════════════════════════════════════════

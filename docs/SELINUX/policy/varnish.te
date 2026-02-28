@@ -1,0 +1,229 @@
+# ═══════════════════════════════════════════════════════════════
+# Varnish Cache SELinux Policy Module
+# 
+# Author: Ashchan Security Architecture Team
+# Version: 1.0.0
+# Date: 28 February 2026
+# 
+# This policy provides mandatory access control for Varnish
+# HTTP Cache, which sits between Anubis and the API Gateway
+# to provide HTTP caching for improved performance.
+# 
+# Security Model:
+#   - Binds to port 6081 for HTTP cache
+#   - Binds to port 6082 for admin interface (localhost only)
+#   - Connects to backend (API Gateway) for cache misses
+#   - VCL configuration file access
+#   - Shared memory for cache storage
+# ═══════════════════════════════════════════════════════════════
+
+policy_module(varnish, 1.0.0)
+
+# ── Required Policy Modules ───────────────────────────────────
+require {
+    type unreserved_port_t, http_port_t, https_port_t;
+    type node_t, self, syslogd_t, devlog_t;
+    type systemd_systemd_unit_t, tmp_t, etc_t, proc_t, fs_t;
+    type varnishd_t, varnishd_exec_t, varnishd_config_t;
+    type varnishd_var_t, varnishd_log_t, varnishd_runtime_t;
+    
+    class tcp_socket { create connect bind listen accept getattr setopt read write };
+    class udp_socket { create connect bind getattr };
+    class unix_stream_socket { create connect getattr };
+    class process { signal sigchld signull getattr setrlimit };
+    class process2 { noatsecure };
+    class file { read write create unlink getattr setattr open execute append lock mmap };
+    class dir { read write create add_name remove_name search getattr open };
+    class capability { net_bind_service setuid setgid ipc_lock ipc_owner };
+    class shm { read write };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Type Declarations
+# ═══════════════════════════════════════════════════════════════
+
+# Note: varnishd_t is typically provided by the base Varnish policy
+# We extend it here for Ashchan-specific requirements
+
+# ── Additional File Types ──────────────────────────────────────
+type ashchan_varnish_config_t, file_type;
+type ashchan_varnish_vcl_t, file_type;
+
+# ── Port Types ────────────────────────────────────────────────
+type varnish_port_t, port_type;
+type varnish_admin_port_t, port_type;
+
+# ═══════════════════════════════════════════════════════════════
+# Boolean Declarations
+# ═══════════════════════════════════════════════════════════════
+
+gen_bool(varnish_external_network, s0)
+gen_bool(varnish_syslog, s0)
+gen_bool(varnish_bind_privileged_ports, s0)
+
+# ═══════════════════════════════════════════════════════════════
+# Domain Transitions
+# ═══════════════════════════════════════════════════════════════
+
+# Transition from init via systemd (if not already defined)
+# init_daemon_domain(varnishd_t, varnishd_exec_t)
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Configuration
+# ═══════════════════════════════════════════════════════════════
+
+# Read Varnish configuration files
+allow varnishd_t ashchan_varnish_config_t:file { read getattr open };
+allow varnishd_t ashchan_varnish_config_t:dir { read search getattr };
+
+# Read VCL (Varnish Configuration Language) files
+allow varnishd_t ashchan_varnish_vcl_t:file { read getattr open };
+allow varnishd_t ashchan_varnish_vcl_t:dir { read search getattr };
+
+# Read standard Varnish config
+allow varnishd_t varnishd_config_t:file { read getattr open };
+allow varnishd_t varnishd_config_t:dir { read search getattr };
+
+# Read /etc for system configuration
+allow varnishd_t etc_t:file { read getattr open };
+allow varnishd_t etc_t:dir { read search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Runtime
+# ═══════════════════════════════════════════════════════════════
+
+# Runtime directory for sockets, PID files
+allow varnishd_t varnishd_runtime_t:file { create read write unlink getattr setattr open lock };
+allow varnishd_t varnishd_runtime_t:dir { create read write add_name remove_name search getattr open };
+
+# Temporary files
+allow varnishd_t tmp_t:file { create read write unlink getattr setattr open };
+allow varnishd_t tmp_t:dir { read write add_name remove_name search getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Cache Storage
+# ═══════════════════════════════════════════════════════════════
+
+# Varnish cache storage directory
+allow varnishd_t varnishd_var_t:file { create read write unlink getattr setattr open mmap lock };
+allow varnishd_t varnishd_var_t:dir { create read write add_name remove_name search getattr open };
+
+# Shared memory for cache (if using malloc/storage)
+allow varnishd_t self:shm { read write };
+
+# ═══════════════════════════════════════════════════════════════
+# File Access Rules - Logs
+# ═══════════════════════════════════════════════════════════════
+
+# Log file access
+allow varnishd_t varnishd_log_t:file { create append write getattr open lock };
+allow varnishd_t varnishd_log_t:dir { read write add_name search getattr };
+
+# System logging
+if (varnish_syslog) {
+    allow varnishd_t syslogd_t:unix_stream_socket { connectto sendto };
+    allow varnishd_t devlog_t:file { write append getattr open };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Port Binding
+# ═══════════════════════════════════════════════════════════════
+
+# Bind to HTTP cache port (6081)
+corenet_tcp_bind_generic_node(varnishd_t, varnish_port_t)
+
+# Bind to admin interface port (6082)
+corenet_tcp_bind_generic_node(varnishd_t, varnish_admin_port_t)
+
+# Allow binding to privileged ports if needed
+if (varnish_bind_privileged_ports) {
+    allow varnishd_t self:capability { net_bind_service };
+}
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Socket Operations
+# ═══════════════════════════════════════════════════════════════
+
+# TCP socket operations for HTTP server
+allow varnishd_t self:tcp_socket { create connect bind listen accept getattr setopt read write };
+
+# UDP socket operations for DNS
+allow varnishd_t self:udp_socket { create connect bind getattr };
+
+# Unix stream sockets for Varnish admin CLI
+allow varnishd_t self:unix_stream_socket { create connect getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# Network Access Rules - Connectivity
+# ═══════════════════════════════════════════════════════════════
+
+# External network access (for VCL fetching, if enabled)
+if (varnish_external_network) {
+    corenet_tcp_sendrecv_generic_if(varnishd_t)
+    corenet_enable_dns(varnishd_t)
+    corenet_tcp_connect_http_port(varnishd_t)
+    corenet_tcp_connect_https_port(varnishd_t)
+}
+
+# Connect to backend (API Gateway) for cache misses
+corenet_tcp_connect_generic_port(varnishd_t)
+
+# Connect to HTTP port (nginx, Anubis upstream)
+corenet_tcp_connect_http_port(varnishd_t)
+
+# ═══════════════════════════════════════════════════════════════
+# Process Control
+# ═══════════════════════════════════════════════════════════════
+
+# Allow process signaling for worker/child management
+allow varnishd_t self:process { signal sigchld signull getattr setrlimit };
+allow varnishd_t self:process2 { noatsecure };
+
+# Allow execution of binary
+allow varnishd_t varnishd_exec_t:file { execute execute_no_trans getattr open read };
+
+# Allow signaling between varnish processes (master/worker)
+allow varnishd_t varnishd_t:process { signal sigchld signull getattr };
+
+# ═══════════════════════════════════════════════════════════════
+# Systemd Integration
+# ═══════════════════════════════════════════════════════════════
+
+# Allow systemd to manage the service
+systemd_dbus_chat_systemd(varnishd_t)
+
+# Allow reading systemd unit files
+allow varnishd_t systemd_systemd_unit_t:file { read getattr open };
+
+# ═══════════════════════════════════════════════════════════════
+# Filesystem Access
+# ═══════════════════════════════════════════════════════════════
+
+# Allow reading /proc for process information
+allow varnishd_t proc_t:file { read getattr open };
+allow varnishd_t proc_t:dir { read search getattr };
+
+# Allow filesystem operations
+allow varnishd_t fs_t:filesystem { getattr getattrfs statfs quotaget };
+
+# ═══════════════════════════════════════════════════════════════
+# Capabilities
+# ═══════════════════════════════════════════════════════════════
+
+# Allow setuid/setgid for dropping privileges
+allow varnishd_t self:capability { setuid setgid };
+
+# Allow IPC lock for shared memory (cache storage)
+allow varnishd_t self:capability { ipc_lock ipc_owner };
+
+# ═══════════════════════════════════════════════════════════════
+# Admin CLI Access
+# ═══════════════════════════════════════════════════════════════
+
+# Allow varnishadm to connect to admin socket
+# This is typically handled by varnishadm_t, but we ensure connectivity
+allow varnishd_t self:unix_stream_socket { accept listen };
+
+# ═══════════════════════════════════════════════════════════════
+# End of Policy Module
+# ═══════════════════════════════════════════════════════════════
