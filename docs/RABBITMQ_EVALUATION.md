@@ -583,3 +583,21 @@ This is a ~1 week effort if the interfaces are clean from day one.
 | Dev experience | New local dependency | Nothing changes | **Redis** |
 
 **Final verdict:** RabbitMQ is a superb message broker, but it solves problems Ashchan doesn't have. Redis Streams delivers the required functionality with zero new infrastructure, lower latency, higher throughput, and a smaller attack surface. The implementation plan above provides a clean abstraction layer that allows swapping to RabbitMQ (or NATS, Kafka, etc.) in the future if requirements change.
+
+---
+
+## 11. Decision Status
+
+**✅ DECISION MADE (2026-02-28):** Redis Streams selected as Ashchan's message queue and event bus infrastructure.
+
+**Implementation Status:**
+- ✅ Event publisher implemented: `contracts/php/src/EventBus/EventPublisher.php`
+- ✅ Event consumer base class implemented: `contracts/php/src/EventBus/EventConsumer.php`
+- ✅ CloudEvents schema implemented: `contracts/php/src/EventBus/CloudEvent.php`
+- ✅ Publisher interface defined: `contracts/php/src/EventBus/EventPublisherInterface.php`
+- ✅ Search-indexing service configured with Redis connection (DB 6)
+- ⏳ Consumer processes deployed and running in production
+
+**Documentation:**
+- See [docs/MESSAGE_QUEUE_ARCHITECTURE.md](MESSAGE_QUEUE_ARCHITECTURE.md) for the official architecture decision record
+- See [docs/architecture.md](architecture.md) for updated system architecture

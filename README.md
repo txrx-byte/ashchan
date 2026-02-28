@@ -24,13 +24,20 @@ Ashchan is a high-performance, privacy-first imageboard built on **Hyperf/Swoole
 
 ### Requirements
 
-- PHP 8.2+ with Swoole extension
-- PostgreSQL 16+
-- Redis 7+
-- MinIO or S3-compatible storage (for media)
-- OpenSSL (for certificate generation)
-- Composer (PHP dependency manager)
-- Make (build tool)
+- **PHP 8.2+** with Swoole extension
+- **PostgreSQL 16+** for persistent storage
+- **Redis 7+** for caching, rate limiting, event bus (Redis Streams), and Pub/Sub
+- **MinIO** or S3-compatible storage (for media)
+- **OpenSSL** (for certificate generation)
+- **Composer** (PHP dependency manager)
+- **Make** (build tool)
+
+**Note:** Redis is used for:
+- Multi-layer caching (L2/L3)
+- Sliding window rate limiting
+- Event bus (Redis Streams: `ashchan:events`)
+- Real-time Pub/Sub for WebSocket fan-out
+- Distributed locks
 
 #### Alpine Linux (apk)
 
@@ -382,9 +389,16 @@ composer cs-fix
 
 - **PHP 8.2+** with extensions: swoole, openssl, curl, pdo, pdo_pgsql, redis, mbstring, json, pcntl
 - **PostgreSQL 16+** for persistent storage
-- **Redis 7+** for caching, rate limiting, and queues
+- **Redis 7+** for caching, rate limiting, event bus (Redis Streams), and Pub/Sub
 - **MinIO** or S3-compatible storage for media files
 - **Systemd** for process management (recommended)
+
+**Redis Event Bus:**
+- Ashchan uses Redis Streams (`ashchan:events`) for its event bus architecture
+- Consumer groups for competing consumers (search indexing, cache invalidation, moderation)
+- Dead-letter queue (`ashchan:events:dlq`) for failed message handling
+- Redis Pub/Sub for real-time WebSocket fan-out
+- See [docs/MESSAGE_QUEUE_ARCHITECTURE.md](docs/MESSAGE_QUEUE_ARCHITECTURE.md) for details
 
 ### Systemd Service Example
 

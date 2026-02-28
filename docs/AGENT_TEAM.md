@@ -62,20 +62,27 @@
 ---
 
 #### 3. `domain-events-engineer`
-**Specialization:** Event-driven architecture, Redis Streams, CQRS  
+**Specialization:** Event-driven architecture, Redis Streams, CQRS
 **Capabilities:**
-- Domain event schema design (contracts/events/)
-- Redis Streams pub/sub implementation
-- Event sourcing patterns for post/thread state
-- Cache invalidation event flows
-- Dead-letter queue handling and retry logic
-- Event projection for read models (search indexing)
+- Domain event schema design (contracts/php/src/EventBus/)
+- Redis Streams event bus implementation (XADD/XREADGROUP)
+- Consumer group patterns for competing consumers
+- Dead-letter queue handling and retry logic (ashchan:events:dlq)
+- Event projection for read models (search indexing, cache invalidation)
+- CloudEvents-compatible event serialization
 
 **When to invoke:**
 - Adding new domain events (post.created, thread.deleted, etc.)
 - Designing async workflows (moderation scoring, search indexing)
 - Implementing event-driven cache invalidation
 - Building read-model projections
+- Event bus monitoring and alerting
+
+**Implementation Status:** ✅ Complete
+- EventPublisher: `contracts/php/src/EventBus/EventPublisher.php`
+- EventConsumer (base): `contracts/php/src/EventBus/EventConsumer.php`
+- CloudEvent schema: `contracts/php/src/EventBus/CloudEvent.php`
+- See docs/MESSAGE_QUEUE_ARCHITECTURE.md for architecture details
 
 ---
 
@@ -248,20 +255,27 @@
 ---
 
 #### 13. `redis-cache-strategist`
-**Specialization:** Redis caching strategies, data structures  
+**Specialization:** Redis caching strategies, data structures, event bus
 **Capabilities:**
 - Multi-layer cache design (L1 Varnish, L2 Redis, L3 service)
 - Cache invalidation patterns (BAN, PURGE, TTL)
-- Redis Streams for event bus
+- Redis Streams for event bus (ashchan:events, ashchan:events:dlq)
+- Redis Pub/Sub for real-time WebSocket fan-out
 - Sorted set rate limiting (sliding window)
 - Bitmap/posting list for user tracking (anonymous IDs)
 - Lua scripting for atomic operations
+- Consumer group configuration for competing consumers
 
 **When to invoke:**
 - Cache stampede prevention
 - Rate limiting algorithm design
-- Event bus scaling
+- Event bus scaling and monitoring
 - Real-time analytics implementation
+- Redis Cluster/Sentinel configuration
+- Stream depth and consumer lag optimization
+
+**Implementation Status:** ✅ Event bus architecture complete
+- See docs/MESSAGE_QUEUE_ARCHITECTURE.md for stream topology
 
 ---
 
@@ -534,7 +548,7 @@ Artifacts: Read services/boards-threads-posts/app/Controller/ThreadController.ph
 
 **Immediate (This Week):**
 1. hyperf-swoole-specialist — Performance baseline
-2. domain-events-engineer — Event bus completion
+2. ~~domain-events-engineer — Event bus completion~~ ✅ Complete
 3. api-contract-architect — OpenAPI completion
 
 **Next Week:**

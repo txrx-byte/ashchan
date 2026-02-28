@@ -88,9 +88,14 @@
 - Used by all services via TCP connection.
 
 ### Redis
-- Cache, rate limits, queues, and distributed locks.
+- **Cache:** Multi-layer caching (L2 application cache, L3 service cache)
+- **Rate Limiting:** Sliding window rate limiting via sorted sets
+- **Message Queue:** Redis Streams for event bus (`ashchan:events`)
+- **Pub/Sub:** Real-time WebSocket fan-out for live updates
+- **Locks:** Distributed locks for coordination
 - Connection: `localhost:6379` or configured host
-- Pub/sub for WebSocket fan-out.
+- Dedicated DB slots: DB 0 (default), DB 2 (domain cache), DB 6 (event bus)
+- See [docs/MESSAGE_QUEUE_ARCHITECTURE.md](MESSAGE_QUEUE_ARCHITECTURE.md) for event bus details
 
 ### Object Storage (MinIO/S3)
 - Media blobs with immutable hashes.
@@ -136,14 +141,63 @@ Services communicate via HTTP/HTTPS:
 
 ## Eventing and Async
 
-### Domain Events
-- Emitted by core services via Redis streams.
-- Consumers for indexing, moderation, and cache invalidation.
-- Retry with dead-letter queues for failed consumers.
+### Domain Events (Redis Streams)
 
-### Event Schema
-- Defined in `contracts/events/README.md`
-- CloudEvents-compatible format.
+Ashchan uses **Redis Streams** as its event bus infrastructure. See [docs/MESSAGE_QUEUE_ARCHITECTURE.md](MESSAGE_QUEUE_ARCHITECTURE.md) for full details.
+
+**Stream Topology:**
+- **Main Stream:** `ashchan:events` (MAXLEN ~100,000)
+- **Dead Letter Queue:** `ashchan:events:dlq`
+- **Consumer Groups:** One per service (e.g., `search-index`, `gateway-cache`, `moderation`)
+
+**Publishing:**
+```php
+$event = CloudEvent::new(
+    type: 'post.created',
+    source: 'boards-threads-posts',
+    subject: "post:{$postId}",
+    data: ['post_id' => $postId, 'thread_id' => $threadId]
+);
+$eventPublisher->publish($event);
+```
+
+**Consumption:**
+- Competing consumers via `XREADGROUP` with consumer groups
+- Acknowledgment with `XACK` on successful processing
+- Automatic retry (up to 3 attempts) before dead-letter
+- Stale message reclaim via `XCLAIM` after 60s idle time
+
+**Event Schema:**
+- CloudEvents-compatible format
+- Defined in `contracts/php/src/EventBus/CloudEvent.php`
+- JSON serialization for stream storage
+
+**Pub/Sub for Real-Time:**
+- Redis Pub/Sub (separate from Streams) for WebSocket fan-out
+- Fire-and-forget pattern for live thread updates
+- Complementary to Streams (durability + real-time push)
+
+### Implementation
+
+| Component | Location |
+|-----------|----------|
+| Event Publisher | `contracts/php/src/EventBus/EventPublisher.php` |
+| Event Consumer (Base) | `contracts/php/src/EventBus/EventConsumer.php` |
+| Event Schema | `contracts/php/src/EventBus/CloudEvent.php` |
+| Publisher Interface | `contracts/php/src/EventBus/EventPublisherInterface.php` |
+
+### Configuration
+
+```bash
+# Environment variables
+EVENTS_STREAM_NAME=ashchan:events
+EVENTS_DLQ_STREAM=ashchan:events:dlq
+EVENTS_REDIS_DB=6
+EVENTS_BATCH_SIZE=100
+EVENTS_POLL_INTERVAL=1000
+EVENTS_MAX_RETRIES=3
+EVENTS_CONSUMER_GROUP=search-indexing  # Unique per service
+```
 
 ## Caching Strategy
 
@@ -165,17 +219,20 @@ Services communicate via HTTP/HTTPS:
 - Invalidated via `BoardService::invalidateBoardCaches()` on writes.
 
 ### Cache Invalidation Flow
-- Domain events (Redis Streams) trigger the gateway's `CacheInvalidatorProcess`.
+- Domain events (Redis Streams: `ashchan:events`) trigger the gateway's `CacheInvalidatorProcess`.
 - Process issues HTTP BAN requests to Varnish for pattern-based invalidation.
 - Process also deletes Redis cache keys for application-level invalidation.
 - Sub-second propagation from write to cache eviction.
+- See [docs/MESSAGE_QUEUE_ARCHITECTURE.md](MESSAGE_QUEUE_ARCHITECTURE.md) for event bus architecture
 
 ## WebSockets Readiness
 
 ### Live Updates
-- Gateway uses pub/sub fan-out from Posts events.
-- Backpressure and per-connection rate limits.
-- Connection state tracked in Redis.
+- Gateway subscribes to Redis Pub/Sub channels (e.g., `live:thread:{id}`) for real-time post updates
+- Publishers (boards-threads-posts) dual-write: Redis Streams (durability) + Pub/Sub (real-time fan-out)
+- Backpressure and per-connection rate limits applied
+- Connection state tracked in Redis
+- See [docs/MESSAGE_QUEUE_ARCHITECTURE.md](MESSAGE_QUEUE_ARCHITECTURE.md) for Pub/Sub vs Streams architecture
 
 ## Observability
 
@@ -185,9 +242,10 @@ Services communicate via HTTP/HTTPS:
 - mTLS handshake events logged for audit.
 
 ### Metrics
-- Rate limits, queue depths, moderation actions.
+- Rate limits, stream depths (Redis Streams: `XLEN ashchan:events`), moderation actions.
 - Certificate expiration monitoring.
 - mTLS handshake success/failure rates.
+- Event bus health: consumer lag (`XINFO GROUPS`), DLQ depth, pending messages
 
 ### Tracing
 - Distributed tracing across gateway and services.
