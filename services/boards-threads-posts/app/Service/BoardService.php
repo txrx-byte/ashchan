@@ -79,6 +79,11 @@ final class BoardService
     private int $ipPostScanLimit;
 
     /**
+     * @var array<string, mixed>|null Buffer for open posts
+     */
+    private ?array $openPostsBuffer = null;
+
+    /**
      * @var int Default maximum threads per board
      */
     private int $defaultMaxThreads;
@@ -952,7 +957,11 @@ final class BoardService
         /** @var array<string, int> $result */
         $result = Db::transaction(function () use ($thread, $data, $board) {
             // Atomically allocate per-board post number
-            $boardPostNo = $board ? $this->allocateBoardPostNo($board) : null;
+            /** @var Model\Board|null $boardModel */
+            $boardModel = $board instanceof \Hyperf\Database\Model\Relations\BelongsTo 
+                ? $thread->getRelation('board') 
+                : $board;
+            $boardPostNo = $boardModel ? $this->allocateBoardPostNo($boardModel) : null;
 
             $rawName = $data['name'] ?? '';
             [$name, $trip] = $this->formatter->parseNameTrip(is_string($rawName) ? $rawName : '');
@@ -963,11 +972,15 @@ final class BoardService
             $isSage = strtolower(trim($email)) === 'sage';
 
             // Generate poster ID and country if board has those features enabled
-            $posterId = ($board && $board->user_ids) ? $this->generatePosterId(
+            /** @var string|null $boardUserIds */
+            $boardUserIds = $boardModel?->user_ids;
+            $posterId = $boardUserIds ? $this->generatePosterId(
                 (string) ($data['ip_address'] ?? ''),
                 $thread->id
             ) : null;
-            [$countryCode, $countryName] = ($board && $board->country_flags)
+            /** @var int|null $boardCountryFlags */
+            $boardCountryFlags = $boardModel?->country_flags;
+            [$countryCode, $countryName] = $boardCountryFlags
                 ? $this->resolveCountry((string) ($data['ip_address'] ?? ''))
                 : [null, null];
 
