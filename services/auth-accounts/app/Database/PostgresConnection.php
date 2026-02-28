@@ -33,6 +33,13 @@ use PDOStatement;
  * Extends the base Hyperf connection to provide:
  *  - Correct PDO type mapping (bool → PARAM_BOOL, int → PARAM_INT)
  *  - PostgreSQL-specific unique constraint error detection
+ *
+ * The correct type mapping is critical for PostgreSQL's strict typing system.
+ * Using PARAM_STR for boolean values would cause query failures or unexpected
+ * type coercion behavior.
+ *
+ * @see https://www.postgresql.org/docs/current/libpq-exec.html#LIBPQ-PARAMS
+ *      PostgreSQL parameter binding documentation
  */
 final class PostgresConnection extends Connection
 {
@@ -43,7 +50,14 @@ final class PostgresConnection extends Connection
      * This is critical for boolean and integer columns — using PARAM_STR
      * for booleans would cause query issues with PostgreSQL's strict typing.
      *
-     * @param array<string|int, mixed> $bindings
+     * Type mapping:
+     *   - int     → PDO::PARAM_INT  (32-bit signed integer)
+     *   - bool    → PDO::PARAM_BOOL (boolean as 0/1)
+     *   - null    → PDO::PARAM_NULL (SQL NULL)
+     *   - others  → PDO::PARAM_STR  (string representation)
+     *
+     * @param PDOStatement             $statement  Prepared statement to bind values to
+     * @param array<string|int, mixed> $bindings   Array of values to bind (indexed or named)
      */
     public function bindValues(PDOStatement $statement, array $bindings): void
     {
@@ -68,6 +82,12 @@ final class PostgresConnection extends Connection
      * Matches PostgreSQL error messages for:
      *  - "duplicate key value violates unique constraint"
      *  - "unique_violation" (SQLSTATE 23505)
+     *
+     * This method is used by the query builder to convert database-specific
+     * constraint violations into framework-level exceptions.
+     *
+     * @param Exception $exception The exception to analyze
+     * @return bool True if the exception represents a unique constraint violation
      */
     protected function isUniqueConstraintError(Exception $exception): bool
     {
@@ -76,6 +96,12 @@ final class PostgresConnection extends Connection
 
     /**
      * Get the default post processor instance.
+     *
+     * The processor handles transforming database results into PHP arrays.
+     * PostgreSQL uses the default processor since it returns results in
+     * standard format.
+     *
+     * @return Processor The query result processor instance
      */
     protected function getDefaultPostProcessor(): Processor
     {

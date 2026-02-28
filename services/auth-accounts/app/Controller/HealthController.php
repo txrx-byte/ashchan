@@ -28,15 +28,29 @@ use Psr\Http\Message\ResponseInterface;
  *
  * Returns a simple JSON response to indicate the service is running.
  * This endpoint should remain unauthenticated and fast.
+ *
+ * @see https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+ *      For Kubernetes health probe patterns
  */
 final class HealthController
 {
+    /**
+     * @param HttpResponse $response HTTP response interface for building JSON responses
+     */
     public function __construct(private HttpResponse $response)
     {
     }
 
     /**
      * GET /health — Returns 200 if the service is accepting requests.
+     *
+     * This endpoint performs no external dependency checks. It only confirms
+     * that the PHP process is running and can handle HTTP requests.
+     *
+     * For comprehensive health checks including database and Redis connectivity,
+     * implement a separate /health/live endpoint.
+     *
+     * @return ResponseInterface JSON response with status: 'ok'
      */
     public function check(): ResponseInterface
     {

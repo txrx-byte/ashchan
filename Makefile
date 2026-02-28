@@ -261,6 +261,98 @@ varnish-ban: ## Ban all cached content (full cache flush)
 		echo "[!] Varnish is not running"
 	@echo "[✓] All content banned"
 
+# ── OpenBao Secrets Management ──────────────────────────────
+
+.PHONY: openbao-install openbao-status openbao-unseal openbao-unseal-status \
+        openbao-secrets-init openbao-migrate-secrets openbao-audit openbao-backup \
+        openbao-rotate openbao-rotate-key openbao-rotate-certs openbao-emergency-seal \
+        openbao-emergency-unseal openbao-restore-backup openbao-update-services
+
+openbao-install: ## Install OpenBao (interactive installer)
+	@echo "[*] Running OpenBao installer..."
+	@sudo tools/openbao/install.sh
+
+openbao-status: ## Check OpenBao service status
+	@echo ""
+	@echo "OpenBao Status"
+	@echo "═══════════════════════════════════════"
+	@systemctl is-active openbao && echo "  Status: \033[32mrunning\033[0m" || echo "  Status: \033[31mstopped\033[0m"
+	@echo ""
+	@curl -sf http://localhost:8200/v1/sys/health | jq -r '"  Seal Status: " + (if .sealed then "\u001b[31mSealed\u001b[0m" else "\u001b[32mUnsealed\u001b[0m" end)' 2>/dev/null || echo "  (OpenBao not responding)"
+	@echo ""
+
+openbao-unseal: ## Unseal OpenBao (enter unseal keys)
+	@echo "OpenBao Unseal"
+	@echo "═══════════════════════════════════════"
+	@echo "Enter 3 of 5 unseal keys to unseal OpenBao."
+	@echo "Type 'done' when finished."
+	@echo ""
+	@for i in 1 2 3; do \
+		read -p "Unseal key $$i: " key; \
+		if [ "$$key" = "done" ]; then break; fi; \
+		curl -sf -X POST http://localhost:8200/v1/sys/unseal -d "{\"key\": \"$$key\"}" | jq -r '.sealed' | grep -q false && echo "OpenBao is now unsealed!" && break; \
+	done
+
+openbao-unseal-status: ## Check OpenBao seal status
+	@curl -sf http://localhost:8200/v1/sys/seal-status | jq '.'
+
+openbao-secrets-init: ## Initialize OpenBao secrets engines
+	@echo "[*] Initializing secrets engines..."
+	@tools/openbao/init-secrets.sh
+
+openbao-migrate-secrets: ## Migrate secrets from .env files to OpenBao
+	@echo "[*] Migrating secrets to OpenBao..."
+	@sudo tools/openbao/migrate-secrets.sh
+
+openbao-migrate-dry-run: ## Preview secret migration (dry run)
+	@echo "[*] Previewing secret migration..."
+	@sudo tools/openbao/migrate-secrets.sh --dry-run
+
+openbao-audit: ## View OpenBao audit logs
+	@echo "OpenBao Audit Logs (last 50 entries)"
+	@echo "═══════════════════════════════════════"
+	@tail -n 50 /var/log/openbao/audit/audit.log 2>/dev/null | jq '.' || echo "No audit logs found"
+
+openbao-audit-watch: ## Watch OpenBao audit logs in real-time
+	@tail -f /var/log/openbao/audit/audit.log 2>/dev/null | jq '.' || echo "No audit logs found"
+
+openbao-backup: ## Backup OpenBao configuration and secrets
+	@echo "[*] Backing up OpenBao..."
+	@openbao-backup 2>/dev/null || sudo tools/openbao/backup.sh
+
+openbao-rotate: ## Rotate all OpenBao credentials
+	@echo "[*] Rotating OpenBao credentials..."
+	@sudo tools/openbao/rotate-credentials.sh
+
+openbao-rotate-key: ## Rotate OpenBao encryption key
+	@echo "[*] Rotating OpenBao encryption key..."
+	@sudo tools/openbao/rotate-key.sh
+
+openbao-rotate-certs: ## Rotate OpenBao client certificates
+	@echo "[*] Rotating client certificates..."
+	@sudo tools/openbao/rotate-certs.sh
+
+openbao-emergency-seal: ## Emergency seal (lock down immediately)
+	@echo "[!] Emergency sealing OpenBao..."
+	@curl -sf -X POST http://localhost:8200/v1/sys/seal
+	@echo "[✓] OpenBao sealed"
+
+openbao-emergency-unseal: ## Emergency unseal (requires 3 key holders)
+	@echo "[!] Emergency unseal procedure"
+	@echo "This requires 3 unseal key holders to be present."
+	@$(MAKE) openbao-unseal
+
+openbao-restore-backup: ## Restore OpenBao from backup
+	@echo "Restore from backup"
+	@echo "═══════════════════════════════════════"
+	@read -p "Backup file path: " backup_file; \
+	sudo tools/openbao/restore-backup.sh "$$backup_file"
+
+openbao-update-services: ## Update Ashchan services to use OpenBao
+	@echo "[*] Updating service configurations for OpenBao..."
+	@sudo tools/openbao/update-services.sh
+	@echo "[✓] Services updated. Restart with: make restart"
+
 # ── Housekeeping ────────────────────────────────────────────
 
 clean: ## Remove caches and runtime files
