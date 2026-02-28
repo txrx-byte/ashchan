@@ -105,14 +105,22 @@ final class LivepostController
                 return $this->response->json(['error' => 'Name too long (max 100 characters)'])->withStatus(400);
             }
 
+            // Build typed data array for createOpenPost
+            /** @var array{name: string, email: string, password: string, ip_address?: string} $typedData */
+            $typedData = [
+                'name' => $name,
+                'email' => (string) ($data['email'] ?? ''),
+                'password' => (string) ($data['password'] ?? ''),
+            ];
+
             // Extract IP from forwarded headers
             // Priority: X-Forwarded-For > X-Real-IP > remote_addr
             $ip = (string) ($request->getHeaderLine('X-Forwarded-For')
                 ?: $request->getHeaderLine('X-Real-IP')
                 ?: ($request->getServerParams()['remote_addr'] ?? ''));
-            $data['ip_address'] = $ip;
+            $typedData['ip_address'] = $ip;
 
-            $result = $this->boardService->createOpenPost($thread, $data);
+            $result = $this->boardService->createOpenPost($thread, $typedData);
 
             return $this->response->json($result)->withStatus(201);
         } catch (\RuntimeException $e) {

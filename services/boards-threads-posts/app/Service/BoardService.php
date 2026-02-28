@@ -79,11 +79,6 @@ final class BoardService
     private int $ipPostScanLimit;
 
     /**
-     * @var array<string, mixed>|null Buffer for open posts
-     */
-    private ?array $openPostsBuffer = null;
-
-    /**
      * @var int Default maximum threads per board
      */
     private int $defaultMaxThreads;
@@ -518,7 +513,9 @@ final class BoardService
             if (!$allReplies->has($threadId)) {
                 $allReplies->put($threadId, collect());
             }
-            $allReplies->get($threadId)->push($post);
+            /** @var \Hyperf\Collection\Collection<int, Post> $threadReplies */
+            $threadReplies = $allReplies->get($threadId, collect());
+            $threadReplies->push($post);
         }
 
         $result = [];
@@ -957,7 +954,7 @@ final class BoardService
         /** @var array<string, int> $result */
         $result = Db::transaction(function () use ($thread, $data, $board) {
             // Atomically allocate per-board post number
-            /** @var Model\Board|null $boardModel */
+            /** @var \App\Model\Board|null $boardModel */
             $boardModel = $board instanceof \Hyperf\Database\Model\Relations\BelongsTo 
                 ? $thread->getRelation('board') 
                 : $board;
@@ -1680,7 +1677,8 @@ final class BoardService
             throw new \RuntimeException('Thread is locked');
         }
 
-        $board = $thread->board;
+        /** @var \App\Model\Board|null $board */
+        $board = $thread->getRelation('board') ?: $thread->board;
 
         /** @var array{post_id: int, thread_id: int, board_post_no: int|null} $result */
         $result = Db::transaction(function () use ($thread, $data, $board): array {
@@ -1693,11 +1691,11 @@ final class BoardService
             $email = is_string($rawEmail) ? $rawEmail : '';
 
             // Generate poster ID and country if board features are enabled
-            $posterId = ($board && $board->user_ids) ? $this->generatePosterId(
+            $posterId = $board?->user_ids ? $this->generatePosterId(
                 (string) ($data['ip_address'] ?? ''),
                 $thread->id
             ) : null;
-            [$countryCode, $countryName] = ($board && $board->country_flags)
+            [$countryCode, $countryName] = $board?->country_flags
                 ? $this->resolveCountry((string) ($data['ip_address'] ?? ''))
                 : [null, null];
 
@@ -1732,7 +1730,8 @@ final class BoardService
             ]);
 
             // Create the separate body row
-            OpenPostBody::create([
+            /** @var \App\Model\OpenPostBody $openPostBody */
+            $openPostBody = \App\Model\OpenPostBody::create([
                 'post_id'    => $post->id,
                 'body'       => '',
                 'updated_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::RFC3339),
@@ -1744,7 +1743,7 @@ final class BoardService
             // Bump thread unless sage
             $isSage = strtolower(trim($email)) === 'sage';
             if (!$isSage) {
-                $bumpLimit = $board ? $board->bump_limit : 300;
+                $bumpLimit = $board?->bump_limit ?? 300;
                 if ($thread->reply_count <= $bumpLimit) {
                     $thread->update(['bumped_at' => \Carbon\Carbon::now()]);
                 }
@@ -1761,7 +1760,7 @@ final class BoardService
         });
 
         // Publish livepost.opened event
-        $boardSlug = $board ? $board->slug : '';
+        $boardSlug = $board?->slug ?? '';
         $this->eventPublisher->publish(CloudEvent::create(
             'livepost.opened',
             [
@@ -1793,9 +1792,9 @@ final class BoardService
             return null;
         }
 
-        /** @var OpenPostBody|null $openBody */
-        $openBody = OpenPostBody::find($postId);
-        $finalBody = $openBody ? $openBody->body : '';
+        /** @var \App\Model\OpenPostBody|null $openBody */
+        $openBody = \App\Model\OpenPostBody::find($postId);
+        $finalBody = $openBody?->body ?? '';
 
         // Parse the final body into HTML
         $contentHtml = $this->formatter->format($finalBody);
@@ -1816,7 +1815,8 @@ final class BoardService
 
             // Invalidate caches — the post now has final content
             $this->redis->del("thread:{$post->thread_id}");
-            $board = $post->thread?->board;
+            /** @var \App\Model\Board|null $board */
+            $board = $post->thread?->getRelation('board');
             if ($board) {
                 $this->redis->del("catalog:{$board->slug}");
             }
@@ -1898,13 +1898,13 @@ final class BoardService
         ]);
 
         // Return the current body for the client to resume editing
-        /** @var OpenPostBody|null $openBody */
-        $openBody = OpenPostBody::find($postId);
+        /** @var \App\Model\OpenPostBody|null $openBody */
+        $openBody = \App\Model\OpenPostBody::find($postId);
 
         return [
             'post_id'   => $post->id,
             'thread_id' => $post->thread_id,
-            'body'      => $openBody ? $openBody->body : '',
+            'body'      => $openBody?->body ?? '',
         ];
     }
 
@@ -1917,7 +1917,7 @@ final class BoardService
     {
         $expired = Post::query()
             ->where('is_editing', true)
-            ->where('edit_expires_at', '<=', now())
+            ->where('edit_expires_at', '<', \Carbon\Carbon::now())
             ->get();
 
         $count = 0;

@@ -840,7 +840,7 @@ final class FourChanApiService
             'RU' => 'Russia', 'CN' => 'China', 'KR' => 'South Korea',
             'MX' => 'Mexico', 'AR' => 'Argentina', 'PL' => 'Poland',
             'SE' => 'Sweden', 'NO' => 'Norway', 'FI' => 'Finland',
-            'DK' => 'Denmark', 'BR' => 'Brazil', 'NZ' => 'New Zealand',
+            'DK' => 'Denmark', 'NZ' => 'New Zealand',
         ];
         return $countries[$code] ?? $code;
     }

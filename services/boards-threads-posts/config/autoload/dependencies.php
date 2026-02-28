@@ -33,7 +33,9 @@ return [
     \App\Service\PiiEncryptionServiceInterface::class => \App\Service\PiiEncryptionService::class,
     \App\Service\SiteConfigServiceInterface::class => \App\Service\SiteConfigService::class,
     \Ashchan\EventBus\EventPublisherInterface::class => function (Psr\Container\ContainerInterface $container) {
-        $redis = $container->get(\Hyperf\Redis\RedisFactory::class)->get('events');
+        /** @var \Hyperf\Redis\RedisFactory $redisFactory */
+        $redisFactory = $container->get(\Hyperf\Redis\RedisFactory::class);
+        $redis = $redisFactory->get('events');
         $logger = $container->get(Psr\Log\LoggerInterface::class);
         $stream = (string) \Hyperf\Support\env('EVENTS_STREAM_NAME', 'ashchan:events');
         $maxlen = (int) \Hyperf\Support\env('EVENTS_MAXLEN', 100000);
