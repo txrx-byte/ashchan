@@ -90,6 +90,9 @@ ON CONFLICT (tripcode) DO UPDATE SET
 -- ═══════════════════════════════════════════════════════════════
 -- 4. REPORT CATEGORIES
 -- ═══════════════════════════════════════════════════════════════
+-- From OpenYotsuba board/setup.php
+-- Category ID 31 is special: "This post violates applicable law" (shows as radio button)
+-- Other categories appear in the dropdown when "This post violates a rule" is selected
 
 INSERT INTO report_categories (id, board, title, weight, exclude_boards, filtered, op_only, reply_only, image_only)
 VALUES (31, '', 'This post violates applicable law.', 1000.00, '', 0, 0, 0, 0)
@@ -97,6 +100,7 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO report_categories (id, board, title, weight, exclude_boards, filtered, op_only, reply_only, image_only)
 VALUES
+    -- Global report categories (_all_ = all boards)
     (1,  '_all_', 'Racism',                          10.00, '', 0, 0, 0, 0),
     (2,  '_all_', 'Pornography',                     50.00, '', 0, 0, 0, 0),
     (3,  '_all_', 'Advertising / Spam',              30.00, '', 0, 0, 0, 0),
@@ -107,23 +111,43 @@ VALUES
     (8,  '_all_', 'Underage content',               100.00, '', 0, 0, 0, 0),
     (9,  '_all_', 'Ban evasion',                     20.00, '', 0, 0, 0, 0),
     (10, '_all_', 'Flooding / Duplicate threads',    15.00, '', 0, 0, 0, 0),
+    -- Worksafe board specific
     (11, '_ws_',  'NSFW on worksafe board',          40.00, '', 0, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 5. BAN TEMPLATES (from OpenYotsuba setup.php)
 -- ═══════════════════════════════════════════════════════════════
+-- Special template IDs (reserved in code):
+--   ID 190: Report abuse template (ReportQueue.php::REP_ABUSE_TPL)
+--   ID 265: Suicide-related bans (banned.php::SUICIDE_TPL_ID)
+--
+-- Ban types: local (board-specific), global (site-wide), zonly (unappealable)
+-- Post actions: delpost, delfile, delall, move
+-- Special actions: quarantine, revokepass_spam, revokepass_illegal
+-- Exclude codes: __nofile__ (posts without files), __nws__ (non-worksafe boards)
 
-INSERT INTO ban_templates (rule, name, ban_type, ban_days, banlen, public_reason, private_reason, publicban, can_warn, is_public, action, save_type, blacklist_image, exclude, appealable, active) VALUES
-    ('global1', 'Child Pornography (Explicit Image)',     'zonly',  -1, 'indefinite', 'Child pornography', 'Child pornography', 0, 0, 1, 'quarantine',          '', 1, '__nofile__', 0, 1),
-    ('global1', 'Child Pornography (Non-Explicit Image)', 'zonly',  -1, 'indefinite', 'Child pornography', 'Child pornography', 0, 0, 1, 'revokepass_illegal',  '', 1, '__nofile__', 0, 1),
-    ('global1', 'Child Pornography (Links)',              'zonly',  -1, 'indefinite', 'Child pornography', 'Child pornography', 0, 0, 1, 'revokepass_illegal',  '', 0, '',           0, 1),
-    ('global1', 'Illegal content',                        'zonly',  -1, 'indefinite', 'You will not upload, post, discuss, request, or link to anything that violates applicable law.', 'Illegal content', 0, 0, 1, 'revokepass_illegal', '', 0, '', 0, 1),
-    ('global2', 'NSFW on blue board',                     'global',  1, '',           'All boards with the Yotsuba B style as the default are to be considered "work safe". Violators may be temporarily banned and their posts removed. Note: Spoilered pornography or other "not safe for work" content is NOT allowed.', 'NSFW on blue board', 1, 1, 1, 'delfile', 'everything', 0, '__nws__', 1, 1),
-    ('global3', 'False reports',                          'global',  0, '',           'Submitting false or misclassified reports, or otherwise abusing the reporting system may result in a ban.', 'False reports', 0, 1, 0, '', '', 0, '', 1, 1),
-    ('global4', 'Ban evasion',                            'global', -1, 'indefinite', 'Evading your ban will result in a permanent one. Instead, wait and appeal it!', 'Ban evasion', 1, 1, 1, '', 'everything', 0, '', 1, 1),
-    ('global5', 'Spam',                                   'global',  1, '',           'No spamming or flooding of any kind. No intentionally evading spam or post filters.', 'Spam', 0, 1, 1, 'delall', 'everything', 0, '', 1, 1),
-    ('global6', 'Advertising',                            'global',  1, '',           'Advertising (all forms) is not welcome—this includes any type of referral linking, "offers", soliciting, begging, stream threads, etc.', 'Advertising', 0, 1, 0, 'delall', '', 0, '', 1, 1)
+INSERT INTO ban_templates (rule, name, ban_type, ban_days, banlen, public_reason, private_reason, publicban, can_warn, is_public, action, save_type, blacklist_image, reject_image, exclude, appealable, active, access) VALUES
+    -- global1: Child Pornography (permanent, unappealable)
+    ('global1', 'Child Pornography (Explicit Image)',     'zonly',  -1, 'indefinite', 'Child pornography', 'Child pornography', 0, 0, 1, 'quarantine',         '', 1, 0, '__nofile__', 0, 1, 'janitor'),
+    ('global1', 'Child Pornography (Non-Explicit Image)', 'zonly',  -1, 'indefinite', 'Child pornography', 'Child pornography', 0, 0, 1, 'revokepass_illegal', '', 1, 0, '__nofile__', 0, 1, 'janitor'),
+    ('global1', 'Child Pornography (Links)',              'zonly',  -1, 'indefinite', 'Child pornography', 'Child pornography', 0, 0, 1, 'revokepass_illegal', '', 0, 0, '',           0, 1, 'janitor'),
+    ('global1', 'Illegal content',                        'zonly',  -1, 'indefinite', 'You will not upload, post, discuss, request, or link to anything that violates applicable law.', 'Illegal content', 0, 0, 1, 'revokepass_illegal', '', 0, 0, '', 0, 1, 'janitor'),
+
+    -- global2: NSFW on blue board (1 day, warnable)
+    ('global2', 'NSFW on blue board',                     'global',  1, '',           'All boards with the Yotsuba B style as the default are to be considered "work safe". Violators may be temporarily banned and their posts removed. Note: Spoilered pornography or other "not safe for work" content is NOT allowed.', 'NSFW on blue board', 1, 1, 1, 'delfile', 'everything', 0, 0, '__nws__', 1, 1, 'janitor'),
+
+    -- global3: False reports (warning, no ban)
+    ('global3', 'False reports',                          'global',  0, '',           'Submitting false or misclassified reports, or otherwise abusing the reporting system may result in a ban.', 'False reports', 0, 1, 0, '', '', 0, 0, '', 1, 1, 'janitor'),
+
+    -- global4: Ban evasion (permanent)
+    ('global4', 'Ban evasion',                            'global', -1, 'indefinite', 'Evading your ban will result in a permanent one. Instead, wait and appeal it!', 'Ban evasion', 1, 1, 1, '', 'everything', 0, 0, '', 1, 1, 'janitor'),
+
+    -- global5: Spam (1 day)
+    ('global5', 'Spam',                                   'global',  1, '',           'No spamming or flooding of any kind. No intentionally evading spam or post filters.', 'Spam', 0, 1, 1, 'delall', 'everything', 0, 0, '', 1, 1, 'janitor'),
+
+    -- global6: Advertising (1 day, not public)
+    ('global6', 'Advertising',                            'global',  1, '',           'Advertising (all forms) is not welcome—this includes any type of referral linking, "offers", soliciting, begging, stream threads, etc.', 'Advertising', 0, 1, 0, 'delall', '', 0, 0, '', 1, 1, 'janitor')
 ON CONFLICT DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════
@@ -291,6 +315,7 @@ INSERT INTO site_settings (key, value, description, category, value_type) VALUES
     ('abuse_clear_count',       '50',     'Cleared reports threshold for auto-ban of report abuser',                  'moderation', 'int'),
     ('abuse_clear_ban_interval','5',      'Minimum days between consecutive report abuse auto-bans',                  'moderation', 'int'),
     ('report_abuse_template_id','190',    'Ban template ID used for report abuse auto-bans',                          'moderation', 'int'),
+    ('dmca_ban_reason',         'Repeatedly uploading image(s) subject to a copyright infringement claim.', 'Ban reason shown for DMCA/blacklisted media uploads', 'moderation', 'string'),
 
     -- ── Authentication / Sessions ──
     ('session_ttl',             '604800', 'User session lifetime (seconds, default 7 days)',                           'auth', 'int'),
