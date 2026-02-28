@@ -24,41 +24,71 @@ use App\Model\Post;
 
 /**
  * Converts raw post text into formatted HTML.
- * Handles greentext, quote-links, cross-board links, spoilers,
- * code blocks, bold, italic, underline, strikethrough.
+ *
+ * Handles the following markup transformations:
+ * - Greentext: Lines starting with > become <span class="quote">
+ * - Quote links: >>12345 or >>uuid become anchor links
+ * - Cross-board links: >>>/b/ become board links
+ * - Spoilers: [spoiler]text[/spoiler] become <s>text</s>
+ * - Code blocks: [code]code[/code] become <pre class="prettyprint">
+ * - Bold: **text** becomes <b>text</b>
+ * - Italic: *text* becomes <i>text</i>
+ * - Underline: __text__ becomes <u>text</u>
+ * - Strikethrough: ~~text~~ becomes <s>text</s>
+ * - URLs: Bare URLs become anchor links with noopener
+ *
+ * All transformations are applied after HTML escaping to prevent XSS.
+ *
+ * @see \App\Service\BoardService For usage in post creation
  */
 final class ContentFormatter
 {
     /**
      * Parse raw comment text into display HTML.
+     *
+     * Processing order is important:
+     * 1. HTML escape all content (XSS prevention)
+     * 2. Process block-level markup (code, spoilers)
+     * 3. Process inline markup (bold, italic, etc.)
+     * 4. Process links (quote, cross-board, URLs)
+     * 5. Convert newlines to <br>
+     *
+     * @param string $raw Raw post content with markup
+     * @return string Formatted HTML safe for display
+     *
+     * @example Input: "Hello **world**\n>greentext"
+     * @example Output: "Hello <b>world</b><br><span class=\"quote\">&gt;greentext</span>"
      */
     public function format(string $raw): string
     {
+        // Step 1: HTML escape all content to prevent XSS
         $html = htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
-        // Code blocks: [code]...[/code]
+        // Step 2: Code blocks: [code]...[/code]
         $html = preg_replace(
             '/\[code\](.*?)\[\/code\]/s',
             '<pre class="prettyprint">$1</pre>',
             $html
         ) ?? $html;
 
-        // Spoilers: [spoiler]...[/spoiler]
+        // Step 3: Spoilers: [spoiler]...[/spoiler]
         $html = preg_replace(
             '/\[spoiler\](.*?)\[\/spoiler\]/s',
             '<s>$1</s>',
             $html
         ) ?? $html;
 
+        // Step 4: Inline formatting
         // Bold: **text**
         $html = preg_replace('/\*\*(.+?)\*\*/', '<b>$1</b>', $html) ?? $html;
-        // Italic: *text*
+        // Italic: *text* (not followed or preceded by *)
         $html = preg_replace('/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/', '<i>$1</i>', $html) ?? $html;
         // Underline: __text__
         $html = preg_replace('/__(.+?)__/', '<u>$1</u>', $html) ?? $html;
         // Strikethrough: ~~text~~
         $html = preg_replace('/~~(.+?)~~/', '<s>$1</s>', $html) ?? $html;
 
+        // Step 5: Links
         // Cross-board links: >>>/board/
         $html = preg_replace(
             '/&gt;&gt;&gt;\/(\w+)\//',
@@ -73,7 +103,7 @@ final class ContentFormatter
             $html
         ) ?? $html;
 
-        // Greentext: lines starting with >
+        // Greentext: lines starting with > (but not >> or >>>)
         $html = preg_replace(
             '/^(&gt;(?!&gt;).*)$/m',
             '<span class="quote">$1</span>',
@@ -81,13 +111,14 @@ final class ContentFormatter
         ) ?? $html;
 
         // Auto-link bare URLs (must run after quote-link and cross-board patterns)
+        // Only http/https schemes are allowed
         $html = preg_replace(
             '/(https?:\/\/[^\s<>\[\]"\']+)/i',
             '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
             $html
         ) ?? $html;
 
-        // Line breaks
+        // Step 6: Line breaks
         $html = nl2br($html);
 
         return $html;
@@ -95,7 +126,14 @@ final class ContentFormatter
 
     /**
      * Extract quoted post IDs from raw content.
-     * @return string[]
+     *
+     * Finds all >>references in the content for building backlinks.
+     *
+     * @param string $raw Raw post content
+     * @return string[] Array of unique quoted post IDs
+     *
+     * @example Input: "Hello >>12345 and >>abcdef"
+     * @example Output: ["12345", "abcdef"]
      */
     public function extractQuotedIds(string $raw): array
     {
@@ -105,8 +143,21 @@ final class ContentFormatter
 
     /**
      * Generate a tripcode from the name field.
-     * Name#password → Name !tripcode
-     * @return array{0: string, 1: string|null}
+     *
+     * Tripcode format: Name#password → Name !tripcode
+     *
+     * The tripcode algorithm:
+     * 1. Split name at # character
+     * 2. Take first 2 chars of password after #
+     * 3. Sanitize salt to .-z range
+     * 4. Map special chars to A-F
+     * 5. crypt() with salt, take last 10 chars
+     *
+     * @param string $name Name field (may contain #password)
+     * @return array{0: string, 1: string|null} [display_name, tripcode_or_null]
+     *
+     * @example Input: "Anonymous#secret" → Output: ["Anonymous", "!ABC123DEF"]
+     * @example Input: "Anonymous" → Output: ["Anonymous", null]
      */
     public function parseNameTrip(string $name): array
     {

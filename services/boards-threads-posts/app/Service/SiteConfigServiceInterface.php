@@ -21,19 +21,53 @@ namespace App\Service;
 
 /**
  * Contract for site configuration access.
+ *
+ * @see SiteConfigService For concrete implementation
  */
 interface SiteConfigServiceInterface
 {
+    /**
+     * Get a string configuration value.
+     *
+     * @param string $key Configuration key
+     * @param string $default Default value if key not found
+     * @return string Configuration value or default
+     */
     public function get(string $key, string $default = ''): string;
 
+    /**
+     * Get an integer configuration value.
+     *
+     * @param string $key Configuration key
+     * @param int $default Default value if key not found
+     * @return int Configuration value or default
+     */
     public function getInt(string $key, int $default = 0): int;
 
+    /**
+     * Get a float configuration value.
+     *
+     * @param string $key Configuration key
+     * @param float $default Default value if key not found
+     * @return float Configuration value or default
+     */
     public function getFloat(string $key, float $default = 0.0): float;
 
+    /**
+     * Get a boolean configuration value.
+     *
+     * @param string $key Configuration key
+     * @param bool $default Default value if key not found
+     * @return bool Configuration value or default
+     */
     public function getBool(string $key, bool $default = false): bool;
 
     /**
-     * @return string[]
+     * Get a list configuration value (comma-separated).
+     *
+     * @param string $key Configuration key
+     * @param string $default Default value if key not found
+     * @return string[] Array of values
      */
     public function getList(string $key, string $default = ''): array;
 }

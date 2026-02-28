@@ -29,17 +29,38 @@ use Psr\Log\LoggerInterface;
  * Uses XChaCha20-Poly1305 (IETF AEAD) which is the recommended libsodium AEAD cipher.
  *
  * Key hierarchy:
- *   KEK (Key Encryption Key) = derived from PII_ENCRYPTION_KEY env var via Argon2ID
+ *   KEK (Key Encryption Key) = derived from PII_ENCRYPTION_KEY env var via BLAKE2b
  *   DEK (Data Encryption Key) = random key, encrypted with KEK, stored in config/cache
  *
  * For simplicity in this implementation, we use the KEK directly as the DEK.
  * In production, implement proper envelope encryption with key rotation.
+ *
+ * Encryption format:
+ *   "enc:" + base64(nonce || ciphertext || tag)
+ *
+ * Where:
+ *   - nonce: 24 bytes (SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES)
+ *   - ciphertext: variable length
+ *   - tag: 16 bytes (authentication tag)
+ *
+ * @see docs/SECURITY.md §PII Encryption
+ * @see PiiEncryptionServiceInterface For interface contract
  */
 final class PiiEncryptionService implements PiiEncryptionServiceInterface
 {
+    /**
+     * @var LoggerInterface Logger for encryption operations
+     */
     private LoggerInterface $logger;
+
+    /**
+     * @var string Encryption key (BLAKE2b-derived from PII_ENCRYPTION_KEY)
+     */
     private string $encryptionKey;
 
+    /**
+     * @param LoggerFactory $loggerFactory Logger factory
+     */
     public function __construct(LoggerFactory $loggerFactory)
     {
         $this->logger = $loggerFactory->get('pii-encryption');
@@ -62,6 +83,8 @@ final class PiiEncryptionService implements PiiEncryptionServiceInterface
 
     /**
      * Check if encryption is available (key configured).
+     *
+     * @return bool True if encryption is enabled
      */
     public function isEnabled(): bool
     {
@@ -73,6 +96,11 @@ final class PiiEncryptionService implements PiiEncryptionServiceInterface
      *
      * Returns a base64-encoded string: nonce || ciphertext || tag
      * Returns the original value if encryption is not configured.
+     *
+     * @param string $plaintext Plaintext to encrypt
+     * @return string Encrypted value prefixed with "enc:" or plaintext if disabled
+     *
+     * @throws \RuntimeException If encryption fails
      */
     public function encrypt(string $plaintext): string
     {
@@ -111,6 +139,9 @@ final class PiiEncryptionService implements PiiEncryptionServiceInterface
      *
      * Expects a base64-encoded string prefixed with 'enc:'.
      * If the value is not encrypted (no prefix), returns it as-is (migration compatibility).
+     *
+     * @param string $ciphertext Encrypted value to decrypt
+     * @return string Decrypted plaintext or original value if not encrypted
      */
     public function decrypt(string $ciphertext): string
     {
@@ -165,6 +196,9 @@ final class PiiEncryptionService implements PiiEncryptionServiceInterface
 
     /**
      * Encrypt a value only if it's not already encrypted.
+     *
+     * @param string $value Value to potentially encrypt
+     * @return string Encrypted value or original if already encrypted
      */
     public function encryptIfNeeded(string $value): string
     {
@@ -177,7 +211,11 @@ final class PiiEncryptionService implements PiiEncryptionServiceInterface
     /**
      * Securely wipe a string from memory.
      *
+     * Uses libsodium's memzero for secure memory clearing.
+     * Falls back to zero-fill if memzero is unavailable.
+     *
      * @param-out string|null $value
+     * @param string $value Variable to wipe (passed by reference)
      */
     public function wipe(string &$value): void
     {

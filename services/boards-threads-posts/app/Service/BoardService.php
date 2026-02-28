@@ -32,18 +32,84 @@ use Hyperf\Redis\Redis;
 use function Hyperf\Support\env;
 use function Hyperf\Collection\collect;
 
+/**
+ * Core business logic service for board, thread, and post operations.
+ *
+ * This service handles all CRUD operations for imageboard content including:
+ * - Board management (CRUD, caching)
+ * - Thread operations (listing, creation, moderation)
+ * - Post operations (creation, deletion, liveposting)
+ * - IP hash generation for moderation
+ * - Country resolution via GeoIP
+ * - Event publishing for cross-service communication
+ *
+ * Caching Strategy:
+ * - Board list: 300 seconds (Redis key: boards:all)
+ * - Individual board: 300 seconds (Redis key: board:{slug})
+ * - Blotter: 120 seconds (Redis key: blotter:recent)
+ * - Thread data: 120 seconds (Redis key: thread:{id})
+ * - Catalog: 60 seconds (Redis key: catalog:{slug})
+ *
+ * All caches are invalidated on write operations to ensure consistency.
+ *
+ * @see \App\Controller\BoardController For board API
+ * @see \App\Controller\ThreadController For thread/post API
+ * @see \App\Controller\LivepostController For liveposting API
+ */
 final class BoardService
 {
+    /**
+     * @var int Maximum blotter entries to return
+     */
     private int $blotterLimit;
+
+    /**
+     * @var int Maximum archived threads to return
+     */
     private int $archiveLimit;
+
+    /**
+     * @var int Maximum posts to return for IP hash lookup
+     */
     private int $ipPostSearchLimit;
+
+    /**
+     * @var int Maximum posts to scan for IP hash matching
+     */
     private int $ipPostScanLimit;
+
+    /**
+     * @var int Default maximum threads per board
+     */
     private int $defaultMaxThreads;
+
+    /**
+     * @var int Default bump limit (max replies before thread stops bumping)
+     */
     private int $defaultBumpLimit;
+
+    /**
+     * @var int Default image limit per thread
+     */
     private int $defaultImageLimit;
+
+    /**
+     * @var int Default cooldown between posts (seconds)
+     */
     private int $defaultCooldownSeconds;
+
+    /**
+     * @var string Salt for IP hash generation
+     */
     private string $ipHashSalt;
 
+    /**
+     * @param ContentFormatter $formatter Content markup formatter
+     * @param Redis $redis Redis client for caching
+     * @param PiiEncryptionServiceInterface $piiEncryption PII encryption service
+     * @param EventPublisherInterface $eventPublisher CloudEvent publisher
+     * @param SiteConfigServiceInterface $config Site configuration service
+     */
     public function __construct(
         private ContentFormatter $formatter,
         private Redis $redis,
@@ -72,8 +138,14 @@ final class BoardService
      * ────────────────────────────────────────────── */
 
     /**
-     * List all boards, cached.
-     * @return array<int, array<string, mixed>>
+     * List all active boards, cached.
+     *
+     * Returns all non-archived, non-staff-only boards ordered by category and slug.
+     * Results are cached in Redis for 300 seconds. Cache is disabled in local/dev mode.
+     *
+     * @return array<int, array<string, mixed>> Array of board data arrays
+     *
+     * @see Board::query() For database query
      */
     public function listBoards(): array
     {
@@ -111,6 +183,15 @@ final class BoardService
         return $boards;
     }
 
+    /**
+     * Get a single board by slug, cached.
+     *
+     * Retrieves board configuration by slug. Caches for 300 seconds.
+     * Returns null if board doesn't exist (cached as 'NOT_FOUND' for 60 seconds).
+     *
+     * @param string $slug Board slug identifier
+     * @return Board|null Board model or null if not found
+     */
     public function getBoard(string $slug): ?Board
     {
         try {
@@ -134,9 +215,9 @@ final class BoardService
         } catch (\Throwable $e) {
             // Redis unavailable, fall through to DB
         }
-        
+
         $board = Board::query()->where('slug', $slug)->first();
-        
+
         try {
             if (env('APP_ENV', 'production') !== 'local') {
                 if ($board) {
@@ -148,13 +229,19 @@ final class BoardService
         } catch (\Throwable $e) {
             // Redis unavailable
         }
-        
+
         return $board;
     }
 
     /**
-     * Get recent blotter entries.
-     * @return array<int, array<string, mixed>>
+     * Get recent blotter entries, cached.
+     *
+     * Returns the most recent site announcements ordered by ID descending.
+     * Limited by $blotterLimit (default: 5). Cached for 120 seconds.
+     *
+     * @return array<int, array<string, mixed>> Array of blotter entry arrays
+     *
+     * @see \App\Model\Blotter For data model
      */
     public function getBlotter(): array
     {
@@ -205,7 +292,11 @@ final class BoardService
 
     /**
      * List all boards (including archived) for admin.
-     * @return array<int, array<string, mixed>>
+     *
+     * Returns all boards regardless of status. Not cached to ensure
+     * admin sees real-time data.
+     *
+     * @return array<int, array<string, mixed>> Array of all board data
      */
     public function listAllBoards(): array
     {
@@ -220,13 +311,20 @@ final class BoardService
 
     /**
      * Create a new board.
-     * @param array<string, mixed> $data
+     *
+     * Creates a board with the provided configuration. Default values
+     * are applied from SiteConfigService for limits and cooldowns.
+     *
+     * @param array<string, mixed> $data Board configuration data
+     * @return Board Created board model
+     *
+     * @throws \Throwable If database operation fails
      */
     public function createBoard(array $data): Board
     {
         // The DB requires 'name' (NOT NULL), use title as name
         $title = (string) ($data['title'] ?? '');
-        
+
         $board = new Board();
         $board->slug = (string) $data['slug'];
         $board->title = $title;
@@ -252,7 +350,15 @@ final class BoardService
 
     /**
      * Update an existing board.
-     * @param array<string, mixed> $data
+     *
+     * Updates only the fields provided in $data. Unspecified fields
+     * retain their current values.
+     *
+     * @param Board $board Board to update
+     * @param array<string, mixed> $data Fields to update
+     * @return Board Updated board model
+     *
+     * @throws \Throwable If database operation fails
      */
     public function updateBoard(Board $board, array $data): Board
     {
@@ -291,6 +397,13 @@ final class BoardService
 
     /**
      * Delete a board (and all its threads/posts via CASCADE).
+     *
+     * Foreign key constraints cascade deletion to all related threads
+     * and posts. Board caches are invalidated after deletion.
+     *
+     * @param Board $board Board to delete
+     *
+     * @throws \Throwable If database operation fails
      */
     public function deleteBoard(Board $board): void
     {
@@ -300,6 +413,9 @@ final class BoardService
 
     /**
      * Invalidate board-related caches.
+     *
+     * Uses SCAN instead of KEYS to avoid blocking Redis on large datasets.
+     * Clears: boards:all, board:{slug}*
      */
     private function invalidateBoardCaches(): void
     {
@@ -329,7 +445,14 @@ final class BoardService
 
     /**
      * Board index: threads sorted by bump order, paginated.
-     * Returns threads with OP + latest N replies.
+     *
+     * Returns threads with OP + latest 5 replies per thread.
+     * Uses window functions for efficient reply fetching.
+     *
+     * @param Board $board Board to get threads for
+     * @param int $page Page number (1-indexed)
+     * @param int $perPage Threads per page (default: 15)
+     * @param bool $includeIpHash Whether to include IP hashes (staff only)
      * @return array{threads: array<int, array<string, mixed>>, page: int, total_pages: int, total: int}
      */
     public function getThreadIndex(Board $board, int $page = 1, int $perPage = 15, bool $includeIpHash = false): array
@@ -443,7 +566,15 @@ final class BoardService
      * ────────────────────────────────────────────── */
 
     /**
-     * @return array<string, mixed>|null
+     * Get full thread with all posts.
+     *
+     * Returns complete thread including OP and all non-deleted replies.
+     * Builds backlinks map for quote references. Cached for 120 seconds
+     * (only for non-staff requests).
+     *
+     * @param int $threadId Thread ID
+     * @param bool $includeIpHash Whether to include IP hashes (staff only)
+     * @return array<string, mixed>|null Thread data or null if not found
      */
     public function getThread(int $threadId, bool $includeIpHash = false): ?array
     {
@@ -524,7 +655,13 @@ final class BoardService
      * ────────────────────────────────────────────── */
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Get board catalog for grid-style browsing.
+     *
+     * Returns all active threads with OP preview data.
+     * Cached for 60 seconds.
+     *
+     * @param Board $board Board to get catalog for
+     * @return array<int, array<string, mixed>> Array of thread preview data
      */
     public function getCatalog(Board $board): array
     {
@@ -606,7 +743,13 @@ final class BoardService
      * ────────────────────────────────────────────── */
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Get archived threads for a board.
+     *
+     * Returns threads that have been archived due to age or inactivity.
+     * Limited by $archiveLimit (default: 3000).
+     *
+     * @param Board $board Board to get archive for
+     * @return array<int, array<string, mixed>> Array of archived thread data
      */
     public function getArchive(Board $board): array
     {
@@ -653,8 +796,18 @@ final class BoardService
      * ────────────────────────────────────────────── */
 
     /**
-     * @param array<string, mixed> $data
-     * @return array<string, int>
+     * Create a new thread with OP post.
+     *
+     * Creates both the thread and its OP post in a database transaction.
+     * Allocates IDs from posts_id_seq sequence. Generates poster ID and
+     * country if board features are enabled. Prunes old threads if over limit.
+     * Publishes THREAD_CREATED and POST_CREATED CloudEvents.
+     *
+     * @param Board $board Board to create thread in
+     * @param array<string, mixed> $data Thread/post data (name, email, subject, content, media_*)
+     * @return array<string, int> Array with thread_id and post_id
+     *
+     * @throws \RuntimeException If board ID is invalid or ID generation fails
      */
     public function createThread(Board $board, array $data): array
     {
@@ -776,8 +929,16 @@ final class BoardService
      * ────────────────────────────────────────────── */
 
     /**
-     * @param array<string, mixed> $data
-     * @return array<string, int>
+     * Create a reply post in an existing thread.
+     *
+     * Creates a new post and updates thread counters (reply_count, image_count).
+     * Bumps thread unless email is "sage". Publishes POST_CREATED CloudEvent.
+     *
+     * @param Thread $thread Thread to reply to
+     * @param array<string, mixed> $data Post data (name, email, content, media_*)
+     * @return array<string, int> Array with post_id and thread_id
+     *
+     * @throws \RuntimeException If thread is locked
      */
     public function createPost(Thread $thread, array $data): array
     {
@@ -886,6 +1047,17 @@ final class BoardService
      * Delete Post
      * ────────────────────────────────────────────── */
 
+    /**
+     * Delete a post using user's deletion password.
+     *
+     * Verifies password against stored bcrypt hash. Can delete entire post
+     * or just the image (image_only mode).
+     *
+     * @param int $postId Post ID to delete
+     * @param string $password User's deletion password
+     * @param bool $imageOnly If true, only delete image (not post)
+     * @return bool True if deleted, false if not found or password mismatch
+     */
     public function deletePost(int $postId, string $password, bool $imageOnly = false): bool
     {
         /** @var Post|null $post */
@@ -921,17 +1093,18 @@ final class BoardService
      * ────────────────────────────────────────────── */
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Get new posts in a thread since a given post ID.
+     *
+     * Used for real-time thread updates. Finds the reference post by ID,
+     * then returns all posts created after that post's timestamp.
+     *
+     * @param int $threadId Thread ID
+     * @param int $afterId Post ID to get posts after
+     * @param bool $includeIpHash Whether to include IP hashes (staff only)
+     * @return array<int, array<string, mixed>> Array of new post data
      */
     public function getPostsAfter(int $threadId, int $afterId, bool $includeIpHash = false): array
     {
-        // Note: Comparing UUIDs with '>' is not strictly chronological for v4 UUIDs,
-        // but 'created_at' > would be better. However, let's keep it consistent with request for now,
-        // but prefer created_at sort if we switch logic.
-        // Actually, let's switch to created_at logic if we can, but 'afterId' implies we want posts that came after a specific post ID.
-        // If IDs are UUIDv4, they are random. So 'id > afterId' is meaningless.
-        // We must query posts created after the post with ID = afterId.
-        
         $lastPost = Post::find($afterId);
         if (!$lastPost) {
             return [];
@@ -958,7 +1131,11 @@ final class BoardService
      * ────────────────────────────────────────────── */
 
     /**
-     * @param array<int> $backlinks
+     * Format a post for API output.
+     *
+     * @param Post|null $post Post to format
+     * @param array<int> $backlinks Array of post IDs that quote this post
+     * @param bool $includeIpHash Whether to include IP hash (staff only)
      * @return ($post is null ? null : array<string, mixed>)
      */
     private function formatPostOutput(?Post $post, array $backlinks = [], bool $includeIpHash = false): ?array
@@ -995,6 +1172,12 @@ final class BoardService
         return $output;
     }
 
+    /**
+     * Convert datetime to Unix timestamp.
+     *
+     * @param mixed $dt DateTime string or object
+     * @return int Unix timestamp
+     */
     private function toTimestamp(mixed $dt): int
     {
         if ($dt instanceof \DateTimeInterface) {
@@ -1007,6 +1190,12 @@ final class BoardService
         return time();
     }
 
+    /**
+     * Format datetime in imageboard style: MM/DD/YY(Day)HH:MM:SS.
+     *
+     * @param mixed $datetime DateTime string or object
+     * @return string Formatted time string
+     */
     private function formatTime(mixed $datetime): string
     {
         if (!$datetime) return '';
@@ -1028,6 +1217,9 @@ final class BoardService
      * Atomically allocate the next per-board post number.
      *
      * Uses UPDATE ... RETURNING to avoid race conditions.
+     *
+     * @param Board $board Board to allocate number for
+     * @return int Next post number
      */
     private function allocateBoardPostNo(Board $board): int
     {
@@ -1045,6 +1237,10 @@ final class BoardService
      *
      * Deterministic per IP + thread + daily salt so same user always
      * gets the same ID within a thread on a given day.
+     *
+     * @param string $ipAddress Plain IP address
+     * @param int $threadId Thread ID for context
+     * @return string 8-character poster ID
      */
     private function generatePosterId(string $ipAddress, int $threadId): string
     {
@@ -1061,7 +1257,8 @@ final class BoardService
      * Tries MaxMind GeoLite2-Country via the geoip2/geoip2 package.
      * Falls back gracefully to null if DB or package is missing.
      *
-     * @return array{0: string|null, 1: string|null}  [country_code, country_name]
+     * @param string $ipAddress IP address to resolve
+     * @return array{0: string|null, 1: string|null} [country_code, country_name]
      */
     private function resolveCountry(string $ipAddress): array
     {
@@ -1111,7 +1308,14 @@ final class BoardService
         }
     }
 
-    /** Remove oldest threads when board exceeds max_threads. */
+    /**
+     * Remove oldest threads when board exceeds max_threads.
+     *
+     * Uses bulk UPDATE with subquery to archive threads efficiently.
+     * Sticky threads are never pruned.
+     *
+     * @param Board $board Board to prune
+     */
     private function pruneThreads(Board $board): void
     {
         $max = $board->max_threads ?: 200;
@@ -1140,6 +1344,16 @@ final class BoardService
      * Staff Actions
      * ────────────────────────────────────────────── */
 
+    /**
+     * Staff delete post (bypass password check).
+     *
+     * Allows staff to delete any post without password verification.
+     * Invalidates thread and catalog caches.
+     *
+     * @param int $postId Post ID to delete
+     * @param bool $imageOnly If true, only delete image
+     * @return bool True if deleted, false if not found
+     */
     public function staffDeletePost(int $postId, bool $imageOnly = false): bool
     {
         /** @var Post|null $post */
@@ -1174,6 +1388,13 @@ final class BoardService
         return true;
     }
 
+    /**
+     * Toggle thread moderation option (sticky, lock, permasage).
+     *
+     * @param int $threadId Thread ID
+     * @param string $option Option to toggle ('sticky', 'lock', 'permasage')
+     * @return bool True if toggled, false if thread not found
+     */
     public function toggleThreadOption(int $threadId, string $option): bool
     {
         /** @var Thread|null $thread */
@@ -1200,6 +1421,12 @@ final class BoardService
         return true;
     }
 
+    /**
+     * Toggle spoiler flag on post image.
+     *
+     * @param int $postId Post ID
+     * @return bool True if toggled, false if post not found
+     */
     public function toggleSpoiler(int $postId): bool
     {
         /** @var Post|null $post */
@@ -1208,7 +1435,7 @@ final class BoardService
 
         $post->spoiler_image = !$post->spoiler_image;
         $post->save();
-        
+
         $this->redis->del("thread:{$post->thread_id}");
         // Invalidate catalog (spoiler toggling an OP image affects catalog display)
         $thread = Thread::with('board')->find($post->thread_id);
@@ -1225,6 +1452,7 @@ final class BoardService
      * Decrypts IPs in memory to generate consistent poster IDs,
      * then immediately wipes the plaintext from memory.
      *
+     * @param int $threadId Thread ID
      * @return array<int, string> Map of post_id => ip_hash
      */
     public function getThreadIps(int $threadId): array
@@ -1259,6 +1487,9 @@ final class BoardService
      *
      * This should be called sparingly and only for moderation purposes.
      * The caller is responsible for wiping the returned value from memory.
+     *
+     * @param int $postId Post ID
+     * @return string|null Decrypted IP or null if not found/encrypted
      */
     public function getDecryptedIp(int $postId): ?string
     {
@@ -1286,6 +1517,7 @@ final class BoardService
      * Uses HMAC-SHA256 with a dedicated salt prefix to prevent
      * rainbow-table attacks and ensure domain separation from poster IDs.
      *
+     * @param Post $post Post to generate hash for
      * @return string 16-char hex hash (64 bits of entropy)
      */
     private function generateGlobalIpHash(Post $post): string
@@ -1310,7 +1542,9 @@ final class BoardService
      * Uses batch processing to limit memory usage. Pre-loads thread/board
      * data to eliminate N+1 queries.
      *
-     * @return array<int, array<string, mixed>>
+     * @param string $ipHash IP hash to search for
+     * @param int $limit Maximum posts to return (default: 100)
+     * @return array<int, array<string, mixed>> Array of matching post data
      */
     public function getPostsByIpHash(string $ipHash, int $limit = 100): array
     {
@@ -1397,6 +1631,7 @@ final class BoardService
     /**
      * Get the IP hash salt, failing fast if not configured.
      *
+     * @return string IP hash salt
      * @throws \RuntimeException if ip_hash_salt is not set or empty
      */
     private function getIpHashSalt(): string
@@ -1421,13 +1656,9 @@ final class BoardService
      * "open" post with a live cursor).
      *
      * @param Thread $thread The target thread
-     * @param array{
-     *     name?: string,
-     *     email?: string,
-     *     password?: string,
-     *     ip_address?: string,
-     * } $data Post creation data
-     * @return array{post_id: int, thread_id: int, board_post_no: int|null}
+     * @param array{name?: string, email?: string, password?: string, ip_address?: string} $data Post creation data
+     * @return array{post_id: int, thread_id: int, board_post_no: int|null} Created post identifiers
+     *
      * @throws \RuntimeException if the thread is locked
      */
     public function createOpenPost(Thread $thread, array $data): array
@@ -1604,8 +1835,8 @@ final class BoardService
     /**
      * Update the body of an open post (debounced persistence from gateway).
      *
-     * @param int    $postId The open post ID
-     * @param string $body   The current body text
+     * @param int $postId The open post ID
+     * @param string $body The current body text
      * @return bool True if updated, false if not found or not editing
      */
     public function setOpenBody(int $postId, string $body): bool
@@ -1631,7 +1862,7 @@ final class BoardService
      *
      * Verifies the password hash matches the one stored at post creation.
      *
-     * @param int    $postId  The post to reclaim
+     * @param int $postId The post to reclaim
      * @param string $password The plaintext password to verify
      * @return array{post_id: int, thread_id: int, body: string}|null Null if verification fails or not editing
      */
@@ -1702,8 +1933,8 @@ final class BoardService
     /**
      * Get the formatted output for an open post (for sync messages).
      *
-     * @param Post $post
-     * @return array<string, mixed>
+     * @param Post $post Open post to format
+     * @return array<string, mixed> Formatted post data including current body
      */
     public function formatOpenPostOutput(Post $post): array
     {

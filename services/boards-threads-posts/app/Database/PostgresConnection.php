@@ -27,12 +27,32 @@ use Hyperf\Database\PgSQL\Schema\Grammars\PostgresGrammar as SchemaGrammar;
 use Exception;
 use PDOStatement;
 
+/**
+ * Custom PostgreSQL connection with enhanced type binding.
+ *
+ * Extends Hyperf's Connection class to provide proper PDO type binding
+ * for PostgreSQL-specific operations.
+ *
+ * Key features:
+ * - Automatic type detection for prepared statement bindings
+ * - Unique constraint violation detection
+ * - PostgreSQL-specific grammar and processor configuration
+ *
+ * @see PostgresConnector For connection establishment
+ */
 class PostgresConnection extends Connection
 {
     /**
      * Bind values to their parameters in the given statement.
      *
-     * @param array<int|string, mixed> $bindings
+     * Automatically detects PHP types and binds with appropriate PDO types:
+     * - int → PDO::PARAM_INT
+     * - bool → PDO::PARAM_BOOL
+     * - null → PDO::PARAM_NULL
+     * - other → PDO::PARAM_STR
+     *
+     * @param PDOStatement $statement Prepared statement to bind to
+     * @param array<int|string, mixed> $bindings Values to bind
      */
     public function bindValues(PDOStatement $statement, array $bindings): void
     {
@@ -53,6 +73,11 @@ class PostgresConnection extends Connection
 
     /**
      * Determine if the given database exception was caused by a unique constraint violation.
+     *
+     * Parses exception message for PostgreSQL-specific unique violation patterns.
+     *
+     * @param Exception $exception Database exception
+     * @return bool True if unique constraint violation
      */
     protected function isUniqueConstraintError(Exception $exception): bool
     {
@@ -61,6 +86,8 @@ class PostgresConnection extends Connection
 
     /**
      * Get the default query grammar instance.
+     *
+     * @return QueryGrammar PostgreSQL query grammar
      */
     protected function getDefaultQueryGrammar(): QueryGrammar
     {
@@ -71,6 +98,8 @@ class PostgresConnection extends Connection
 
     /**
      * Get the default schema grammar instance.
+     *
+     * @return SchemaGrammar PostgreSQL schema grammar
      */
     protected function getDefaultSchemaGrammar(): SchemaGrammar
     {
@@ -81,6 +110,8 @@ class PostgresConnection extends Connection
 
     /**
      * Get the default post processor instance.
+     *
+     * @return PostgresProcessor PostgreSQL post processor
      */
     protected function getDefaultPostProcessor(): PostgresProcessor
     {

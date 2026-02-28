@@ -32,18 +32,34 @@ use Symfony\Component\Console\Input\InputOption;
  *   php bin/hyperf.php pii:cleanup
  *
  * Or via crontab config for automatic scheduling.
+ *
+ * Retention policy:
+ *   - Post IPs: 30 days (nullified)
+ *   - Post emails: 30 days (nullified)
+ *   - Flood log: 24 hours (deleted)
+ *
+ * @see \App\Service\IpRetentionService For retention logic
  */
 #[Command]
 class PiiCleanupCommand extends HyperfCommand
 {
+    /**
+     * @var ContainerInterface Dependency injection container
+     */
     protected ContainerInterface $container;
 
+    /**
+     * @param ContainerInterface $container DI container
+     */
     public function __construct(ContainerInterface $container)
     {
         $this->container = $container;
         parent::__construct('pii:cleanup');
     }
 
+    /**
+     * Configure the command with options and description.
+     */
     public function configure(): void
     {
         parent::configure();
@@ -52,6 +68,13 @@ class PiiCleanupCommand extends HyperfCommand
         $this->addOption('table', 't', InputOption::VALUE_OPTIONAL, 'Only clean a specific table');
     }
 
+    /**
+     * Execute the PII cleanup command.
+     *
+     * Options:
+     *   --dry-run    : Show retention policy without making changes
+     *   --table={name}: Clean only specified table (posts_ip, posts_email, flood_log)
+     */
     public function handle(): void
     {
         $input = $this->input;

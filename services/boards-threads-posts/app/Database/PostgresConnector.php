@@ -29,6 +29,16 @@ use PDO;
  *
  * Configures charset, timezone, search_path, and application_name on new connections.
  * All SET parameters are validated against allowlists to prevent SQL injection.
+ *
+ * Security measures:
+ * - Charset validated against allowlist
+ * - Timezone validated against regex pattern
+ * - Schema names validated as PostgreSQL identifiers
+ * - Application name validated as PostgreSQL identifier
+ * - Host, port, database name validated against patterns
+ * - SSL mode validated against allowed values
+ *
+ * @see docs/SECURITY.md §Database Security
  */
 final class PostgresConnector extends Connector implements ConnectorInterface
 {
@@ -81,7 +91,10 @@ final class PostgresConnector extends Connector implements ConnectorInterface
      * Previous implementation used string interpolation in prepare(), which was
      * vulnerable to injection via malicious charset values.
      *
-     * @param array<string, mixed> $config
+     * @param PDO $connection PDO connection
+     * @param array<string, mixed> $config Connection configuration
+     *
+     * @throws \InvalidArgumentException If charset is not in allowlist
      */
     private function configureEncoding(PDO $connection, array $config): void
     {
@@ -106,7 +119,10 @@ final class PostgresConnector extends Connector implements ConnectorInterface
      *
      * SECURITY: Validates timezone against a safe regex pattern.
      *
-     * @param array<string, mixed> $config
+     * @param PDO $connection PDO connection
+     * @param array<string, mixed> $config Connection configuration
+     *
+     * @throws \InvalidArgumentException If timezone format is invalid
      */
     private function configureTimezone(PDO $connection, array $config): void
     {
@@ -128,7 +144,10 @@ final class PostgresConnector extends Connector implements ConnectorInterface
      * SECURITY: Each schema name is validated against IDENTIFIER_PATTERN to
      * prevent injection through crafted schema names.
      *
-     * @param array<string, mixed> $config
+     * @param PDO $connection PDO connection
+     * @param array<string, mixed> $config Connection configuration
+     *
+     * @throws \InvalidArgumentException If schema name is invalid
      */
     private function configureSearchPath(PDO $connection, array $config): void
     {
@@ -160,7 +179,10 @@ final class PostgresConnector extends Connector implements ConnectorInterface
      *
      * SECURITY: Validated against IDENTIFIER_PATTERN to prevent injection.
      *
-     * @param array<string, mixed> $config
+     * @param PDO $connection PDO connection
+     * @param array<string, mixed> $config Connection configuration
+     *
+     * @throws \InvalidArgumentException If application_name is invalid
      */
     private function configureApplicationName(PDO $connection, array $config): void
     {
@@ -179,7 +201,16 @@ final class PostgresConnector extends Connector implements ConnectorInterface
     /**
      * Build the DSN string from configuration.
      *
-     * @param array<string, mixed> $config
+     * Validates all DSN components:
+     * - Host: alphanumeric, dots, hyphens, colons (IPv6), brackets only
+     * - Port: numeric, 1-65535
+     * - Database: alphanumeric, underscores, hyphens only
+     * - SSL mode: must be in allowed list
+     *
+     * @param array<string, mixed> $config Connection configuration
+     * @return string PostgreSQL DSN string
+     *
+     * @throws \InvalidArgumentException If any DSN component is invalid
      */
     protected function getDsn(array $config): string
     {
@@ -224,7 +255,10 @@ final class PostgresConnector extends Connector implements ConnectorInterface
     /**
      * Format schema names as a comma-separated, double-quoted list for SET search_path.
      *
+     * Double-quotes schema names to handle reserved words and special characters.
+     *
      * @param string[] $schemas Pre-validated schema names
+     * @return string Formatted schema list
      */
     private function formatSchema(array $schemas): string
     {

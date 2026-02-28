@@ -30,17 +30,38 @@ use Psr\Log\LoggerInterface;
  *
  * Reads from the shared `site_settings` table with Redis caching.
  * All site-configurable settings are managed by admins via the gateway's admin panel.
+ *
+ * Settings are cached in memory per-request and in Redis for 60 seconds
+ * to minimize database queries.
+ *
+ * @see \App\Model\SiteSetting For database table structure
  */
 final class SiteConfigService implements SiteConfigServiceInterface
 {
+    /**
+     * Redis cache key for all settings
+     */
     private const CACHE_KEY = 'site_config:all';
+
+    /**
+     * Redis cache TTL in seconds
+     */
     private const CACHE_TTL = 60;
 
+    /**
+     * @var LoggerInterface Logger for configuration operations
+     */
     private LoggerInterface $logger;
 
-    /** @var array<string, string>|null */
+    /**
+     * @var array<string, string>|null In-memory cache of all settings
+     */
     private ?array $cache = null;
 
+    /**
+     * @param LoggerFactory $loggerFactory Logger factory
+     * @param Redis $redis Redis client for caching
+     */
     public function __construct(
         LoggerFactory $loggerFactory,
         private Redis $redis,
@@ -48,24 +69,54 @@ final class SiteConfigService implements SiteConfigServiceInterface
         $this->logger = $loggerFactory->get('site-config');
     }
 
+    /**
+     * Get a string configuration value.
+     *
+     * @param string $key Configuration key
+     * @param string $default Default value if key not found
+     * @return string Configuration value or default
+     */
     public function get(string $key, string $default = ''): string
     {
         $all = $this->loadAll();
         return $all[$key] ?? $default;
     }
 
+    /**
+     * Get an integer configuration value.
+     *
+     * @param string $key Configuration key
+     * @param int $default Default value if key not found or invalid
+     * @return int Configuration value or default
+     */
     public function getInt(string $key, int $default = 0): int
     {
         $value = $this->get($key);
         return $value !== '' ? (int) $value : $default;
     }
 
+    /**
+     * Get a float configuration value.
+     *
+     * @param string $key Configuration key
+     * @param float $default Default value if key not found or invalid
+     * @return float Configuration value or default
+     */
     public function getFloat(string $key, float $default = 0.0): float
     {
         $value = $this->get($key);
         return $value !== '' ? (float) $value : $default;
     }
 
+    /**
+     * Get a boolean configuration value.
+     *
+     * Recognized true values: 'true', '1', 'yes', 'on' (case-insensitive)
+     *
+     * @param string $key Configuration key
+     * @param bool $default Default value if key not found
+     * @return bool Configuration value or default
+     */
     public function getBool(string $key, bool $default = false): bool
     {
         $value = $this->get($key, $default ? 'true' : 'false');
@@ -73,7 +124,11 @@ final class SiteConfigService implements SiteConfigServiceInterface
     }
 
     /**
-     * @return string[]
+     * Get a list configuration value (comma-separated).
+     *
+     * @param string $key Configuration key
+     * @param string $default Default value if key not found
+     * @return string[] Array of trimmed list values
      */
     public function getList(string $key, string $default = ''): array
     {
@@ -85,7 +140,14 @@ final class SiteConfigService implements SiteConfigServiceInterface
     }
 
     /**
-     * @return array<string, string>
+     * Load all configuration values from cache or database.
+     *
+     * Uses two-level caching:
+     * 1. In-memory cache (per-request)
+     * 2. Redis cache (60 seconds)
+     * 3. Database (fallback)
+     *
+     * @return array<string, string> All configuration key-value pairs
      */
     private function loadAll(): array
     {

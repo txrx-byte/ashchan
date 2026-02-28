@@ -26,14 +26,54 @@ use Hyperf\HttpServer\Contract\RequestInterface;
 use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * Controller for thread and post operations.
+ *
+ * Handles all thread-related CRUD operations including:
+ * - Thread listing, catalog, and archive views
+ * - Thread creation and replies
+ * - Post deletion (user and staff)
+ * - Staff moderation actions (lock, sticky, permasage, spoiler)
+ * - IP hash lookups for moderation
+ * - Bulk post media lookups for report queue
+ *
+ * All endpoints support both anonymous users and authenticated staff.
+ * Staff members receive additional data (IP hashes) based on their access level.
+ *
+ * @see docs/API.md §Thread and Post Endpoints
+ * @see BoardService For business logic implementation
+ */
 final class ThreadController
 {
+    /**
+     * @param BoardService $boardService Service for board and thread operations
+     * @param HttpResponse $response HTTP response builder
+     */
     public function __construct(
         private BoardService $boardService,
         private HttpResponse $response,
     ) {}
 
-    /** GET /api/v1/boards/{slug}/threads?page=1 */
+    /**
+     * GET /api/v1/boards/{slug}/threads?page=1
+     *
+     * Get paginated thread index for a board.
+     *
+     * Returns threads sorted by bump order (sticky threads first, then by
+     * last reply time). Each thread includes the OP and up to 5 latest replies.
+     *
+     * Staff moderators (level >= 1) receive IP hash data for each post.
+     *
+     * @param RequestInterface $request HTTP request with query parameters
+     * @param string $slug Board slug identifier
+     * @return ResponseInterface JSON response with paginated threads or 404
+     *
+     * @example GET /api/v1/boards/b/threads?page=1
+     * @example Response: {"threads": [...], "page": 1, "total_pages": 10, "total": 150}
+     *
+     * @see GET /api/v1/boards/{slug}/threads
+     * @see BoardService::getThreadIndex()
+     */
     public function index(RequestInterface $request, string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);
@@ -47,7 +87,28 @@ final class ThreadController
         return $this->response->json($data);
     }
 
-    /** GET /api/v1/boards/{slug}/catalog */
+    /**
+     * GET /api/v1/boards/{slug}/catalog
+     *
+     * Get board catalog for grid-style browsing.
+     *
+     * Returns all active threads with OP preview data including:
+     * - Subject and content preview
+     * - Thumbnail URL
+     * - Reply and image counts
+     * - Last bump time
+     *
+     * The catalog is optimized for visual browsing interfaces.
+     *
+     * @param string $slug Board slug identifier
+     * @return ResponseInterface JSON response with catalog data or 404
+     *
+     * @example GET /api/v1/boards/b/catalog
+     * @example Response: {"threads": [{"id": 12345, "op": {"subject": "...", "thumb_url": "..."}, ...}]}
+     *
+     * @see GET /api/v1/boards/{slug}/catalog
+     * @see BoardService::getCatalog()
+     */
     public function catalog(string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);
@@ -58,7 +119,28 @@ final class ThreadController
         return $this->response->json(['threads' => $data]);
     }
 
-    /** GET /api/v1/boards/{slug}/archive */
+    /**
+     * GET /api/v1/boards/{slug}/archive
+     *
+     * Get archived threads for a board.
+     *
+     * Returns threads that have been archived due to age or lack of activity.
+     * Archived threads are read-only and may be purged after extended periods.
+     *
+     * Each entry includes:
+     * - Thread ID
+     * - Excerpt (subject or content preview)
+     * - Lowercase excerpt for search indexing
+     *
+     * @param string $slug Board slug identifier
+     * @return ResponseInterface JSON response with archived threads or 404
+     *
+     * @example GET /api/v1/boards/b/archive
+     * @example Response: {"archived_threads": [{"id": 12000, "excerpt": "...", ...}]}
+     *
+     * @see GET /api/v1/boards/{slug}/archive
+     * @see BoardService::getArchive()
+     */
     public function archive(string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);
@@ -69,7 +151,30 @@ final class ThreadController
         return $this->response->json(['archived_threads' => $data]);
     }
 
-    /** GET /api/v1/boards/{slug}/threads/{id} */
+    /**
+     * GET /api/v1/boards/{slug}/threads/{id}
+     *
+     * Get full thread with all posts.
+     *
+     * Returns the complete thread including:
+     * - OP post with all attributes
+     * - All non-deleted replies in chronological order
+     * - Thread metadata (sticky, locked, archived)
+     * - Backlinks (posts that quote this post)
+     *
+     * Staff moderators receive IP hash data for each post.
+     *
+     * @param RequestInterface $request HTTP request for staff level check
+     * @param string $slug Board slug identifier
+     * @param int $id Thread ID
+     * @return ResponseInterface JSON response with full thread or 404
+     *
+     * @example GET /api/v1/boards/b/threads/12345
+     * @example Response: {"thread_id": 12345, "op": {...}, "replies": [...]}
+     *
+     * @see GET /api/v1/boards/{slug}/threads/{id}
+     * @see BoardService::getThread()
+     */
     public function show(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $includeIpHash = $this->isStaffMod($request);
@@ -80,7 +185,40 @@ final class ThreadController
         return $this->response->json($data);
     }
 
-    /** POST /api/v1/boards/{slug}/threads – Create new thread */
+    /**
+     * POST /api/v1/boards/{slug}/threads
+     *
+     * Create a new thread.
+     *
+     * Creates a new thread with an OP (original poster) post.
+     * The thread ID is allocated from the same sequence as post IDs.
+     *
+     * Required fields:
+     * - content (com): Post body text (required for text-only boards)
+     * - media_url: Image/media URL (required for non-text-only boards)
+     *
+     * Optional fields:
+     * - name: Display name (may include tripcode with #password)
+     * - email: Email field (often "sage" to not bump)
+     * - subject (sub): Thread subject
+     * - password (pwd): Deletion password
+     * - spoiler: Whether image is spoilered
+     *
+     * Media fields (injected by API gateway after upload):
+     * - media_url, thumb_url, media_filename, media_size, media_dimensions, media_hash
+     *
+     * @param RequestInterface $request HTTP request with thread data
+     * @param string $slug Board slug identifier
+     * @return ResponseInterface JSON response with created thread (201) or error
+     *
+     * @example POST /api/v1/boards/b/threads
+     * @example Request: {"com": "Hello world", "media_url": "/img/abc.jpg", ...}
+     * @example Response (201): {"id": 12345, "posts": [{"no": 12345, ...}]}
+     * @example Response (400): {"error": "An image is required"}
+     *
+     * @see POST /api/v1/boards/{slug}/threads
+     * @see BoardService::createThread()
+     */
     public function create(RequestInterface $request, string $slug): ResponseInterface
     {
         $board = $this->boardService->getBoard($slug);
@@ -144,7 +282,39 @@ final class ThreadController
         }
     }
 
-    /** POST /api/v1/boards/{slug}/threads/{id}/posts – Reply to thread */
+    /**
+     * POST /api/v1/boards/{slug}/threads/{id}/posts
+     *
+     * Reply to a thread.
+     *
+     * Creates a new reply post in an existing thread.
+     *
+     * Required fields:
+     * - content (com): Post body text
+     * - media_url: Image/media URL
+     *
+     * Optional fields:
+     * - name, email, subject, password, spoiler (same as thread creation)
+     *
+     * Special email values:
+     * - "sage": Do not bump the thread
+     * - Empty: Default (bumps thread)
+     *
+     * @param RequestInterface $request HTTP request with post data
+     * @param string $slug Board slug identifier
+     * @param int $id Thread ID to reply to
+     * @return ResponseInterface JSON response with created post (201) or error
+     *
+     * @example POST /api/v1/boards/b/threads/12345/posts
+     * @example Request: {"com": "Reply content", "media_url": "/img/def.jpg"}
+     * @example Response (201): {"id": 12346, "no": 12346, "resto": 12345, ...}
+     * @example Response (404): {"error": "Thread not found"}
+     * @example Response (400): {"error": "An image is required"}
+     * @example Response (422): {"error": "Thread is locked"}
+     *
+     * @see POST /api/v1/boards/{slug}/threads/{id}/posts
+     * @see BoardService::createPost()
+     */
     public function reply(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $thread = Thread::find($id);
@@ -205,7 +375,25 @@ final class ThreadController
         }
     }
 
-    /** GET /api/v1/boards/{slug}/threads/{id}/posts?after=0 – New posts */
+    /**
+     * GET /api/v1/boards/{slug}/threads/{id}/posts?after=0
+     *
+     * Get new posts in a thread since a given post ID.
+     *
+     * Used for real-time thread updates (polling or long-polling).
+     * Returns all posts with ID greater than the specified "after" value.
+     *
+     * @param RequestInterface $request HTTP request with query parameters
+     * @param string $slug Board slug identifier
+     * @param int $id Thread ID
+     * @return ResponseInterface JSON response with new posts
+     *
+     * @example GET /api/v1/boards/b/threads/12345/posts?after=12350
+     * @example Response: {"posts": [{"no": 12351, ...}, {"no": 12352, ...}]}
+     *
+     * @see GET /api/v1/boards/{slug}/threads/{id}/posts
+     * @see BoardService::getPostsAfter()
+     */
     public function newPosts(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $afterInput = $request->query('after', '0');
@@ -215,7 +403,30 @@ final class ThreadController
         return $this->response->json(['posts' => $posts]);
     }
 
-    /** POST /api/v1/posts/delete – Delete own posts */
+    /**
+     * POST /api/v1/posts/delete
+     *
+     * Delete own posts using deletion password.
+     *
+     * Allows users to delete their own posts by providing the password
+     * that was set when the post was created.
+     *
+     * Options:
+     * - ids: Array of post IDs to delete
+     * - password: Deletion password
+     * - image_only: If true, only delete the image (not the post)
+     *
+     * @param RequestInterface $request HTTP request with deletion data
+     * @return ResponseInterface JSON response with deletion count
+     *
+     * @example POST /api/v1/posts/delete
+     * @example Request: {"ids": [12345, 12346], "password": "mypassword"}
+     * @example Response: {"deleted": 2}
+     * @example Response (400): {"error": "Missing required fields"}
+     *
+     * @see POST /api/v1/posts/delete
+     * @see BoardService::deletePost()
+     */
     public function deletePost(RequestInterface $request): ResponseInterface
     {
         $idsInput = $request->input('ids', []);
@@ -238,6 +449,19 @@ final class ThreadController
         return $this->response->json(['deleted' => $deleted]);
     }
 
+    /**
+     * Extract client IP address from request headers.
+     *
+     * Handles proxied requests by checking forwarded headers in order:
+     * 1. X-Forwarded-For (leftmost IP = original client)
+     * 2. X-Real-IP
+     * 3. remote_addr (direct connection)
+     *
+     * Validates IP format and falls back to 127.0.0.1 if invalid.
+     *
+     * @param RequestInterface $request HTTP request
+     * @return string Validated client IP address
+     */
     private function getClientIp(RequestInterface $request): string
     {
         $ip = $request->getHeaderLine('X-Forwarded-For')
@@ -263,6 +487,9 @@ final class ThreadController
      * The API gateway forwards X-Staff-Level for authenticated staff.
      * Levels: admin(3), manager(2), mod(1), janitor(0).
      * Only mod+ (level >= 1) can see IP hashes.
+     *
+     * @param RequestInterface $request HTTP request with staff headers
+     * @return bool True if user is moderator or higher
      */
     private function isStaffMod(RequestInterface $request): bool
     {
@@ -281,7 +508,28 @@ final class ThreadController
         return $numericLevel >= 1;
     }
 
-    /** GET /api/v1/posts/by-ip-hash/{hash} – Staff IP hash history lookup */
+    /**
+     * GET /api/v1/posts/by-ip-hash/{hash}
+     *
+     * Staff IP hash history lookup.
+     *
+     * Allows moderators to find all posts by a specific IP hash.
+     * Used for investigating spam, raids, or rule violations.
+     *
+     * Requires moderator access level (level >= 1).
+     *
+     * @param RequestInterface $request HTTP request for auth check
+     * @param string $hash 16-character hex IP hash
+     * @return ResponseInterface JSON response with posts or error
+     *
+     * @example GET /api/v1/posts/by-ip-hash/a1b2c3d4e5f67890?limit=50
+     * @example Response: {"ip_hash": "a1b2c3d4e5f67890", "count": 5, "posts": [...]}
+     * @example Response (403): {"error": "Forbidden"}
+     * @example Response (400): {"error": "Invalid IP hash format"}
+     *
+     * @see GET /api/v1/posts/by-ip-hash/{hash}
+     * @see BoardService::getPostsByIpHash()
+     */
     public function postsByIpHash(RequestInterface $request, string $hash): ResponseInterface
     {
         // Validate staff access (mod+)
@@ -306,54 +554,132 @@ final class ThreadController
         ]);
     }
 
-    /** DELETE /api/v1/boards/{slug}/posts/{id} – Staff delete post */
+    /**
+     * DELETE /api/v1/boards/{slug}/posts/{id}
+     *
+     * Staff delete post.
+     *
+     * Allows staff to delete any post regardless of deletion password.
+     * Authentication is handled by the API gateway.
+     *
+     * @param RequestInterface $request HTTP request with query parameters
+     * @param string $slug Board slug identifier
+     * @param int $id Post ID to delete
+     * @return ResponseInterface JSON response with deletion status
+     *
+     * @example DELETE /api/v1/boards/b/posts/12345?file_only=true
+     * @example Response: {"success": true}
+     * @example Response (500): {"error": "Failed to delete post"}
+     *
+     * @see DELETE /api/v1/boards/{slug}/posts/{id}
+     * @see BoardService::staffDeletePost()
+     */
     public function staffDeletePost(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $imageOnly = (bool) $request->query('file_only', false);
-        
+
         // In production, authentication is handled by the Gateway.
         // We assume if this endpoint is reached, the user is authorized.
-        
+
         $success = $this->boardService->staffDeletePost($id, $imageOnly);
-        
+
         if ($success) {
             return $this->response->json(['success' => true]);
         }
-        
+
         return $this->response->json(['error' => 'Failed to delete post'])->withStatus(500);
     }
 
-    /** POST /api/v1/boards/{slug}/threads/{id}/options – Staff thread options */
+    /**
+     * POST /api/v1/boards/{slug}/threads/{id}/options
+     *
+     * Staff thread options (sticky, lock, permasage).
+     *
+     * Allows staff to toggle thread moderation options:
+     * - sticky: Pin thread to top of board
+     * - lock: Prevent new replies
+     * - permasage: Prevent thread from bumping (always sage)
+     *
+     * @param RequestInterface $request HTTP request with option parameter
+     * @param string $slug Board slug identifier
+     * @param int $id Thread ID
+     * @return ResponseInterface JSON response with toggle status
+     *
+     * @example POST /api/v1/boards/b/threads/12345/options
+     * @example Request: {"option": "sticky"}
+     * @example Response: {"success": true}
+     * @example Response (400): {"error": "Invalid option"}
+     *
+     * @see POST /api/v1/boards/{slug}/threads/{id}/options
+     * @see BoardService::toggleThreadOption()
+     */
     public function staffThreadOptions(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $option = $request->input('option');
-        
+
         if (!is_string($option) || !in_array($option, ['sticky', 'lock', 'permasage'])) {
             return $this->response->json(['error' => 'Invalid option'])->withStatus(400);
         }
-        
+
         $success = $this->boardService->toggleThreadOption($id, $option);
-        
+
         if ($success) {
             return $this->response->json(['success' => true]);
         }
-        
+
         return $this->response->json(['error' => 'Failed to toggle option'])->withStatus(500);
     }
 
-    /** POST /api/v1/boards/{slug}/posts/{id}/spoiler – Staff toggle spoiler */
+    /**
+     * POST /api/v1/boards/{slug}/posts/{id}/spoiler
+     *
+     * Staff toggle spoiler on post image.
+     *
+     * Allows staff to mark a post's image as spoilered (hidden by default).
+     *
+     * @param RequestInterface $request HTTP request (body not used)
+     * @param string $slug Board slug identifier
+     * @param int $id Post ID
+     * @return ResponseInterface JSON response with toggle status
+     *
+     * @example POST /api/v1/boards/b/posts/12345/spoiler
+     * @example Response: {"success": true}
+     *
+     * @see POST /api/v1/boards/{slug}/posts/{id}/spoiler
+     * @see BoardService::toggleSpoiler()
+     */
     public function staffSpoiler(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         $success = $this->boardService->toggleSpoiler($id);
-        
+
         if ($success) {
             return $this->response->json(['success' => true]);
         }
-        
+
         return $this->response->json(['error' => 'Failed to toggle spoiler'])->withStatus(500);
     }
 
-    /** GET /api/v1/boards/{slug}/threads/{id}/ips – Staff IP lookup */
+    /**
+     * GET /api/v1/boards/{slug}/threads/{id}/ips
+     *
+     * Staff IP lookup for thread.
+     *
+     * Returns IP hash data for all posts in a thread.
+     * Used by moderators to identify patterns (spam, raids, etc.).
+     *
+     * Requires staff authentication (handled by gateway).
+     *
+     * @param RequestInterface $request HTTP request (auth via gateway)
+     * @param string $slug Board slug identifier
+     * @param int $id Thread ID
+     * @return ResponseInterface JSON response with IP data
+     *
+     * @example GET /api/v1/boards/b/threads/12345/ips
+     * @example Response: {"posts": [{"no": 12345, "ip_hash": "..."}, ...]}
+     *
+     * @see GET /api/v1/boards/{slug}/threads/{id}/ips
+     * @see BoardService::getThreadIps()
+     */
     public function staffThreadIps(RequestInterface $request, string $slug, int $id): ResponseInterface
     {
         // Auth check assumed (gateway)
@@ -362,10 +688,26 @@ final class ThreadController
     }
 
     /**
-     * POST /api/v1/posts/lookup – Bulk post media lookup for report queue.
+     * POST /api/v1/posts/lookup
+     *
+     * Bulk post media lookup for report queue.
      *
      * Expects JSON body: { "posts": [ {"board":"b","no":123}, ... ] }
      * Returns: { "results": { "b:123": { "thumb_url":"...", "media_url":"...", ... }, ... } }
+     *
+     * Used by the moderation report queue to quickly fetch media information
+     * for reported posts without loading full post data.
+     *
+     * Limited to 50 lookups per call to prevent abuse.
+     *
+     * @param RequestInterface $request HTTP request with JSON body
+     * @return ResponseInterface JSON response with media data
+     *
+     * @example POST /api/v1/posts/lookup
+     * @example Request: {"posts": [{"board": "b", "no": 12345}]}
+     * @example Response: {"results": {"b:12345": {"thumb_url": "...", "media_url": "..."}}}
+     *
+     * @see POST /api/v1/posts/lookup
      */
     public function bulkLookup(RequestInterface $request): ResponseInterface
     {

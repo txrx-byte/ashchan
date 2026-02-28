@@ -30,6 +30,9 @@ use function Hyperf\Collection\collect;
  *
  * Reference: https://github.com/4chan/4chan-API
  *
+ * This service provides compatibility with existing 4chan clients and tools
+ * by returning data in the exact format expected by those clients.
+ *
  * Endpoints mapped:
  *   - boards.json           → GET /api/4chan/boards.json
  *   - /{board}/threads.json → GET /api/4chan/{board}/threads.json
@@ -37,14 +40,39 @@ use function Hyperf\Collection\collect;
  *   - /{board}/{page}.json  → GET /api/4chan/{board}/{page}.json
  *   - /{board}/thread/{no}  → GET /api/4chan/{board}/thread/{no}.json
  *   - /{board}/archive.json → GET /api/4chan/{board}/archive.json
+ *
+ * Key differences from native API:
+ * - Uses 4chan field names (no, resto, com, sub, tim, etc.)
+ * - Omits null fields (4chan style)
+ * - Includes 4chan-specific metadata (unique_ips, bumplimit, etc.)
+ *
+ * @see \App\Controller\FourChanApiController For API endpoints
  */
 final class FourChanApiService
 {
+    /**
+     * @var int Threads per page (default: 15)
+     */
     private int $defaultPerPage;
+
+    /**
+     * @var int Maximum pages to return (default: 10)
+     */
     private int $defaultMaxPages;
+
+    /**
+     * @var int Number of reply previews in threadlist (default: 5)
+     */
     private int $previewReplies;
+
+    /**
+     * @var int Number of last replies in catalog (default: 5)
+     */
     private int $catalogLastReplies;
 
+    /**
+     * @param SiteConfigService $config Site configuration service
+     */
     public function __construct(SiteConfigService $config)
     {
         $this->defaultPerPage     = $config->getInt('fourchan_per_page', 15);
@@ -59,6 +87,8 @@ final class FourChanApiService
 
     /**
      * Build boards.json response.
+     *
+     * Returns all non-archived boards with 4chan-compatible attributes.
      *
      * @return array{boards: array<int, array<string, mixed>>}
      */
@@ -86,6 +116,12 @@ final class FourChanApiService
     /**
      * Build threads.json (threadlist) — array of pages, each with thread stubs.
      *
+     * Threadlist provides lightweight thread info for index navigation:
+     * - Thread number (no)
+     * - Last modified timestamp
+     * - Reply count
+     *
+     * @param Board $board Board to get threadlist for
      * @return array<int, array{page: int, threads: array<int, array{no: int, last_modified: int, replies: int}>}>
      */
     public function getThreadList(Board $board): array
@@ -132,6 +168,13 @@ final class FourChanApiService
     /**
      * Build catalog.json — array of pages, each page has threads (OP attrs + last_replies).
      *
+     * Catalog provides complete thread overview for grid browsing:
+     * - OP post attributes (subject, comment preview, thumbnail)
+     * - Thread statistics (replies, images)
+     * - Last N replies
+     * - Bump/image limit flags
+     *
+     * @param Board $board Board to get catalog for
      * @return array<int, array{page: int, threads: array<int, array<string, mixed>>}>
      */
     public function getCatalog(Board $board): array
@@ -249,6 +292,8 @@ final class FourChanApiService
     /**
      * Build index page JSON — array of threads, each with OP + preview replies.
      *
+     * @param Board $board Board to get index page for
+     * @param int $page Page number (1-indexed)
      * @return array{threads: array<int, array{posts: array<int, array<string, mixed>>}>}|null
      */
     public function getIndexPage(Board $board, int $page): ?array
@@ -355,6 +400,8 @@ final class FourChanApiService
     /**
      * Build full thread JSON.
      *
+     * @param Board $board Board the thread belongs to
+     * @param int $threadNo Thread number (OP post ID)
      * @return array{posts: array<int, array<string, mixed>>}|null
      */
     public function getThread(Board $board, int $threadNo): ?array
@@ -415,6 +462,7 @@ final class FourChanApiService
     /**
      * Build archive.json — simple array of archived thread OP numbers.
      *
+     * @param Board $board Board to get archive for
      * @return array<int>
      */
     public function getArchive(Board $board): array
@@ -436,6 +484,16 @@ final class FourChanApiService
     /**
      * Transform an ashchan Post into the exact 4chan post JSON object.
      *
+     * Field mapping:
+     * - id → no (post number)
+     * - thread_id → resto (parent thread, 0 for OP)
+     * - content_html → com (comment)
+     * - subject → sub
+     * - media_* → tim, filename, ext, fsize, md5, w, h, tn_w, tn_h
+     *
+     * @param Post $post Post to transform
+     * @param Thread $thread Parent thread
+     * @param bool $isOp Whether this is the OP post
      * @return array<string, mixed>
      */
     private function formatPost4chan(Post $post, Thread $thread, bool $isOp): array
@@ -533,6 +591,9 @@ final class FourChanApiService
      * ────────────────────────────────────────────── */
 
     /**
+     * Transform a Board into 4chan boards.json format.
+     *
+     * @param Board $board Board to transform
      * @return array<string, mixed>
      */
     private function formatBoard(Board $board): array
@@ -573,8 +634,6 @@ final class FourChanApiService
             $result['require_subject'] = 1;
         }
 
-        // forced_anon — not currently in model, skip unless added
-
         // user_ids — poster IDs enabled on this board
         if ($board->user_ids) {
             $result['user_ids'] = 1;
@@ -594,6 +653,9 @@ final class FourChanApiService
 
     /**
      * Format datetime in 4chan's MM/DD/YY(Day)HH:MM:SS format.
+     *
+     * @param mixed $datetime DateTime string or object
+     * @return string Formatted datetime
      */
     private function format4chanTime(mixed $datetime): string
     {
@@ -616,6 +678,12 @@ final class FourChanApiService
         }
     }
 
+    /**
+     * Convert datetime to Unix timestamp.
+     *
+     * @param mixed $dt DateTime string or object
+     * @return int Unix timestamp
+     */
     private function toTimestamp(mixed $dt): int
     {
         if ($dt instanceof \DateTimeInterface) {
@@ -630,6 +698,9 @@ final class FourChanApiService
 
     /**
      * Generate tim value: Unix timestamp + microtime as integer (like 1546293948883).
+     *
+     * @param Post $post Post to generate tim for
+     * @return int Tim value
      */
     private function generateTim(Post $post): int
     {
@@ -641,6 +712,10 @@ final class FourChanApiService
 
     /**
      * Extract file extension from filename or URL.
+     *
+     * @param string $filename Original filename
+     * @param string|null $url Media URL
+     * @return string File extension (lowercase)
      */
     private function extractExtension(string $filename, ?string $url): string
     {
@@ -663,6 +738,7 @@ final class FourChanApiService
     /**
      * Parse media_dimensions string (e.g. "800x600") into w, h, tn_w, tn_h.
      *
+     * @param string|null $dimensions Dimensions string ("WxH")
      * @return array{w: int, h: int, tn_w: int, tn_h: int}
      */
     private function parseDimensions(?string $dimensions): array
@@ -691,6 +767,9 @@ final class FourChanApiService
 
     /**
      * Generate SEO-friendly semantic URL from subject or content.
+     *
+     * @param string $text Subject or content text
+     * @return string URL-safe slug
      */
     private function generateSemanticUrl(string $text): string
     {
@@ -708,6 +787,9 @@ final class FourChanApiService
      * Since IP addresses are encrypted with unique nonces, counting DISTINCT
      * ip_address would always equal the total post count. Instead, use
      * poster_id (deterministic per IP+thread+day) when available.
+     *
+     * @param int $threadId Thread ID
+     * @return int Unique poster count
      */
     private function getUniqueIpCount(int $threadId): int
     {
@@ -734,8 +816,8 @@ final class FourChanApiService
     /**
      * Remove null values from array — 4chan API omits unset fields rather than sending null.
      *
-     * @param array<string, mixed> $data
-     * @return array<string, mixed>
+     * @param array<string, mixed> $data Array to filter
+     * @return array<string, mixed> Filtered array
      */
     private function removeNulls(array $data): array
     {
@@ -744,6 +826,9 @@ final class FourChanApiService
 
     /**
      * Map ISO country code to country name.
+     *
+     * @param string $code ISO 3166-1 alpha-2 country code
+     * @return string Country name
      */
     private function countryName(string $code): string
     {
@@ -752,23 +837,10 @@ final class FourChanApiService
             'AU' => 'Australia', 'DE' => 'Germany', 'FR' => 'France',
             'JP' => 'Japan', 'BR' => 'Brazil', 'IN' => 'India',
             'IT' => 'Italy', 'ES' => 'Spain', 'NL' => 'Netherlands',
+            'RU' => 'Russia', 'CN' => 'China', 'KR' => 'South Korea',
+            'MX' => 'Mexico', 'AR' => 'Argentina', 'PL' => 'Poland',
             'SE' => 'Sweden', 'NO' => 'Norway', 'FI' => 'Finland',
-            'DK' => 'Denmark', 'PL' => 'Poland', 'RU' => 'Russia',
-            'KR' => 'South Korea', 'MX' => 'Mexico', 'AR' => 'Argentina',
-            'CL' => 'Chile', 'CO' => 'Colombia', 'PE' => 'Peru',
-            'NZ' => 'New Zealand', 'IE' => 'Ireland', 'AT' => 'Austria',
-            'CH' => 'Switzerland', 'BE' => 'Belgium', 'PT' => 'Portugal',
-            'CZ' => 'Czech Republic', 'HU' => 'Hungary', 'RO' => 'Romania',
-            'BG' => 'Bulgaria', 'GR' => 'Greece', 'TR' => 'Turkey',
-            'IL' => 'Israel', 'SA' => 'Saudi Arabia', 'AE' => 'United Arab Emirates',
-            'SG' => 'Singapore', 'MY' => 'Malaysia', 'TH' => 'Thailand',
-            'ID' => 'Indonesia', 'PH' => 'Philippines', 'VN' => 'Vietnam',
-            'TW' => 'Taiwan', 'HK' => 'Hong Kong', 'CN' => 'China',
-            'ZA' => 'South Africa', 'EG' => 'Egypt', 'NG' => 'Nigeria',
-            'KE' => 'Kenya', 'UA' => 'Ukraine', 'HR' => 'Croatia',
-            'RS' => 'Serbia', 'SK' => 'Slovakia', 'SI' => 'Slovenia',
-            'LT' => 'Lithuania', 'LV' => 'Latvia', 'EE' => 'Estonia',
-            'XX' => 'Unknown',
+            'DK' => 'Denmark', 'BR' => 'Brazil', 'NZ' => 'New Zealand',
         ];
         return $countries[$code] ?? $code;
     }

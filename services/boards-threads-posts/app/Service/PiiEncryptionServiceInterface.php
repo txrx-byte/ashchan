@@ -21,33 +21,49 @@ namespace App\Service;
 
 /**
  * Interface for PII encryption services.
- * 
+ *
  * Allows for test doubles and alternative implementations.
+ *
+ * @see PiiEncryptionService For concrete implementation
  */
 interface PiiEncryptionServiceInterface
 {
     /**
      * Check if encryption is available (key configured).
+     *
+     * @return bool True if encryption is enabled
      */
     public function isEnabled(): bool;
 
     /**
      * Encrypt a PII value.
+     *
+     * @param string $plaintext Plaintext to encrypt
+     * @return string Encrypted value or plaintext if disabled
      */
     public function encrypt(string $plaintext): string;
 
     /**
      * Decrypt a PII value.
+     *
+     * @param string $ciphertext Encrypted value to decrypt
+     * @return string Decrypted plaintext or original if not encrypted
      */
     public function decrypt(string $ciphertext): string;
 
     /**
      * Encrypt a value only if it's not already encrypted.
+     *
+     * @param string $value Value to potentially encrypt
+     * @return string Encrypted value or original
      */
     public function encryptIfNeeded(string $value): string;
 
     /**
      * Securely wipe a string from memory.
+     *
+     * @param-out string|null $value
+     * @param string $value Variable to wipe (passed by reference)
      */
     public function wipe(string &$value): void;
 }

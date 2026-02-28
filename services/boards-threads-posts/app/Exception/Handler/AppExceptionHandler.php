@@ -28,12 +28,41 @@ use Throwable;
 
 use function Hyperf\Support\env;
 
+/**
+ * Global exception handler for the application.
+ *
+ * Catches all unhandled exceptions and returns a standardized JSON error response.
+ * Stack traces are only included in non-production environments for security.
+ *
+ * Error response format:
+ *   {"error": "Internal server error"}
+ *
+ * Logging includes:
+ * - Exception class name
+ * - File and line number
+ * - Stack trace (non-production only)
+ *
+ * @see docs/SECURITY.md §Error Handling
+ */
 class AppExceptionHandler extends ExceptionHandler
 {
+    /**
+     * @param LoggerInterface $logger Logger for error reporting
+     */
     public function __construct(
         private LoggerInterface $logger,
     ) {}
 
+    /**
+     * Handle an exception and return an error response.
+     *
+     * Logs the exception with full context and returns a 500 response
+     * with a generic error message (no internal details exposed).
+     *
+     * @param Throwable $throwable The caught exception
+     * @param ResponseInterface $response Response builder
+     * @return ResponseInterface HTTP 500 response with JSON error body
+     */
     public function handle(Throwable $throwable, ResponseInterface $response): ResponseInterface
     {
         $context = [
@@ -59,6 +88,14 @@ class AppExceptionHandler extends ExceptionHandler
             ]) ?: '{"error":"Internal server error"}'));
     }
 
+    /**
+     * Determine if this handler should process the exception.
+     *
+     * Returns true for ALL exceptions, making this the global catch-all handler.
+     *
+     * @param Throwable $throwable The exception to check
+     * @return bool Always true
+     */
     public function isValid(Throwable $throwable): bool
     {
         return true; // Catch ALL exceptions

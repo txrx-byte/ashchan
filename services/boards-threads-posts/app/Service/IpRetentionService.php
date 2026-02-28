@@ -36,15 +36,35 @@ use Psr\Log\LoggerInterface;
  *
  * This service runs in the boards-threads-posts context.
  * Moderation service has its own IpRetentionService for moderation tables.
+ *
+ * @see docs/SECURITY.md §Data Retention
  */
 final class IpRetentionService
 {
+    /**
+     * @var LoggerInterface Logger for retention operations
+     */
     private LoggerInterface $logger;
 
+    /**
+     * @var int Retention period for post IP addresses (days)
+     */
     private int $postIpRetentionDays;
+
+    /**
+     * @var int Retention period for post email addresses (days)
+     */
     private int $postEmailRetentionDays;
+
+    /**
+     * @var int Retention period for flood log entries (days)
+     */
     private int $floodLogRetentionDays;
 
+    /**
+     * @param LoggerFactory $loggerFactory Logger factory
+     * @param SiteConfigService $config Site configuration service
+     */
     public function __construct(LoggerFactory $loggerFactory, SiteConfigService $config)
     {
         $this->logger = $loggerFactory->get('ip-retention');
@@ -55,6 +75,9 @@ final class IpRetentionService
 
     /**
      * Run all retention cleanup jobs.
+     *
+     * Executes all PII retention cleanup operations in sequence.
+     * Results are logged for audit purposes.
      *
      * @return array<string, int> Map of table => rows affected
      */
@@ -77,6 +100,11 @@ final class IpRetentionService
 
     /**
      * Nullify IP addresses on posts older than retention period.
+     *
+     * Uses PostgreSQL's make_interval() for date arithmetic.
+     * Encrypted IPs are set to NULL (not decrypted first).
+     *
+     * @return int Number of rows affected
      */
     public function purgePostIps(): int
     {
@@ -104,6 +132,10 @@ final class IpRetentionService
 
     /**
      * Nullify email addresses on posts older than retention period.
+     *
+     * Empty strings are also cleared to maintain data consistency.
+     *
+     * @return int Number of rows affected
      */
     public function purgePostEmails(): int
     {
@@ -129,6 +161,11 @@ final class IpRetentionService
 
     /**
      * Delete flood log entries older than retention period.
+     *
+     * Flood logs contain IP addresses and are fully deleted (not nullified)
+     * after the retention period.
+     *
+     * @return int Number of rows deleted
      */
     public function purgeFloodLog(): int
     {
@@ -154,6 +191,14 @@ final class IpRetentionService
 
     /**
      * Log a retention action to the audit trail (without PII).
+     *
+     * Records retention operations in pii_retention_log table for
+     * compliance and auditing purposes.
+     *
+     * @param string $table Table name
+     * @param string $column Column name (or '*' for full row deletion)
+     * @param int $rowsAffected Number of rows affected
+     * @param int $retentionDays Retention period in days
      */
     private function logRetentionAction(string $table, string $column, int $rowsAffected, int $retentionDays): void
     {
