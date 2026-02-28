@@ -1,0 +1,144 @@
+# PHPStan Configuration for Tests
+#
+# This configuration is designed for PHPUnit test files in Hyperf microservices.
+# It extends the main phpstan.neon with relaxed rules appropriate for test code.
+#
+# Usage: vendor/bin/phpstan analyse --configuration tests/phpstan.neon
+#
+# Last Updated: February 28, 2026
+
+includes:
+    # Extend main service configuration
+    - ../phpstan.neon
+
+parameters:
+    # Level 9 for tests (level 10 is for production code)
+    # Tests have legitimate reasons to break some strict rules
+    level: 9
+    
+    # Analyze test directory
+    paths:
+        - tests
+    
+    # Test-specific bootstrap (different from PHPUnit bootstrap)
+    bootstrapFiles:
+        - tests/phpstan-test-bootstrap.php
+    
+    # Stub files for better type inference
+    stubFiles:
+        - tests/stubs/phpunit.stub
+        - tests/stubs/hyperf.stub
+        - tests/stubs/mockery.stub
+    
+    # Scan test support directories
+    scanDirectories:
+        - tests/Support
+        - tests/Stub
+    
+    # Don't report unmatched ignored errors in tests
+    # (some patterns are acceptable in test code)
+    reportUnmatchedIgnoredErrors: false
+    
+    # Test-specific error ignores
+    # These are acceptable patterns in test code that would be violations in production
+    ignoreErrors:
+        # ===========================================
+        # MOCK-RELATED IGNORES
+        # ===========================================
+        
+        # Mock objects may not implement all interface methods
+        - '#Call to an undefined method .* on Mockery\\\\MockInterface#'
+        - '#Access to an undefined property .* on Mockery\\\\MockInterface#'
+        - '#Parameter .* of method PHPUnit\\\\Framework\\\\MockObject\\\\.*#'
+        
+        # Mock return types may be mixed
+        - '#Method .* return type has no value type specified#'
+        
+        # ===========================================
+        # TEST METHOD SIGNATURE IGNORES
+        # ===========================================
+        
+        # Unused parameters required by PHPUnit interface or data providers
+        - '#Method .*Test::.* has an unused parameter .*\.$#'
+        
+        # Test methods must return void (enforced by PHPUnit)
+        - '#Method .*Test::.* has invalid return type#'
+        
+        # ===========================================
+        # DATA PROVIDER IGNORES
+        # ===========================================
+        
+        # Data providers returning mixed arrays
+        - '#Method .*Provider.* return type has no value type specified in iterable type array#'
+        - '#Parameter .* of method .*Test::.* expects .* mixed given#'
+        
+        # ===========================================
+        # ASSERTION TYPE INFERENCE
+        # ===========================================
+        
+        # PHPUnit assertion type narrowing limitations
+        - '#Parameter .* of method PHPUnit\\\\Framework\\\\Assert::.*#'
+        - '#Call to method PHPUnit\\\\Framework\\\\Assert::.*#'
+        
+        # ===========================================
+        # TEST HELPER IGNORES
+        # ===========================================
+        
+        # Test helpers may have unused private methods (for future tests)
+        - '#Unused private method .*#'
+        - '#Unused private property .*#'
+        
+        # Test fixtures may use dynamic properties
+        - '#Dynamic property .*#'
+        
+        # ===========================================
+        # SIDE EFFECTS IN TESTS
+        # ===========================================
+        
+        # Tests intentionally have side effects (setup/teardown)
+        - '#Side effects of .*#'
+        
+        # ===========================================
+        # HYPERF-SPECIFIC IGNORES
+        # ===========================================
+        
+        # Hyperf model magic methods in tests
+        - '#Call to an undefined static method .*::.*#'
+        - '#Access to an undefined property .* on .*Model#'
+        
+        # Static facades used in tests
+        - '#Static call to instance method Hyperf\\\\.*#'
+        
+        # ===========================================
+        # TYPE NARROWING LIMITATIONS
+        # ===========================================
+        
+        # PHPStan can't always infer types from assertions
+        - '#Cannot access offset .* on mixed#'
+        - '#Parameter .* of function .* expects .* mixed given#'
+        
+        # ===========================================
+        # EXCEPTION HANDLING IN TESTS
+        # ===========================================
+        
+        # Tests may catch generic exceptions for cleanup
+        - '#Catching exception Exception#'
+        
+        # ===========================================
+        # DEPRECATED CODE TESTING
+        # ===========================================
+        
+        # Tests may need to test deprecated functionality
+        - '#Call to deprecated method .*#'
+        - '#Usage of deprecated property .*#'
+
+# Custom rules for test quality (optional)
+# rules:
+#     - App\\PhpStan\\Rules\\Tests\\NoAssertTrueFalseRule
+#     - App\\PhpStan\\Rules\\Tests\\TestNamingConventionRule
+
+# Services for test-specific analysis (optional)
+# services:
+#     -
+#         class: App\\PhpStan\\Rules\\Tests\\NoAssertTrueFalseRule
+#         tags: [phpstan.rules.rules]

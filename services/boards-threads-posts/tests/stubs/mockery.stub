@@ -1,0 +1,595 @@
+// Mockery Stub File for PHPStan
+//
+// This file provides type hints for Mockery classes to improve
+// PHPStan's type inference when using Mockery in test files.
+//
+// Usage: Reference in phpstan.neon under stubFiles
+
+namespace Mockery {
+    /**
+     * Main Mockery class.
+     */
+    class Mockery
+    {
+        /**
+         * @template T of object
+         * @param class-string<T>|array<class-string<T>> $class
+         * @return T&\Mockery\MockInterface
+         */
+        public static function mock(string|array $class): MockInterface {}
+
+        /**
+         * @template T of object
+         * @param class-string<T> $class
+         * @return T&\Mockery\MockInterface
+         */
+        public static function spy(string $class): MockInterface {}
+
+        /**
+         * @template T of object
+         * @param class-string<T> $class
+         * @return T&\Mockery\MockInterface
+         */
+        public static function instance(string $class): MockInterface {}
+
+        /**
+         * @return void
+         */
+        public static function close(): void {}
+
+        /**
+         * @return void
+         */
+        public static function tearDown(): void {}
+    }
+
+    /**
+     * Mock interface for all mocks.
+     *
+     * @template T of object
+     */
+    interface MockInterface
+    {
+        /**
+         * @param string $method
+         * @param array $args
+         * @return mixed
+         */
+        public function __call(string $method, array $args): mixed;
+
+        /**
+         * @param string $method
+         * @return \Mockery\Expectation
+         */
+        public function allows(string $method): Expectation;
+
+        /**
+         * @param string $method
+         * @return \Mockery\Expectation
+         */
+        public function shouldReceive(string $method): Expectation;
+
+        /**
+         * @param string $method
+         * @return \Mockery\Expectation
+         */
+        public function shouldNotReceive(string $method): Expectation;
+
+        /**
+         * @return void
+         */
+        public function shouldIgnoreMissing(): void;
+
+        /**
+         * @return void
+         */
+        public function makePartial(): void;
+
+        /**
+         * @return T
+         */
+        public function shouldAllowMockingProtectedMethods(): static;
+
+        /**
+         * @return T
+         */
+        public function shouldAllowMockingMethod(string $method): static;
+
+        /**
+         * @param array $args
+         * @return T
+         */
+        public function shouldHaveReceived(string $method, array $args = []): static;
+
+        /**
+         * @param array $args
+         * @return T
+         */
+        public function shouldNotHaveReceived(string $method, array $args = []): static;
+
+        /**
+         * @return array
+         */
+        public function mockedMethods(): array;
+
+        /**
+         * @return void
+         */
+        public function unsetMock(): void;
+    }
+
+    /**
+     * Expectation builder.
+     */
+    class Expectation
+    {
+        /**
+         * @param mixed $value
+         * @return static
+         */
+        public function andReturn(mixed $value): static;
+
+        /**
+         * @param mixed $value
+         * @return static
+         */
+        public function andReturns(mixed $value): static;
+
+        /**
+         * @param mixed ...$values
+         * @return static
+         */
+        public function andReturnValues(mixed ...$values): static;
+
+        /**
+         * @param mixed $value
+         * @return static
+         */
+        public function andReturnNull(mixed $value = null): static;
+
+        /**
+         * @param \Throwable $exception
+         * @return static
+         */
+        public function andThrow(\Throwable $exception): static;
+
+        /**
+         * @param class-string<\Throwable> $exception
+         * @param string $message
+         * @param int $code
+         * @return static
+         */
+        public function andThrow(string $exception, string $message = '', int $code = 0): static;
+
+        /**
+         * @param callable $callback
+         * @return static
+         */
+        public function andReturnUsing(callable $callback): static;
+
+        /**
+         * @param callable $callback
+         * @return static
+         */
+        public function andReturnArg(callable $callback): static;
+
+        /**
+         * @return static
+         */
+        public function andReturnSelf(): static;
+
+        /**
+         * @param int $limit
+         * @return static
+         */
+        public function times(int $limit = 1): static;
+
+        /**
+         * @return static
+         */
+        public function never(): static;
+
+        /**
+         * @return static
+         */
+        public function once(): static;
+
+        /**
+         * @return static
+         */
+        public function twice(): static;
+
+        /**
+         * @return static
+         */
+        public function atLeast(): static;
+
+        /**
+         * @return static
+         */
+        public function atLeastOnce(): static;
+
+        /**
+         * @param int $count
+         * @return static
+         */
+        public function atMost(int $count): static;
+
+        /**
+         * @param int $min
+         * @param int $max
+         * @return static
+         */
+        public function between(int $min, int $max): static;
+
+        /**
+         * @param mixed ...$args
+         * @return static
+         */
+        public function with(mixed ...$args): static;
+
+        /**
+         * @return static
+         */
+        public function withAnyArgs(): static;
+
+        /**
+         * @return static
+         */
+        public function withNoArgs(): static;
+
+        /**
+         * @param array $args
+         * @return static
+         */
+        public function withArgs(array $args): static;
+
+        /**
+         * @param callable $callback
+         * @return static
+         */
+        public function withArgsMatching(callable $callback): static;
+
+        /**
+         * @param mixed $arg
+         * @return static
+         */
+        public function withArg(mixed $arg): static;
+
+        /**
+         * @return static
+         */
+        public function andReturnUndefined(): static;
+
+        /**
+         * @return static
+         */
+        public function zeroOrMoreTimes(): static;
+
+        /**
+         * @param int $order
+         * @return static
+         */
+        public function ordered(int $order = 0): static;
+
+        /**
+         * @param string $group
+         * @return static
+         */
+        public function grouped(string $group): static;
+
+        /**
+         * @return static
+         */
+        public function globally(): static;
+
+        /**
+         * @return static
+         */
+        public function byDefault(): static;
+
+        /**
+         * @param callable $callback
+         * @return static
+         */
+        public function passthru(callable $callback): static;
+    }
+
+    /**
+     * Closure wrapper for expectations.
+     */
+    class Closure
+    {
+        /**
+         * @param callable $closure
+         */
+        public function __construct(callable $closure) {}
+
+        /**
+         * @param mixed ...$args
+         * @return mixed
+         */
+        public function __invoke(mixed ...$args): mixed {}
+    }
+
+    /**
+     * Matcher interface.
+     */
+    interface MatcherInterface
+    {
+        /**
+         * @param mixed $actual
+         * @return bool
+         */
+        public function match(mixed $actual): bool;
+
+        /**
+         * @return string
+         */
+        public function __toString(): string;
+    }
+
+    /**
+     * Any argument matcher.
+     */
+    class Any implements MatcherInterface
+    {
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Any of argument matcher.
+     */
+    class AnyOf implements MatcherInterface
+    {
+        /**
+         * @param array $expected
+         */
+        public function __construct(array $expected) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Not argument matcher.
+     */
+    class Not implements MatcherInterface
+    {
+        /**
+         * @param mixed $expected
+         */
+        public function __construct(mixed $expected) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Pattern argument matcher.
+     */
+    class Pattern implements MatcherInterface
+    {
+        /**
+         * @param string $expected
+         */
+        public function __construct(string $expected) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Ducktype argument matcher.
+     */
+    class Ducktype implements MatcherInterface
+    {
+        /**
+         * @param array $expected
+         */
+        public function __construct(array $expected) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Subset argument matcher.
+     */
+    class Subset implements MatcherInterface
+    {
+        /**
+         * @param array $expected
+         * @param bool $strict
+         */
+        public function __construct(array $expected, bool $strict = true) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Contains argument matcher.
+     */
+    class Contains implements MatcherInterface
+    {
+        /**
+         * @param mixed $expected
+         */
+        public function __construct(mixed $expected) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Type matcher.
+     */
+    class Type implements MatcherInterface
+    {
+        /**
+         * @param string $expected
+         */
+        public function __construct(string $expected) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Key matcher.
+     */
+    class Key implements MatcherInterface
+    {
+        /**
+         * @param string|int $key
+         */
+        public function __construct(string|int $key) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Key value matcher.
+     */
+    class KeyValue implements MatcherInterface
+    {
+        /**
+         * @param string|int $key
+         * @param mixed $value
+         */
+        public function __construct(string|int $key, mixed $value) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Closure matcher.
+     */
+    class ClosureMatcher implements MatcherInterface
+    {
+        /**
+         * @param callable $closure
+         */
+        public function __construct(callable $closure) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * Argument list.
+     */
+    class ArgumentListMatcher implements MatcherInterface
+    {
+        /**
+         * @param array<MatcherInterface> $matchers
+         */
+        public function __construct(array $matchers) {}
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+
+    /**
+     * No args matcher.
+     */
+    class NoArgs implements MatcherInterface
+    {
+        public function match(mixed $actual): bool {}
+        public function __toString(): string {}
+    }
+}
+
+namespace Mockery\Adapter\Phpunit {
+    /**
+     * PHPUnit integration trait.
+     *
+     * Use this trait in your test class to integrate Mockery with PHPUnit.
+     * It automatically calls Mockery::close() in tearDown.
+     */
+    trait MockeryPHPUnitIntegration
+    {
+        /**
+         * @return void
+         */
+        protected function tearDown(): void {}
+
+        /**
+         * @return void
+         */
+        protected function assertPostConditions(): void {}
+    }
+
+    /**
+     * Mockery test case base class.
+     *
+     * @deprecated Use MockeryPHPUnitIntegration trait instead
+     */
+    class MockeryTestCase extends \PHPUnit\Framework\TestCase
+    {
+        use MockeryPHPUnitIntegration;
+    }
+}
+
+namespace Mockery\Generator {
+    /**
+     * Mock configuration.
+     */
+    class MockConfiguration
+    {
+        /**
+         * @param array $targetClasses
+         * @param array $targetInterfaces
+         * @param array $instanceMock
+         * @param array $parameterOverrides
+         * @param array $mockOriginalDestructor
+         * @param array $constantsMap
+         */
+        public function __construct(
+            array $targetClasses = [],
+            array $targetInterfaces = [],
+            array $instanceMock = [],
+            array $parameterOverrides = [],
+            array $mockOriginalDestructor = [],
+            array $constantsMap = []
+        ) {}
+
+        /**
+         * @return array
+         */
+        public function getTargetClasses(): array {}
+
+        /**
+         * @return array
+         */
+        public function getTargetInterfaces(): array {}
+    }
+
+    /**
+     * Mock configuration builder.
+     */
+    class MockConfigurationBuilder
+    {
+        /**
+         * @param string $name
+         * @return static
+         */
+        public function setName(string $name): static {}
+
+        /**
+         * @param array $targetClasses
+         * @return static
+         */
+        public function setTargetClasses(array $targetClasses): static {}
+
+        /**
+         * @param array $targetInterfaces
+         * @return static
+         */
+        public function setTargetInterfaces(array $targetInterfaces): static {}
+
+        /**
+         * @param bool $instanceMock
+         * @return static
+         */
+        public function setInstanceMock(bool $instanceMock): static {}
+
+        /**
+         * @return MockConfiguration
+         */
+        public function getMockConfiguration(): MockConfiguration {}
+    }
+}

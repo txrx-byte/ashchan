@@ -1,0 +1,336 @@
+// PHPUnit 10 Stub File for PHPStan
+//
+// This file provides type hints for PHPUnit classes to improve
+// PHPStan's type inference in test files.
+//
+// Usage: Reference in phpstan.neon under stubFiles
+
+namespace PHPUnit\Framework {
+    /**
+     * @template T
+     */
+    interface MockObject
+    {
+        /**
+         * @template U of object
+         * @param class-string<U> $originalClassName
+         * @return U&static
+         */
+        public static function createMock(string $originalClassName): static;
+    }
+
+    /**
+     * @template T of TestCase
+     */
+    class TestCase
+    {
+        /**
+         * @template U
+         * @param U $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertIsArray(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param string $message
+         * @return void
+         */
+        public static function assertIsArrayHasKey(string|int $key, array $array, string $message = ''): void {}
+
+        /**
+         * @param mixed $expected
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertSame(mixed $expected, mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $expected
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertEquals(mixed $expected, mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertTrue(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertFalse(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertNull(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertNotNull(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertIsString(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertIsInt(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertIsBool(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertIsFloat(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertIsNumeric(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertIsObject(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @template T of object
+         * @param class-string<T> $expected
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertInstanceOf(string $expected, mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertEmpty(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertNotEmpty(mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param int $expected
+         * @param \Countable|array $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertCount(int $expected, \Countable|array $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertGreaterThan(int|float $expected, mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertGreaterThanOrEqual(int|float $expected, mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertLessThan(int|float $expected, mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param mixed $actual
+         * @param string $message
+         * @return void
+         */
+        public static function assertLessThanOrEqual(int|float $expected, mixed $actual, string $message = ''): void {}
+
+        /**
+         * @param string $needle
+         * @param string $haystack
+         * @param string $message
+         * @return void
+         */
+        public static function assertStringContainsString(string $needle, string $haystack, string $message = ''): void {}
+
+        /**
+         * @param string $pattern
+         * @param string $string
+         * @param string $message
+         * @return void
+         */
+        public static function assertMatchesRegularExpression(string $pattern, string $string, string $message = ''): void {}
+
+        /**
+         * @template T of \Throwable
+         * @param class-string<T> $exception
+         * @return void
+         */
+        public function expectException(string $exception): void {}
+
+        /**
+         * @param string $message
+         * @return void
+         */
+        public function expectExceptionMessage(string $message): void {}
+
+        /**
+         * @return void
+         */
+        protected function setUp(): void {}
+
+        /**
+         * @return void
+         */
+        protected function tearDown(): void {}
+    }
+
+    /**
+     * @template T
+     */
+    interface MockBuilder
+    {
+        /**
+         * @template U of object
+         * @param class-string<U> $className
+         * @return U&static
+         */
+        public function getMock(): object;
+    }
+}
+
+namespace PHPUnit\Framework\Attributes {
+    /**
+     * Marks a test method.
+     */
+    #[\Attribute(\Attribute::TARGET_METHOD)]
+    class Test
+    {
+        public function __construct() {}
+    }
+
+    /**
+     * Specifies a data provider for a test method.
+     *
+     * @param non-empty-string $methodName
+     */
+    #[\Attribute(\Attribute::TARGET_METHOD)]
+    class DataProvider
+    {
+        public function __construct(string $methodName) {}
+    }
+
+    /**
+     * Specifies the class being tested.
+     *
+     * @template T of object
+     * @param class-string<T> $className
+     */
+    #[\Attribute(\Attribute::TARGET_CLASS)]
+    class CoversClass
+    {
+        /**
+         * @template T of object
+         * @param class-string<T> $className
+         */
+        public function __construct(string $className) {}
+    }
+
+    /**
+     * Specifies a method being tested.
+     *
+     * @param non-empty-string $methodName
+     */
+    #[\Attribute(\Attribute::TARGET_METHOD)]
+    class CoversMethod
+    {
+        public function __construct(string $className, string $methodName) {}
+    }
+
+    /**
+     * Groups tests together.
+     *
+     * @param non-empty-string $groupName
+     */
+    #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_CLASS)]
+    class Group
+    {
+        public function __construct(string $groupName) {}
+    }
+
+    /**
+     * Marks a test as dependent on a feature.
+     *
+     * @param non-empty-string $feature
+     */
+    #[\Attribute(\Attribute::TARGET_METHOD)]
+    class Depends
+    {
+        public function __construct(string $methodName) {}
+    }
+
+    /**
+     * Marks a test that should fail.
+     */
+    #[\Attribute(\Attribute::TARGET_METHOD)]
+    class TestDox
+    {
+        public function __construct(string $text) {}
+    }
+
+    /**
+     * Expected exception attribute.
+     *
+     * @template T of \Throwable
+     * @param class-string<T> $exception
+     */
+    #[\Attribute(\Attribute::TARGET_METHOD)]
+    class ExpectedException
+    {
+        /**
+         * @template T of \Throwable
+         * @param class-string<T> $exception
+         * @param string|null $message
+         * @param int|null $code
+         */
+        public function __construct(string $exception, ?string $message = null, ?int $code = null) {}
+    }
+}
